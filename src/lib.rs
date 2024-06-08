@@ -1,17 +1,21 @@
 pub mod circuit;
 pub mod converters;
 pub mod cryptos;
+pub mod logger;
 pub mod parse_email;
 pub mod regex;
 pub mod statics;
+
 pub use circuit::*;
-pub(crate) use converters::*;
-pub(crate) use cryptos::*;
-pub(crate) use neon::prelude::*;
-pub(crate) use parse_email::*;
+pub use converters::*;
+pub use cryptos::*;
+pub use logger::*;
+pub use parse_email::*;
+pub use regex::*;
+pub use statics::*;
+
+pub use neon::prelude::*;
 pub use poseidon_rs::*;
-pub(crate) use regex::*;
-pub(crate) use statics::*;
 pub use zk_regex_apis::extract_substrs::*;
 pub use zk_regex_apis::padding::*;
 
