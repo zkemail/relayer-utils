@@ -112,20 +112,16 @@ impl ParsedEmail {
     }
 
     pub fn get_invitation_code(&self) -> Result<String> {
-        let regex_config = serde_json::from_str(include_str!(
-            "../../circuits/src/regexes/invitation_code.json"
-        ))
-        .unwrap();
+        let regex_config =
+            serde_json::from_str(include_str!("../regexes/invitation_code.json")).unwrap();
         let idxes = extract_substr_idxes(&self.canonicalized_header, &regex_config)?[0];
         let str = self.canonicalized_header[idxes.0..idxes.1].to_string();
         Ok(str)
     }
 
     pub fn get_invitation_code_idxes(&self) -> Result<(usize, usize)> {
-        let regex_config = serde_json::from_str(include_str!(
-            "../../circuits/src/regexes/invitation_code.json"
-        ))
-        .unwrap();
+        let regex_config =
+            serde_json::from_str(include_str!("../regexes/invitation_code.json")).unwrap();
         let idxes = extract_substr_idxes(&self.canonicalized_header, &regex_config)?[0];
         Ok(idxes)
     }
@@ -194,10 +190,8 @@ pub fn parse_email_node(mut cx: FunctionContext) -> JsResult<JsPromise> {
 
 pub fn extract_invitation_code_idxes_node(mut cx: FunctionContext) -> JsResult<JsArray> {
     let input_str = cx.argument::<JsString>(0)?.value(&mut cx);
-    let regex_config = serde_json::from_str(include_str!(
-        "../../circuits/src/regexes/invitation_code.json"
-    ))
-    .unwrap();
+    let regex_config =
+        serde_json::from_str(include_str!("../regexes/invitation_code.json")).unwrap();
     let substr_idxes = match extract_substr_idxes(&input_str, &regex_config) {
         Ok(substr_idxes) => substr_idxes,
         Err(e) => return cx.throw_error(e.to_string()),
@@ -235,7 +229,7 @@ mod test {
 
     #[tokio::test]
     async fn test_extractions_from_email1() {
-        let raw_email = include_str!("../../circuits/tests/emails/email_sender_test1.eml");
+        let raw_email = include_str!("../tests/emails/email_sender_test1.eml");
         let parsed_email = ParsedEmail::new_from_raw_email(raw_email).await.unwrap();
         let from_addr = parsed_email.get_from_addr().unwrap();
         assert_eq!(from_addr, "suegamisora@gmail.com");
@@ -253,7 +247,7 @@ mod test {
 
     #[tokio::test]
     async fn test_extractions_from_email2() {
-        let raw_email = include_str!("../../circuits/tests/emails/account_creation_test1.eml");
+        let raw_email = include_str!("../tests/emails/account_creation_test1.eml");
         let parsed_email = ParsedEmail::new_from_raw_email(raw_email).await.unwrap();
         let from_addr = parsed_email.get_from_addr().unwrap();
         assert_eq!(from_addr, "suegamisora@gmail.com");
@@ -272,7 +266,7 @@ mod test {
 
     #[tokio::test]
     async fn test_extractions_from_email3() {
-        let raw_email = include_str!("../../circuits/tests/emails/account_init_test2.eml");
+        let raw_email = include_str!("../tests/emails/account_init_test2.eml");
         let parsed_email = ParsedEmail::new_from_raw_email(raw_email).await.unwrap();
         let from_addr = parsed_email.get_from_addr().unwrap();
         assert_eq!(from_addr, "suegamisora@gmail.com");
