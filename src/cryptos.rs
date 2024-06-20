@@ -1,4 +1,4 @@
-use std::{convert::TryInto, error::Error, fmt};
+use std::error::Error;
 
 use crate::converters::*;
 
@@ -7,10 +7,6 @@ use halo2curves::ff::Field;
 use neon::prelude::*;
 use poseidon_rs::*;
 use rand_core::{OsRng, RngCore};
-use serde::{
-    de::{self, Visitor},
-    Deserialize, Deserializer, Serialize, Serializer,
-};
 use sha2::{Digest, Sha256};
 pub use zk_regex_apis::padding::pad_string;
 
@@ -83,68 +79,6 @@ pub fn extract_rand_from_signature(signature: &[u8]) -> Result<Fr, PoseidonError
 
 #[derive(Debug, Clone, Copy)]
 pub struct AccountKey(pub Fr);
-
-impl Serialize for AccountKey {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        // Convert Fr to a byte array and serialize it
-        let bytes: [u8; 32] = self.0.into();
-        serializer.serialize_bytes(&bytes)
-    }
-}
-
-impl<'de> Deserialize<'de> for AccountKey {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct AccountKeyVisitor;
-
-        impl<'de> Visitor<'de> for AccountKeyVisitor {
-            type Value = AccountKey;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("a 32-byte array")
-            }
-
-            fn visit_bytes<E>(self, value: &[u8]) -> Result<AccountKey, E>
-            where
-                E: de::Error,
-            {
-                if value.len() == 32 {
-                    match Fr::from_bytes(&value.try_into().unwrap()).into() {
-                        Some(fr) => Ok(AccountKey(fr)),
-                        None => Err(de::Error::custom("Invalid bytes for Fr")),
-                    }
-                } else {
-                    Err(de::Error::invalid_length(value.len(), &self))
-                }
-            }
-        }
-
-        deserializer.deserialize_bytes(AccountKeyVisitor)
-    }
-}
-
-// Define a new type wrapping Fr
-pub struct MyFr(Fr);
-
-// Implement conversion from MyFr to [u8; 32]
-impl From<MyFr> for [u8; 32] {
-    fn from(my_fr: MyFr) -> [u8; 32] {
-        my_fr.0.to_bytes() // Assuming `to_bytes()` is the method provided
-    }
-}
-
-// Implement conversion from [u8; 32] to MyFr
-impl From<[u8; 32]> for MyFr {
-    fn from(bytes: [u8; 32]) -> MyFr {
-        // Use the `from_bytes` method to create an `Fr` instance from the byte array
-        MyFr(Fr::from_bytes(&bytes).expect("Invalid bytes"))
-    }
-}
 
 impl AccountKey {
     pub fn new<R: RngCore>(rng: R) -> Self {
