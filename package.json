@@ -1,6 +1,6 @@
 {
   "name": "@zk-email/relayer-utils",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "",
   "main": "index.node",
   "contributors": [
@@ -11,7 +11,6 @@
     "build": "cargo-cp-artifact -nc index.node -- cargo build --message-format=json-render-diagnostics",
     "build-debug": "npm run build --",
     "build-release": "npm run build -- --release",
-    "install": "npm run build-release",
     "test": "cargo test",
     "package": "node-pre-gyp package",
     "upload-binary": "npm run package && node-pre-gyp-github publish"
