@@ -1,21 +1,25 @@
 {
-  "name": "relayer-utils",
+  "name": "@zk-email/relayer-utils",
   "version": "0.1.0",
   "description": "",
   "main": "index.node",
+  "contributors": [
+    "Sora Suegami <suegamisora@gmail.com>",
+    "Aditya Bisht <adityabisht64@gmail.com>"
+  ],
   "scripts": {
     "build": "cargo-cp-artifact -nc index.node -- cargo build --message-format=json-render-diagnostics",
     "build-debug": "npm run build --",
     "build-release": "npm run build -- --release",
     "install": "npm run build-release",
-    "test": "cargo test"
+    "test": "cargo test",
+    "package": "node-pre-gyp package",
+    "upload-binary": "npm run package && node-pre-gyp-github publish"
   },
-  "author": [
-    "Sora Suegami",
-    "Aditya Bisht"
-  ],
   "license": "MIT",
-  "devDependencies": {
-    "cargo-cp-artifact": "^0.1"
+  "dependencies": {
+    "@mapbox/node-pre-gyp": "^1.0",
+    "cargo-cp-artifact": "^0.1",
+    "node-pre-gyp-github": "https://github.com/ultamatt/node-pre-gyp-github.git"
   }
 }

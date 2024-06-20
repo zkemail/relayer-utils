@@ -1,0 +1,6 @@
+# Exclude all files by default
+*
+
+# But include the following files and directories
+!index.node
+!README.md
