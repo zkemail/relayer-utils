@@ -2,6 +2,7 @@ use std::{convert::TryInto, error::Error, fmt};
 
 use crate::converters::*;
 
+use ethers::types::Bytes;
 use halo2curves::ff::Field;
 use neon::prelude::*;
 use poseidon_rs::*;
@@ -164,16 +165,6 @@ impl AccountKey {
         inputs.push(*relayer_rand_hash);
         poseidon_fields(&inputs)
     }
-
-    // pub fn to_wallet_salt(&self, account_key: AccountKey) -> Result<WalletSalt, PoseidonError> {
-    //     let field = poseidon_fields(&[self.0, Fr::zero()])?;
-    //     Ok(WalletSalt(field))
-    // }
-
-    // pub fn to_ext_account_salt(&self) -> Result<ExtAccountSalt, PoseidonError> {
-    //     let field = poseidon_fields(&[self.0.clone(), Fr::one()])?;
-    //     Ok(ExtAccountSalt(field))
-    // }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -486,6 +477,10 @@ pub fn generate_partial_sha(
 
     let precomputed_sha = partial_sha(precompute_text, sha_cutoff_index);
     Ok((precomputed_sha, body_remaining, body_remaining_length))
+}
+
+pub fn keccak256(data: &[u8]) -> Bytes {
+    Bytes::from(ethers::utils::keccak256(data))
 }
 
 pub fn account_key_commit_node(mut cx: FunctionContext) -> JsResult<JsString> {

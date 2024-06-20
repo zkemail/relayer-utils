@@ -68,7 +68,12 @@ pub fn bytes2fields(bytes: &[u8]) -> Vec<Fr> {
         .collect_vec()
 }
 
-pub fn bytes_chunk_fields(bytes: &[u8], chunk_bit_size: usize, num_chunk_in_field: usize, max_chunk_size: usize) -> Vec<Fr> {
+pub fn bytes_chunk_fields(
+    bytes: &[u8],
+    chunk_bit_size: usize,
+    num_chunk_in_field: usize,
+    max_chunk_size: usize,
+) -> Vec<Fr> {
     let max_bytes_size = max_chunk_size * chunk_bit_size / 8;
     let mut bytes = bytes.to_vec();
     if bytes.len() < max_bytes_size {
@@ -213,4 +218,20 @@ pub fn fr_to_bytes32(fr: &Fr) -> Result<[u8; 32], hex::FromHexError> {
 pub fn bytes32_to_fr(bytes32: &[u8; 32]) -> Result<Fr, hex::FromHexError> {
     let hex: String = "0x".to_string() + &hex::encode(bytes32);
     hex2field(&hex).map_err(|_e| hex::FromHexError::InvalidStringLength)
+}
+
+pub fn u64_to_u8_array_32(value: u64) -> [u8; 32] {
+    let mut array = [0u8; 32];
+    array[..8].copy_from_slice(&value.to_be_bytes());
+    array
+}
+
+pub fn bytes32_to_hex(bytes: &[u8; 32]) -> String {
+    "0x".to_string() + &hex::encode(bytes)
+}
+
+pub fn u256_to_bytes32_little(x: &U256) -> [u8; 32] {
+    let mut bytes = [0u8; 32];
+    x.to_little_endian(&mut bytes);
+    bytes
 }
