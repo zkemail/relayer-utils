@@ -70,5 +70,6 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     // cx.export_function("extAccountSalt", ext_account_salt_node)?;
     cx.export_function("publicKeyHash", public_key_hash_node)?;
     cx.export_function("emailNullifier", email_nullifier_node)?;
+    cx.export_function("accountSalt", account_salt_node)?;
     Ok(())
 }

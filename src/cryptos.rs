@@ -451,18 +451,19 @@ pub fn gen_account_code_node(mut cx: FunctionContext) -> JsResult<JsString> {
     Ok(cx.string(account_code_str))
 }
 
-// pub fn email_addr_pointer_node(mut cx: FunctionContext) -> JsResult<JsString> {
-//     let email_addr = cx.argument::<JsString>(0)?.value(&mut cx);
-//     let relayer_rand = cx.argument::<JsString>(1)?.value(&mut cx);
-//     let relayer_rand = hex2field_node(&mut cx, &relayer_rand)?;
-//     let padded_email_addr = PaddedEmailAddr::from_email_addr(&email_addr);
-//     let email_addr_pointer = match padded_email_addr.to_pointer(&RelayerRand(relayer_rand)) {
-//         Ok(fr) => fr,
-//         Err(e) => return cx.throw_error(&format!("EmailAddrPointer failed: {}", e)),
-//     };
-//     let email_addr_pointer_str = field2hex(&email_addr_pointer);
-//     Ok(cx.string(email_addr_pointer_str))
-// }
+pub fn account_salt_node(mut cx: FunctionContext) -> JsResult<JsString> {
+    let email_addr = cx.argument::<JsString>(0)?.value(&mut cx);
+    let padded_email_addr = PaddedEmailAddr::from_email_addr(&email_addr);
+    let account_code_str = cx.argument::<JsString>(1)?.value(&mut cx);
+    let account_code = hex2field_node(&mut cx, &account_code_str)?;
+    let account_salt = match WalletSalt::new(&padded_email_addr, AccountKey(account_code)) {
+        Ok(account_salt) => account_salt,
+        Err(e) => return cx.throw_error(&format!("WalletSalt failed: {}", e)),
+    };
+    let account_salt_str = field2hex(&account_salt.0);
+    Ok(cx.string(account_salt_str))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
