@@ -47,6 +47,10 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
         "extractInvitationCodeIdxes",
         extract_invitation_code_idxes_node,
     )?;
+    cx.export_function(
+        "extractInvitationCodeWithPrefixIdxes",
+        extract_invitation_code_with_prefix_idxes_node,
+    )?;
     cx.export_function("genRelayerRand", gen_relayer_rand_node)?;
     cx.export_function("relayerRandHash", relayer_rand_hash_node)?;
     cx.export_function("padEmailAddr", pad_email_addr_node)?;
@@ -57,6 +61,8 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
         "emailAddrCommitWithSignature",
         email_addr_commit_with_signature_node,
     )?;
+    cx.export_function("genAccountCode", gen_account_code_node)?;
+    cx.export_function("genEmailAuthInput", generate_email_auth_input_node)?;
     cx.export_function("extractRandFromSignature", extract_rand_from_signature_node)?;
     cx.export_function("genAccountKey", gen_account_key_node)?;
     cx.export_function("accountKeyCommit", account_key_commit_node)?;

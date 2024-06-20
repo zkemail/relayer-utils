@@ -444,6 +444,13 @@ pub fn relayer_rand_hash_node(mut cx: FunctionContext) -> JsResult<JsString> {
     Ok(cx.string(relayer_rand_hash_str))
 }
 
+pub fn gen_account_code_node(mut cx: FunctionContext) -> JsResult<JsString> {
+    let mut rng = OsRng;
+    let account_code = AccountKey::new(&mut rng);
+    let account_code_str = field2hex(&account_code.0);
+    Ok(cx.string(account_code_str))
+}
+
 // pub fn email_addr_pointer_node(mut cx: FunctionContext) -> JsResult<JsString> {
 //     let email_addr = cx.argument::<JsString>(0)?.value(&mut cx);
 //     let relayer_rand = cx.argument::<JsString>(1)?.value(&mut cx);

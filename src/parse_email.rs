@@ -1,3 +1,5 @@
+use std::convert::TryInto;
+
 use itertools::Itertools;
 
 // use cfdkim::*;
@@ -221,4 +223,26 @@ pub fn extract_timestamp_int_node(mut cx: FunctionContext) -> JsResult<JsNumber>
     };
     let timestamp_int = cx.number(timestamp_int as f64);
     Ok(timestamp_int)
+}
+
+pub fn extract_invitation_code_with_prefix_idxes_node(
+    mut cx: FunctionContext,
+) -> JsResult<JsArray> {
+    let input_str = cx.argument::<JsString>(0)?.value(&mut cx);
+    let regex_config =
+        serde_json::from_str(include_str!("../regexes/invitation_code_with_prefix.json")).unwrap();
+    let substr_idxes = match extract_substr_idxes(&input_str, &regex_config) {
+        Ok(substr_idxes) => substr_idxes,
+        Err(e) => return cx.throw_error(e.to_string()),
+    };
+    let js_array = JsArray::new(&mut cx, substr_idxes.len().try_into().unwrap());
+    for (i, (start_idx, end_idx)) in substr_idxes.iter().enumerate() {
+        let start_end_array = JsArray::new(&mut cx, 2u32);
+        let start_idx = cx.number(*start_idx as f64);
+        start_end_array.set(&mut cx, 0, start_idx)?;
+        let end_idx = cx.number(*end_idx as f64);
+        start_end_array.set(&mut cx, 1, end_idx)?;
+        js_array.set(&mut cx, i as u32, start_end_array)?;
+    }
+    Ok(js_array)
 }
