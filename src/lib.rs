@@ -54,7 +54,6 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("genRelayerRand", gen_relayer_rand_node)?;
     cx.export_function("relayerRandHash", relayer_rand_hash_node)?;
     cx.export_function("padEmailAddr", pad_email_addr_node)?;
-    // cx.export_function("emailAddrPointer", email_addr_pointer_node)?;
     cx.export_function("emailAddrCommitRand", email_addr_commit_rand_node)?;
     cx.export_function("emailAddrCommit", email_addr_commit_node)?;
     cx.export_function(
@@ -64,12 +63,9 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("genAccountCode", gen_account_code_node)?;
     cx.export_function("genEmailAuthInput", generate_email_auth_input_node)?;
     cx.export_function("extractRandFromSignature", extract_rand_from_signature_node)?;
-    cx.export_function("genAccountCode", gen_account_code_node)?;
     cx.export_function("accountCodeCommit", account_code_commit_node)?;
     cx.export_function("accountSalt", account_salt_node)?;
-    // cx.export_function("extAccountSalt", ext_account_salt_node)?;
     cx.export_function("publicKeyHash", public_key_hash_node)?;
     cx.export_function("emailNullifier", email_nullifier_node)?;
-    cx.export_function("accountSalt", account_salt_node)?;
     Ok(())
 }
