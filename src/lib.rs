@@ -64,9 +64,9 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("genAccountCode", gen_account_code_node)?;
     cx.export_function("genEmailAuthInput", generate_email_auth_input_node)?;
     cx.export_function("extractRandFromSignature", extract_rand_from_signature_node)?;
-    cx.export_function("genAccountKey", gen_account_key_node)?;
-    cx.export_function("accountKeyCommit", account_key_commit_node)?;
-    cx.export_function("walletSalt", wallet_salt_node)?;
+    cx.export_function("genAccountCode", gen_account_code_node)?;
+    cx.export_function("accountCodeCommit", account_code_commit_node)?;
+    cx.export_function("accountSalt", account_salt_node)?;
     // cx.export_function("extAccountSalt", ext_account_salt_node)?;
     cx.export_function("publicKeyHash", public_key_hash_node)?;
     cx.export_function("emailNullifier", email_nullifier_node)?;

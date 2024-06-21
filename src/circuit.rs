@@ -18,7 +18,7 @@ struct EmailSenderInput {
     pubkey: Vec<String>,
     signature: Vec<String>,
     in_padded_len: String,
-    sender_account_key: String,
+    sender_account_code: String,
     sender_email_idx: usize,
     subject_idx: usize,
     recipient_email_idx: usize,
@@ -43,7 +43,7 @@ struct AccountCreationInput {
 struct ClaimInput {
     email_addr: Vec<u8>,
     cm_rand: String,
-    account_key: String,
+    account_code: String,
 }
 
 pub struct CircuitInput {
@@ -156,7 +156,7 @@ pub fn generate_circuit_inputs(params: CircuitInputParams) -> CircuitInput {
     circuit_input
 }
 
-pub async fn generate_email_sender_input(email: &str, account_key: &str) -> Result<String> {
+pub async fn generate_email_sender_input(email: &str, account_code: &str) -> Result<String> {
     let parsed_email = ParsedEmail::new_from_raw_email(&email).await?;
     let circuit_input_params = circuit::CircuitInputParams::new(
         vec![],
@@ -187,7 +187,7 @@ pub async fn generate_email_sender_input(email: &str, account_key: &str) -> Resu
         pubkey: email_circuit_inputs.pubkey,
         signature: email_circuit_inputs.signature,
         in_padded_len: email_circuit_inputs.in_len_padded_bytes,
-        sender_account_key: account_key.to_string(),
+        sender_account_code: account_code.to_string(),
         sender_email_idx: sender_email_idx.0,
         subject_idx: subject_idx.0,
         recipient_email_idx: recipient_email_idx,
@@ -237,7 +237,7 @@ pub async fn generate_account_creation_input(email: &str, relayer_rand: &str) ->
 pub async fn generate_claim_input(
     email_address: &str,
     email_address_rand: &str,
-    account_key: &str,
+    account_code: &str,
 ) -> Result<String> {
     let padded_email_address = PaddedEmailAddr::from_email_addr(email_address);
     let mut padded_email_addr_bytes = vec![];
@@ -249,7 +249,7 @@ pub async fn generate_claim_input(
     let claim_input = ClaimInput {
         email_addr: padded_email_addr_bytes,
         cm_rand: email_address_rand.to_string(),
-        account_key: account_key.to_string(),
+        account_code: account_code.to_string(),
     };
 
     Ok(serde_json::to_string(&claim_input)?)
@@ -279,14 +279,14 @@ pub fn generate_account_creation_input_node(mut cx: FunctionContext) -> JsResult
 
 pub fn generate_email_sender_input_node(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let email = cx.argument::<JsString>(0)?.value(&mut cx);
-    let account_key = cx.argument::<JsString>(1)?.value(&mut cx);
+    let account_code = cx.argument::<JsString>(1)?.value(&mut cx);
 
     let channel = cx.channel();
     let (deferred, promise) = cx.promise();
     let rt = runtime(&mut cx)?;
 
     rt.spawn(async move {
-        let email_sender_input = generate_email_sender_input(&email, &account_key).await;
+        let email_sender_input = generate_email_sender_input(&email, &account_code).await;
         deferred.settle_with(&channel, move |mut cx| match email_sender_input {
             Ok(email_sender_input) => {
                 let email_sender_input = cx.string(email_sender_input);
@@ -299,7 +299,7 @@ pub fn generate_email_sender_input_node(mut cx: FunctionContext) -> JsResult<JsP
     Ok(promise)
 }
 
-pub async fn generate_email_auth_input(email: &str, account_code: &AccountKey) -> Result<String> {
+pub async fn generate_email_auth_input(email: &str, account_code: &AccountCode) -> Result<String> {
     let parsed_email = ParsedEmail::new_from_raw_email(&email).await?;
     let circuit_input_params = circuit::CircuitInputParams::new(
         vec![],
@@ -342,7 +342,7 @@ pub async fn generate_email_auth_input(email: &str, account_code: &AccountKey) -
 pub fn generate_email_auth_input_node(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let email = cx.argument::<JsString>(0)?.value(&mut cx);
     let account_code = cx.argument::<JsString>(1)?.value(&mut cx);
-    let account_code = AccountKey::from(hex2field_node(&mut cx, &account_code)?);
+    let account_code = AccountCode::from(hex2field_node(&mut cx, &account_code)?);
     let channel = cx.channel();
     let (deferred, promise) = cx.promise();
     let rt = runtime(&mut cx)?;

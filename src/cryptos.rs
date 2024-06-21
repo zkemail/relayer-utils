@@ -78,9 +78,9 @@ pub fn extract_rand_from_signature(signature: &[u8]) -> Result<Fr, PoseidonError
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct AccountKey(pub Fr);
+pub struct AccountCode(pub Fr);
 
-impl AccountKey {
+impl AccountCode {
     pub fn new<R: RngCore>(rng: R) -> Self {
         Self(Fr::random(rng))
     }
@@ -102,17 +102,17 @@ impl AccountKey {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct WalletSalt(pub Fr);
+pub struct AccountSalt(pub Fr);
 
-impl WalletSalt {
+impl AccountSalt {
     pub fn new(
         email_addr: &PaddedEmailAddr,
-        account_key: AccountKey,
+        account_code: AccountCode,
     ) -> Result<Self, PoseidonError> {
         let mut inputs = email_addr.to_email_addr_fields();
-        inputs.push(account_key.0);
+        inputs.push(account_code.0);
         inputs.push(Fr::zero());
-        Ok(WalletSalt(poseidon_fields(&inputs)?))
+        Ok(AccountSalt(poseidon_fields(&inputs)?))
     }
 }
 
@@ -239,52 +239,12 @@ pub fn extract_rand_from_signature_node(mut cx: FunctionContext) -> JsResult<JsS
     Ok(cx.string(rand_str))
 }
 
-pub fn gen_account_key_node(mut cx: FunctionContext) -> JsResult<JsString> {
+pub fn gen_account_code_node(mut cx: FunctionContext) -> JsResult<JsString> {
     let mut rng = OsRng;
-    let account_key = AccountKey::new(&mut rng);
-    let account_key_str = field2hex(&account_key.0);
-    Ok(cx.string(account_key_str))
+    let account_code = AccountCode::new(&mut rng);
+    let account_code_str = field2hex(&account_code.0);
+    Ok(cx.string(account_code_str))
 }
-
-// pub fn account_key_commit_node(mut cx: FunctionContext) -> JsResult<JsString> {
-//     let account_key = cx.argument::<JsString>(0)?.value(&mut cx);
-//     let email_addr = cx.argument::<JsString>(1)?.value(&mut cx);
-//     let relayer_rand_hash = cx.argument::<JsString>(2)?.value(&mut cx);
-//     let account_key = hex2field_node(&mut cx, &account_key)?;
-//     let padded_email_addr = PaddedEmailAddr::from_email_addr(&email_addr);
-//     let relayer_rand_hash = hex2field_node(&mut cx, &relayer_rand_hash)?;
-//     let account_key_commit =
-//         match AccountKey(account_key).to_commitment(&padded_email_addr, &relayer_rand_hash) {
-//             Ok(fr) => fr,
-//             Err(e) => return cx.throw_error(&format!("AccountKeyCommit failed: {}", e)),
-//         };
-//     let account_key_commit_str = field2hex(&account_key_commit);
-//     Ok(cx.string(account_key_commit_str))
-// }
-
-pub fn wallet_salt_node(mut cx: FunctionContext) -> JsResult<JsString> {
-    let email_addr = cx.argument::<JsString>(0)?.value(&mut cx);
-    let padded_email_addr = PaddedEmailAddr::from_email_addr(&email_addr);
-    let account_key = cx.argument::<JsString>(1)?.value(&mut cx);
-    let account_key = hex2field_node(&mut cx, &account_key)?;
-    let wallet_salt = match WalletSalt::new(&padded_email_addr, AccountKey(account_key)) {
-        Ok(wallet_salt) => wallet_salt,
-        Err(e) => return cx.throw_error(&format!("WalletSalt failed: {}", e)),
-    };
-    let wallet_salt_str = field2hex(&wallet_salt.0);
-    Ok(cx.string(wallet_salt_str))
-}
-
-// pub fn ext_account_salt_node(mut cx: FunctionContext) -> JsResult<JsString> {
-//     let viewing_key = cx.argument::<JsString>(0)?.value(&mut cx);
-//     let viewing_key = str2field_node(&mut cx, &viewing_key)?;
-//     let ext_account_salt = match ViewingKey(viewing_key).to_ext_account_salt() {
-//         Ok(ext_account_salt) => ext_account_salt,
-//         Err(e) => return cx.throw_error(&format!("ExtAccountSalt failed: {}", e)),
-//     };
-//     let ext_account_salt_str = field2str(&ext_account_salt.0);
-//     Ok(cx.string(ext_account_salt_str))
-// }
 
 pub fn public_key_hash_node(mut cx: FunctionContext) -> JsResult<JsString> {
     let public_key_n = cx.argument::<JsString>(0)?.value(&mut cx);
@@ -417,20 +377,20 @@ pub fn keccak256(data: &[u8]) -> Bytes {
     Bytes::from(ethers::utils::keccak256(data))
 }
 
-pub fn account_key_commit_node(mut cx: FunctionContext) -> JsResult<JsString> {
-    let account_key = cx.argument::<JsString>(0)?.value(&mut cx);
+pub fn account_code_commit_node(mut cx: FunctionContext) -> JsResult<JsString> {
+    let account_code = cx.argument::<JsString>(0)?.value(&mut cx);
     let email_addr = cx.argument::<JsString>(1)?.value(&mut cx);
     let relayer_rand_hash = cx.argument::<JsString>(2)?.value(&mut cx);
-    let account_key = hex2field_node(&mut cx, &account_key)?;
+    let account_code = hex2field_node(&mut cx, &account_code)?;
     let padded_email_addr = PaddedEmailAddr::from_email_addr(&email_addr);
     let relayer_rand_hash = hex2field_node(&mut cx, &relayer_rand_hash)?;
-    let account_key_commit =
-        match AccountKey(account_key).to_commitment(&padded_email_addr, &relayer_rand_hash) {
+    let account_code_commit =
+        match AccountCode(account_code).to_commitment(&padded_email_addr, &relayer_rand_hash) {
             Ok(fr) => fr,
-            Err(e) => return cx.throw_error(&format!("AccountKeyCommit failed: {}", e)),
+            Err(e) => return cx.throw_error(&format!("AccountCodeCommit failed: {}", e)),
         };
-    let account_key_commit_str = field2hex(&account_key_commit);
-    Ok(cx.string(account_key_commit_str))
+    let account_code_commit_str = field2hex(&account_code_commit);
+    Ok(cx.string(account_code_commit_str))
 }
 
 pub fn relayer_rand_hash_node(mut cx: FunctionContext) -> JsResult<JsString> {
@@ -444,21 +404,14 @@ pub fn relayer_rand_hash_node(mut cx: FunctionContext) -> JsResult<JsString> {
     Ok(cx.string(relayer_rand_hash_str))
 }
 
-pub fn gen_account_code_node(mut cx: FunctionContext) -> JsResult<JsString> {
-    let mut rng = OsRng;
-    let account_code = AccountKey::new(&mut rng);
-    let account_code_str = field2hex(&account_code.0);
-    Ok(cx.string(account_code_str))
-}
-
 pub fn account_salt_node(mut cx: FunctionContext) -> JsResult<JsString> {
     let email_addr = cx.argument::<JsString>(0)?.value(&mut cx);
     let padded_email_addr = PaddedEmailAddr::from_email_addr(&email_addr);
     let account_code_str = cx.argument::<JsString>(1)?.value(&mut cx);
     let account_code = hex2field_node(&mut cx, &account_code_str)?;
-    let account_salt = match WalletSalt::new(&padded_email_addr, AccountKey(account_code)) {
+    let account_salt = match AccountSalt::new(&padded_email_addr, AccountCode(account_code)) {
         Ok(account_salt) => account_salt,
-        Err(e) => return cx.throw_error(&format!("WalletSalt failed: {}", e)),
+        Err(e) => return cx.throw_error(&format!("AccountSalt failed: {}", e)),
     };
     let account_salt_str = field2hex(&account_salt.0);
     Ok(cx.string(account_salt_str))
