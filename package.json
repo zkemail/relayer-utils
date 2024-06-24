@@ -1,6 +1,6 @@
 {
   "name": "@zk-email/relayer-utils",
-  "version": "0.1.9",
+  "version": "0.2.3",
   "description": "",
   "main": "index.js",
   "contributors": [
