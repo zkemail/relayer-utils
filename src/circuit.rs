@@ -14,29 +14,17 @@ pub const CIRCOM_BIGINT_K: usize = 17;
 
 #[derive(Serialize, Deserialize)]
 struct EmailSenderInput {
-    in_padded: Vec<String>,
-    pubkey: Vec<String>,
+    padded_header: Vec<String>,
+    public_key: Vec<String>,
     signature: Vec<String>,
-    in_padded_len: String,
+    padded_header_len: String,
     sender_account_code: String,
-    sender_email_idx: usize,
+    from_addr_idx: usize,
     subject_idx: usize,
-    recipient_email_idx: usize,
     domain_idx: usize,
     timestamp_idx: usize,
-}
-
-#[derive(Serialize, Deserialize)]
-struct AccountCreationInput {
-    in_padded: Vec<String>,
-    pubkey: Vec<String>,
-    signature: Vec<String>,
-    in_padded_len: String,
-    relayer_rand: String,
-    sender_email_idx: usize,
     code_idx: usize,
-    domain_idx: usize,
-    timestamp_idx: usize,
+    recipient_email_idx: usize,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -44,6 +32,13 @@ struct ClaimInput {
     email_addr: Vec<u8>,
     cm_rand: String,
     account_code: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct PsiPointsInput {
+    email_addr: Vec<u8>,
+    account_code: String,
+    relayer_rand: String,
 }
 
 pub struct CircuitInput {
@@ -176,62 +171,29 @@ pub async fn generate_email_sender_input(email: &str, account_code: &str) -> Res
     let subject_idx = parsed_email.get_subject_all_idxes().unwrap();
     let recipient_email_idx = match parsed_email.get_email_addr_in_subject_idxes() {
         Ok(idx) => idx.0,
-        Err(_) => {
-            0 // Assuming 0 is a safe default or placeholder value
-        }
+        Err(_) => 0,
     };
     let timestamp_idx = parsed_email.get_timestamp_idxes().unwrap();
+    let code_idx = match parsed_email.get_invitation_code_idxes() {
+        Ok(indexes) => indexes.0,
+        Err(_) => 0,
+    };
 
     let email_sender_input = EmailSenderInput {
-        in_padded: email_circuit_inputs.in_padded,
-        pubkey: email_circuit_inputs.pubkey,
+        padded_header: email_circuit_inputs.in_padded,
+        public_key: email_circuit_inputs.pubkey,
         signature: email_circuit_inputs.signature,
-        in_padded_len: email_circuit_inputs.in_len_padded_bytes,
+        padded_header_len: email_circuit_inputs.in_len_padded_bytes,
         sender_account_code: account_code.to_string(),
-        sender_email_idx: sender_email_idx.0,
+        from_addr_idx: sender_email_idx.0,
         subject_idx: subject_idx.0,
-        recipient_email_idx: recipient_email_idx,
         domain_idx: domain_idx.0,
         timestamp_idx: timestamp_idx.0,
+        code_idx,
+        recipient_email_idx: recipient_email_idx,
     };
 
     Ok(serde_json::to_string(&email_sender_input)?)
-}
-
-pub async fn generate_account_creation_input(email: &str, relayer_rand: &str) -> Result<String> {
-    let parsed_email = ParsedEmail::new_from_raw_email(&email).await?;
-    let circuit_input_params = circuit::CircuitInputParams::new(
-        vec![],
-        parsed_email.canonicalized_header.as_bytes().to_vec(),
-        "".to_string(),
-        vec_u8_to_bigint(parsed_email.clone().signature),
-        vec_u8_to_bigint(parsed_email.clone().public_key),
-        None,
-        Some(1024),
-        Some(64),
-        Some(true),
-    );
-    let email_circuit_inputs = circuit::generate_circuit_inputs(circuit_input_params);
-
-    let sender_email_idx = parsed_email.get_from_addr_idxes().unwrap();
-    let domain_idx = parsed_email.get_email_domain_idxes().unwrap();
-    // let subject_idx = parsed_email.get_subject_all_idxes().unwrap();
-    let code_idx = parsed_email.get_invitation_code_idxes().unwrap();
-    let timestamp_idx = parsed_email.get_timestamp_idxes().unwrap();
-
-    let account_creation_input = AccountCreationInput {
-        in_padded: email_circuit_inputs.in_padded,
-        pubkey: email_circuit_inputs.pubkey,
-        signature: email_circuit_inputs.signature,
-        in_padded_len: email_circuit_inputs.in_len_padded_bytes,
-        relayer_rand: relayer_rand.to_string(),
-        sender_email_idx: sender_email_idx.0,
-        code_idx: code_idx.0,
-        domain_idx: domain_idx.0,
-        timestamp_idx: timestamp_idx.0,
-    };
-
-    Ok(serde_json::to_string(&account_creation_input)?)
 }
 
 pub async fn generate_claim_input(
@@ -255,26 +217,25 @@ pub async fn generate_claim_input(
     Ok(serde_json::to_string(&claim_input)?)
 }
 
-pub fn generate_account_creation_input_node(mut cx: FunctionContext) -> JsResult<JsPromise> {
-    let email = cx.argument::<JsString>(0)?.value(&mut cx);
-    let relayer_rand = cx.argument::<JsString>(1)?.value(&mut cx);
+pub async fn generate_psi_points_input(
+    email_address: &str,
+    account_code: &str,
+    relayer_rand: &str,
+) -> Result<String> {
+    let padded_email_address = PaddedEmailAddr::from_email_addr(email_address);
+    let mut padded_email_addr_bytes = vec![];
 
-    let channel = cx.channel();
-    let (deferred, promise) = cx.promise();
-    let rt = runtime(&mut cx)?;
+    for byte in padded_email_address.padded_bytes.into_iter() {
+        padded_email_addr_bytes.push(byte);
+    }
 
-    rt.spawn(async move {
-        let account_creation_input = generate_account_creation_input(&email, &relayer_rand).await;
-        deferred.settle_with(&channel, move |mut cx| match account_creation_input {
-            Ok(account_creation_input) => {
-                let account_creation_input = cx.string(account_creation_input);
-                Ok(account_creation_input)
-            }
-            Err(err) => cx.throw_error(format!("Could not generate email sender input: {}", err)),
-        });
-    });
+    let psi_points_input = PsiPointsInput {
+        email_addr: padded_email_addr_bytes,
+        account_code: account_code.to_string(),
+        relayer_rand: relayer_rand.to_string(),
+    };
 
-    Ok(promise)
+    Ok(serde_json::to_string(&psi_points_input)?)
 }
 
 pub fn generate_email_sender_input_node(mut cx: FunctionContext) -> JsResult<JsPromise> {

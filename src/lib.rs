@@ -21,10 +21,6 @@ pub use zk_regex_apis::padding::*;
 
 #[neon::main]
 fn main(mut cx: ModuleContext) -> NeonResult<()> {
-    cx.export_function(
-        "genAccountCreationInput",
-        generate_account_creation_input_node,
-    )?;
     cx.export_function("genEmailSenderInput", generate_email_sender_input_node)?;
     cx.export_function("parseEmail", parse_email_node)?;
     cx.export_function("padString", pad_string_node)?;
