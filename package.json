@@ -2,14 +2,9 @@
   "name": "@zk-email/relayer-utils",
   "version": "0.2.5",
   "description": "",
-  "main": "index.js",
   "contributors": [
     "Sora Suegami <suegamisora@gmail.com>",
     "Aditya Bisht <adityabisht64@gmail.com>"
-  ],
-  "files": [
-    "bin/*",
-    "index.js"
   ],
   "scripts": {
     "build": "cargo-cp-artifact -nc index.node -- cargo build --message-format=json-render-diagnostics",
