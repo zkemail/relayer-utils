@@ -1483,29 +1483,8 @@ dependencies = [
 
 [[package]]
 name = "halo2curves"
-version = "0.4.0"
-source = "git+https://github.com/privacy-scaling-explorations/halo2curves.git?rev=81a078254518a7a4b7c69fab120621deaace9389#81a078254518a7a4b7c69fab120621deaace9389"
-dependencies = [
- "blake2b_simd",
- "ff",
- "group",
- "lazy_static",
- "maybe-rayon",
- "num-bigint",
- "num-traits",
- "pairing",
- "pasta_curves",
- "paste",
- "rand",
- "rand_core",
- "static_assertions",
- "subtle",
-]
-
-[[package]]
-name = "halo2curves"
-version = "0.6.1"
-source = "git+https://github.com/privacy-scaling-explorations/halo2curves.git#d34e9e46f7daacd194739455de3b356ca6c03206"
+version = "0.7.0"
+source = "git+https://github.com/privacy-scaling-explorations/halo2curves.git#b753a832e92d5c86c5c997327a9cf9de86a18851"
 dependencies = [
  "blake2",
  "digest",
@@ -2053,16 +2032,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2532096657941c2fea9c289d370a250971c689d4f143798ff67113ec042024a5"
 
 [[package]]
-name = "maybe-rayon"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ea1f30cedd69f0a2954655f7188c6a834246d2bcf1e315e2ac40c4b24dc9519"
-dependencies = [
- "cfg-if",
- "rayon",
-]
-
-[[package]]
 name = "md-5"
 version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2582,11 +2551,11 @@ checksum = "d231b230927b5e4ad203db57bbcbee2802f6bce620b1e4a9024a07d94e2907ec"
 
 [[package]]
 name = "poseidon-rs"
-version = "0.0.10"
-source = "git+https://github.com/SoraSuegami/poseidon-rs.git?branch=master#15aa98d045e531806e39e48ba5a0b999f5de5d8d"
+version = "1.0.0"
+source = "git+https://github.com/zkemail/poseidon-rs.git#fe5ce2634c27326219d4faf75beb73b40a0beb7d"
 dependencies = [
  "getrandom",
- "halo2curves 0.6.1",
+ "halo2curves",
  "once_cell",
  "serde",
  "thiserror",
@@ -2819,7 +2788,7 @@ dependencies = [
  "ethers",
  "fancy-regex",
  "file-rotate",
- "halo2curves 0.4.0",
+ "halo2curves",
  "hex",
  "itertools 0.10.5",
  "lazy_static",
