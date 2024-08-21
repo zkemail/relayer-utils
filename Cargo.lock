@@ -345,7 +345,7 @@ dependencies = [
 [[package]]
 name = "cfdkim"
 version = "0.3.0"
-source = "git+https://github.com/zkemail/dkim.git#80f08ef1ace2419e866c74b086e0df84b386eb98"
+source = "git+https://github.com/zkemail/dkim.git#8ea4c54bde27944eb2c3ed7b02407111402d519b"
 dependencies = [
  "base64 0.21.7",
  "chrono",
@@ -2780,7 +2780,7 @@ checksum = "7a66a03ae7c801facd77a29370b4faec201768915ac14a721ba36f20bc9c209b"
 
 [[package]]
 name = "relayer-utils"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
