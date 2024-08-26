@@ -45,6 +45,7 @@ slog-json = "2.6.1"
 lazy_static = "1.4"
 file-rotate = "0.7.5"
 regex = "1.10.6"
+mailparse = "0.15.0"
 
 [dependencies.neon]
 version = "0.10"

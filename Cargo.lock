@@ -2937,6 +2937,7 @@ dependencies = [
  "hmac-sha256",
  "itertools 0.10.5",
  "lazy_static",
+ "mailparse",
  "neon",
  "num-bigint",
  "num-traits",
