@@ -1,4 +1,4 @@
-use std::convert::TryInto;
+use std::{collections::HashMap, convert::TryInto, sync::Arc};
 
 use itertools::Itertools;
 
@@ -13,6 +13,7 @@ use hex;
 // use mail_auth::{AuthenticatedMessage, DkimOutput, DkimResult, Resolver};
 
 use cfdkim::{canonicalize_signed_email, resolve_public_key};
+use mailparse::{parse_mail, ParsedMail};
 use neon::prelude::*;
 use rsa::traits::PublicKeyParts;
 
@@ -28,6 +29,7 @@ pub struct ParsedEmail {
     pub canonicalized_body: String,
     pub signature: Vec<u8>,
     pub public_key: Vec<u8>,
+    pub headers: EmailHeaders,
 }
 
 impl ParsedEmail {
@@ -42,15 +44,18 @@ impl ParsedEmail {
         };
         let (canonicalized_header, canonicalized_body, signature_bytes) =
             canonicalize_signed_email(raw_email.as_bytes()).unwrap();
+        // Extract all headers
+        let parsed_mail = parse_mail(raw_email.as_bytes())?;
+        let headers: EmailHeaders = EmailHeaders::new_from_mail(&parsed_mail);
         let parsed_email = ParsedEmail {
             canonicalized_header: String::from_utf8(canonicalized_header)?,
             canonicalized_body: String::from_utf8(canonicalized_body)?,
             signature: signature_bytes.into_iter().collect_vec(),
             public_key: public_key.n().to_bytes_be(),
+            headers,
         };
         Ok(parsed_email)
     }
-
     pub fn signature_string(&self) -> String {
         "0x".to_string() + hex::encode(&self.signature).as_str()
     }
@@ -120,8 +125,8 @@ impl ParsedEmail {
     pub fn get_invitation_code(&self) -> Result<String> {
         let regex_config =
             serde_json::from_str(include_str!("../regexes/invitation_code.json")).unwrap();
-        let idxes = extract_substr_idxes(&self.canonicalized_header, &regex_config)?[0];
-        let str = self.canonicalized_header[idxes.0..idxes.1].to_string();
+        let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
+        let str = self.canonicalized_body[idxes.0..idxes.1].to_string();
         Ok(str)
     }
 
@@ -151,6 +156,25 @@ impl ParsedEmail {
         let idxes = extract_message_id_idxes(&self.canonicalized_header)?[0];
         let str = self.canonicalized_header[idxes.0..idxes.1].to_string();
         Ok(str)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmailHeaders(Arc<HashMap<String, Vec<String>>>);
+
+impl EmailHeaders {
+    pub fn new_from_mail(parsed_mail: &ParsedMail) -> Self {
+        let mut headers = HashMap::new();
+        for header in &parsed_mail.headers {
+            let key = header.get_key().to_string();
+            let value = header.get_value();
+            headers.entry(key).or_insert_with(Vec::new).push(value);
+        }
+        Self(Arc::new(headers)) // Wrap the HashMap in Arc and then in EmailHeaders
+    }
+
+    pub fn get_header(&self, name: &str) -> Option<Vec<String>> {
+        self.0.get(name).cloned()
     }
 }
 
