@@ -344,8 +344,8 @@ dependencies = [
 
 [[package]]
 name = "cfdkim"
-version = "0.3.0"
-source = "git+https://github.com/zkemail/dkim.git#8ea4c54bde27944eb2c3ed7b02407111402d519b"
+version = "0.3.1"
+source = "git+https://github.com/zkemail/dkim.git#6ace692d8d876e06719df8279ca925a1e6728685"
 dependencies = [
  "base64 0.21.7",
  "chrono",
@@ -1194,6 +1194,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "fancy-regex"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "531e46835a22af56d1e3b66f04844bed63158bc094a628bec1d321d9b4c44bf2"
+dependencies = [
+ "bit-set",
+ "regex-automata",
+ "regex-syntax",
+]
+
+[[package]]
 name = "fastrand"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1835,6 +1846,15 @@ name = "itertools"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
 dependencies = [
  "either",
 ]
@@ -2780,13 +2800,13 @@ checksum = "7a66a03ae7c801facd77a29370b4faec201768915ac14a721ba36f20bc9c209b"
 
 [[package]]
 name = "relayer-utils"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
  "cfdkim",
  "ethers",
- "fancy-regex",
+ "fancy-regex 0.11.0",
  "file-rotate",
  "halo2curves",
  "hex",
@@ -4398,10 +4418,10 @@ dependencies = [
 [[package]]
 name = "zk-regex-apis"
 version = "2.1.0"
-source = "git+https://github.com/zkemail/zk-regex.git?branch=main#279d77f774623b4ca50cf4322985f51f60c5a603"
+source = "git+https://github.com/zkemail/zk-regex.git?branch=main#c9a89c3a5dd9d42896fb44a814cc971f74c069d8"
 dependencies = [
- "fancy-regex",
- "itertools 0.10.5",
+ "fancy-regex 0.13.0",
+ "itertools 0.13.0",
  "js-sys",
  "serde",
  "serde-wasm-bindgen",

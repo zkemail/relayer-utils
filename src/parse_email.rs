@@ -1,81 +1,95 @@
-use std::convert::TryInto;
+//! This module contains the `ParsedEmail` struct and its implementation.
 
-use itertools::Itertools;
-
-// use cfdkim::*;
-// use mail_auth::common::verify::VerifySignature;
-// use mail_auth::trust_dns_resolver::proto::rr::dnssec::public_key;
-// use trust_dns_resolver::error::ResolveError;
-// use mail_auth::Error;
-use crate::statics::*;
 use anyhow::Result;
-use hex;
-// use mail_auth::{AuthenticatedMessage, DkimOutput, DkimResult, Resolver};
-
 use cfdkim::{canonicalize_signed_email, resolve_public_key};
-use neon::prelude::*;
+use hex;
+use itertools::Itertools;
 use rsa::traits::PublicKeyParts;
-
 use serde::{Deserialize, Serialize};
-use zk_regex_apis::extract_substrs::*;
-// use trust_dns_resolver::config::{ResolverConfig, ResolverOpts};
-// use trust_dns_resolver::proto::rr::{RData, RecordType};
-// use trust_dns_resolver::AsyncResolver;
+use zk_regex_apis::extract_substrs::{
+    extract_body_hash_idxes, extract_email_addr_idxes, extract_email_domain_idxes,
+    extract_from_addr_idxes, extract_message_id_idxes, extract_subject_all_idxes,
+    extract_substr_idxes, extract_timestamp_idxes, extract_to_addr_idxes,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// `ParsedEmail` holds the canonicalized parts of an email along with its signature and public key.
 pub struct ParsedEmail {
-    pub canonicalized_header: String,
-    pub canonicalized_body: String,
-    pub signature: Vec<u8>,
-    pub public_key: Vec<u8>,
+    pub canonicalized_header: String, // The canonicalized email header.
+    pub canonicalized_body: String,   // The canonicalized email body.
+    pub signature: Vec<u8>,           // The email signature bytes.
+    pub public_key: Vec<u8>,          // The public key bytes associated with the email.
 }
 
 impl ParsedEmail {
+    /// Creates a new `ParsedEmail` from a raw email string.
+    ///
+    /// This function parses the raw email, extracts and canonicalizes the header and body,
+    /// and retrieves the signature and public key.
+    ///
+    /// # Arguments
+    ///
+    /// * `raw_email` - A string slice representing the raw email to be parsed.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` which is either a `ParsedEmail` instance or an error if parsing fails.
     pub async fn new_from_raw_email(raw_email: &str) -> Result<Self> {
+        // Initialize a logger for the function scope.
         let logger = slog::Logger::root(slog::Discard, slog::o!());
-        let public_key = resolve_public_key(&logger, raw_email.as_bytes())
-            .await
-            .unwrap();
+
+        // Resolve the public key from the raw email bytes.
+        let public_key = resolve_public_key(&logger, raw_email.as_bytes()).await?;
         let public_key = match public_key {
             cfdkim::DkimPublicKey::Rsa(pk) => pk,
-            _ => panic!("not supportted public key type."),
+            _ => panic!("Unsupported public key type."), // Panics if the public key type is not RSA.
         };
+
+        // Canonicalize the signed email to separate the header, body, and signature.
         let (canonicalized_header, canonicalized_body, signature_bytes) =
-            canonicalize_signed_email(raw_email.as_bytes()).unwrap();
+            canonicalize_signed_email(raw_email.as_bytes())?;
+
+        // Construct the `ParsedEmail` instance.
         let parsed_email = ParsedEmail {
-            canonicalized_header: String::from_utf8(canonicalized_header)?,
-            canonicalized_body: String::from_utf8(canonicalized_body)?,
-            signature: signature_bytes.into_iter().collect_vec(),
-            public_key: public_key.n().to_bytes_be(),
+            canonicalized_header: String::from_utf8(canonicalized_header)?, // Convert bytes to string, may return an error if not valid UTF-8.
+            canonicalized_body: String::from_utf8(canonicalized_body)?, // Convert bytes to string, may return an error if not valid UTF-8.
+            signature: signature_bytes.into_iter().collect_vec(), // Collect the signature bytes into a vector.
+            public_key: public_key.n().to_bytes_be(), // Convert the public key to big-endian bytes.
         };
+
         Ok(parsed_email)
     }
 
+    /// Converts the signature bytes to a hex string with a "0x" prefix.
     pub fn signature_string(&self) -> String {
         "0x".to_string() + hex::encode(&self.signature).as_str()
     }
 
+    /// Converts the public key bytes to a hex string with a "0x" prefix.
     pub fn public_key_string(&self) -> String {
         "0x".to_string() + hex::encode(&self.public_key).as_str()
     }
 
+    /// Extracts the 'From' address from the canonicalized email header.
     pub fn get_from_addr(&self) -> Result<String> {
         let idxes = extract_from_addr_idxes(&self.canonicalized_header)?[0];
-        let str = self.canonicalized_header[idxes.0..idxes.1].to_string();
-        Ok(str)
+        Ok(self.canonicalized_header[idxes.0..idxes.1].to_string())
     }
 
+    /// Retrieves the index range of the 'From' address within the canonicalized email header.
     pub fn get_from_addr_idxes(&self) -> Result<(usize, usize)> {
         let idxes = extract_from_addr_idxes(&self.canonicalized_header)?[0];
         Ok(idxes)
     }
 
+    /// Extracts the 'To' address from the canonicalized email header.
     pub fn get_to_addr(&self) -> Result<String> {
         let idxes = extract_to_addr_idxes(&self.canonicalized_header)?[0];
         let str = self.canonicalized_header[idxes.0..idxes.1].to_string();
         Ok(str)
     }
 
+    /// Extracts the email domain from the 'From' address in the canonicalized email header.
     pub fn get_email_domain(&self) -> Result<String> {
         let idxes = extract_from_addr_idxes(&self.canonicalized_header)?[0];
         let from_addr = self.canonicalized_header[idxes.0..idxes.1].to_string();
@@ -84,6 +98,7 @@ impl ParsedEmail {
         Ok(str)
     }
 
+    /// Retrieves the index range of the email domain within the 'From' address.
     pub fn get_email_domain_idxes(&self) -> Result<(usize, usize)> {
         let idxes = extract_from_addr_idxes(&self.canonicalized_header)?[0];
         let str = self.canonicalized_header[idxes.0..idxes.1].to_string();
@@ -91,47 +106,59 @@ impl ParsedEmail {
         Ok(idxes)
     }
 
+    /// Extracts the entire subject line from the canonicalized email header.
     pub fn get_subject_all(&self) -> Result<String> {
         let idxes = extract_subject_all_idxes(&self.canonicalized_header)?[0];
         let str = self.canonicalized_header[idxes.0..idxes.1].to_string();
         Ok(str)
     }
 
+    /// Retrieves the index range of the entire subject line within the canonicalized email header.
     pub fn get_subject_all_idxes(&self) -> Result<(usize, usize)> {
         let idxes = extract_subject_all_idxes(&self.canonicalized_header)?[0];
         Ok(idxes)
     }
 
+    /// Retrieves the index range of the body hash within the canonicalized email header.
+    pub fn get_body_hash_idxes(&self) -> Result<(usize, usize)> {
+        let idxes = extract_body_hash_idxes(&self.canonicalized_header)?[0];
+        Ok(idxes)
+    }
+
+    /// Returns the canonicalized email body as a string.
     pub fn get_body(&self) -> Result<String> {
         Ok(self.canonicalized_body.clone())
     }
 
+    /// Extracts the timestamp from the canonicalized email header.
     pub fn get_timestamp(&self) -> Result<u64> {
         let idxes = extract_timestamp_idxes(&self.canonicalized_header)?[0];
         let str = &self.canonicalized_header[idxes.0..idxes.1];
         Ok(str.parse()?)
     }
 
+    /// Retrieves the index range of the timestamp within the canonicalized email header.
     pub fn get_timestamp_idxes(&self) -> Result<(usize, usize)> {
         let idxes = extract_timestamp_idxes(&self.canonicalized_header)?[0];
         Ok(idxes)
     }
 
+    /// Extracts the invitation code from the canonicalized email body.
     pub fn get_invitation_code(&self) -> Result<String> {
-        let regex_config =
-            serde_json::from_str(include_str!("../regexes/invitation_code.json")).unwrap();
+        let regex_config = serde_json::from_str(include_str!("../regexes/invitation_code.json"))?;
         let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
         let str = self.canonicalized_body[idxes.0..idxes.1].to_string();
         Ok(str)
     }
 
+    /// Retrieves the index range of the invitation code within the canonicalized email body.
     pub fn get_invitation_code_idxes(&self) -> Result<(usize, usize)> {
-        let regex_config =
-            serde_json::from_str(include_str!("../regexes/invitation_code.json")).unwrap();
-        let idxes = extract_substr_idxes(&self.canonicalized_header, &regex_config)?[0];
+        let regex_config = serde_json::from_str(include_str!("../regexes/invitation_code.json"))?;
+        let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
         Ok(idxes)
     }
 
+    /// Extracts the email address from the subject line of the canonicalized email header.
     pub fn get_email_addr_in_subject(&self) -> Result<String> {
         let idxes = extract_subject_all_idxes(&self.canonicalized_header)?[0];
         let subject = self.canonicalized_header[idxes.0..idxes.1].to_string();
@@ -140,6 +167,7 @@ impl ParsedEmail {
         Ok(str)
     }
 
+    /// Retrieves the index range of the email address within the subject line of the canonicalized email header.
     pub fn get_email_addr_in_subject_idxes(&self) -> Result<(usize, usize)> {
         let idxes = extract_subject_all_idxes(&self.canonicalized_header)?[0];
         let subject = self.canonicalized_header[idxes.0..idxes.1].to_string();
@@ -147,106 +175,10 @@ impl ParsedEmail {
         Ok(idxes)
     }
 
+    /// Extracts the message ID from the canonicalized email header.
     pub fn get_message_id(&self) -> Result<String> {
         let idxes = extract_message_id_idxes(&self.canonicalized_header)?[0];
         let str = self.canonicalized_header[idxes.0..idxes.1].to_string();
         Ok(str)
     }
-}
-
-pub fn parse_email_node(mut cx: FunctionContext) -> JsResult<JsPromise> {
-    let raw_email = cx.argument::<JsString>(0)?.value(&mut cx);
-    let channel = cx.channel();
-    let (deferred, promise) = cx.promise();
-    let rt = runtime(&mut cx)?;
-
-    rt.spawn(async move {
-        let parsed_email = ParsedEmail::new_from_raw_email(&raw_email).await;
-        deferred.settle_with(&channel, move |mut cx| {
-            match parsed_email {
-                // Resolve the promise with the release date
-                Ok(parsed_email) => {
-                    let signature_str = parsed_email.signature_string();
-                    let public_key_str = parsed_email.public_key_string();
-                    let obj = cx.empty_object();
-                    let canonicalized_header = cx.string(parsed_email.canonicalized_header);
-                    obj.set(&mut cx, "canonicalizedHeader", canonicalized_header)?;
-                    // let signed_header = cx.string(
-                    //     "0x".to_string() + hex::encode(parsed_email.signed_header).as_str(),
-                    // );
-                    // obj.set(&mut cx, "signedHeader", signed_header)?;
-                    let signature = cx.string(&signature_str);
-                    obj.set(&mut cx, "signature", signature)?;
-
-                    let public_key = cx.string(&public_key_str);
-                    obj.set(&mut cx, "publicKey", public_key)?;
-                    // let dkim_domain = cx.string(&parsed_email.dkim_domain);
-                    // obj.set(&mut cx, "dkimDomain", dkim_domain)?;
-                    Ok(obj)
-                }
-
-                // Reject the `Promise` if the version could not be found
-                Err(err) => cx.throw_error(format!("Could not parse the raw email: {}", err)),
-            }
-        });
-    });
-
-    Ok(promise)
-}
-
-pub fn extract_invitation_code_idxes_node(mut cx: FunctionContext) -> JsResult<JsArray> {
-    let input_str = cx.argument::<JsString>(0)?.value(&mut cx);
-    let regex_config =
-        serde_json::from_str(include_str!("../regexes/invitation_code.json")).unwrap();
-    let substr_idxes = match extract_substr_idxes(&input_str, &regex_config) {
-        Ok(substr_idxes) => substr_idxes,
-        Err(e) => return cx.throw_error(e.to_string()),
-    };
-    let js_array = JsArray::new(&mut cx, substr_idxes.len() as u32);
-    for (i, (start_idx, end_idx)) in substr_idxes.iter().enumerate() {
-        let start_end_array = JsArray::new(&mut cx, 2u32);
-        let start_idx = cx.number(*start_idx as f64);
-        start_end_array.set(&mut cx, 0, start_idx)?;
-        let end_idx = cx.number(*end_idx as f64);
-        start_end_array.set(&mut cx, 1, end_idx)?;
-        js_array.set(&mut cx, i as u32, start_end_array)?;
-    }
-    Ok(js_array)
-}
-
-pub fn extract_timestamp_int_node(mut cx: FunctionContext) -> JsResult<JsNumber> {
-    let input_str = cx.argument::<JsString>(0)?.value(&mut cx);
-    let substr_idxes = match extract_timestamp_idxes(&input_str) {
-        Ok(substr_idxes) => substr_idxes,
-        Err(e) => return cx.throw_error(e.to_string()),
-    };
-    let timestamp_str = &input_str[substr_idxes[0].0..substr_idxes[0].1];
-    let timestamp_int = match timestamp_str.parse::<u64>() {
-        Ok(timestamp_int) => timestamp_int,
-        Err(e) => return cx.throw_error(e.to_string()),
-    };
-    let timestamp_int = cx.number(timestamp_int as f64);
-    Ok(timestamp_int)
-}
-
-pub fn extract_invitation_code_with_prefix_idxes_node(
-    mut cx: FunctionContext,
-) -> JsResult<JsArray> {
-    let input_str = cx.argument::<JsString>(0)?.value(&mut cx);
-    let regex_config =
-        serde_json::from_str(include_str!("../regexes/invitation_code_with_prefix.json")).unwrap();
-    let substr_idxes = match extract_substr_idxes(&input_str, &regex_config) {
-        Ok(substr_idxes) => substr_idxes,
-        Err(e) => return cx.throw_error(e.to_string()),
-    };
-    let js_array = JsArray::new(&mut cx, substr_idxes.len().try_into().unwrap());
-    for (i, (start_idx, end_idx)) in substr_idxes.iter().enumerate() {
-        let start_end_array = JsArray::new(&mut cx, 2u32);
-        let start_idx = cx.number(*start_idx as f64);
-        start_end_array.set(&mut cx, 0, start_idx)?;
-        let end_idx = cx.number(*end_idx as f64);
-        start_end_array.set(&mut cx, 1, end_idx)?;
-        js_array.set(&mut cx, i as u32, start_end_array)?;
-    }
-    Ok(js_array)
 }
