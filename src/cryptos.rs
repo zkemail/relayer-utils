@@ -379,8 +379,6 @@ pub fn generate_partial_sha(
     }
 
     // Compute the SHA-256 hash of the pre-selector part of the message
-    println!("Precompute text: {:?}", precompute_text);
-    println!("SHA cutoff index: {}", sha_cutoff_index);
     let precomputed_sha = partial_sha(precompute_text, sha_cutoff_index);
     Ok((precomputed_sha, body_remaining, body_remaining_length))
 }
