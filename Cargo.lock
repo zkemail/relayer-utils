@@ -1586,6 +1586,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "hmac-sha256"
+version = "1.1.7"
+source = "git+https://github.com/zkemail/rust-hmac-sha256.git#e98ae695d2600c98b57de4b1ad1e0bfb7895f458"
+
+[[package]]
 name = "home"
 version = "0.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2810,6 +2815,7 @@ dependencies = [
  "file-rotate",
  "halo2curves",
  "hex",
+ "hmac-sha256",
  "itertools 0.10.5",
  "lazy_static",
  "neon",
@@ -2822,7 +2828,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_regex",
- "sha2",
  "slog",
  "slog-async",
  "slog-json",

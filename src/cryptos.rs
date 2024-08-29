@@ -2,9 +2,9 @@
 
 use ethers::types::Bytes;
 use halo2curves::ff::Field;
+use hmac_sha256::Hash;
 use poseidon_rs::{poseidon_bytes, poseidon_fields, Fr, PoseidonError};
 use rand_core::RngCore;
-use sha2::{Digest, Sha256};
 use std::error::Error;
 use zk_regex_apis::padding::pad_string;
 
@@ -307,9 +307,9 @@ pub fn sha256_pad(mut data: Vec<u8>, max_sha_bytes: usize) -> (Vec<u8>, usize) {
 ///
 /// A vector containing the SHA-256 hash of the message.
 pub fn partial_sha(msg: &[u8], msg_len: usize) -> Vec<u8> {
-    let mut hasher = Sha256::new();
+    let mut hasher = Hash::new();
     hasher.update(&msg[..msg_len]);
-    let result = hasher.finalize();
+    let result = hasher.cache_state();
     result.to_vec()
 }
 
