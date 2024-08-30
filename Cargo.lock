@@ -4423,7 +4423,7 @@ dependencies = [
 [[package]]
 name = "zk-regex-apis"
 version = "2.1.0"
-source = "git+https://github.com/zkemail/zk-regex.git?branch=fix/extract-idxes#b454640a21f5e531d7eedafe77ae4e8822bbade2"
+source = "git+https://github.com/zkemail/zk-regex.git?branch=main#c9a89c3a5dd9d42896fb44a814cc971f74c069d8"
 dependencies = [
  "fancy-regex 0.13.0",
  "itertools 0.13.0",
