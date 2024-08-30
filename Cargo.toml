@@ -13,7 +13,7 @@ crate-type = ["rlib", "cdylib"]
 itertools = "0.10.3"
 serde_json = "1.0.95"
 serde = { version = "1.0.159", features = ["derive"] }
-zk-regex-apis = { version = "2.1.0", git = "https://github.com/zkemail/zk-regex.git", default-features = false, rev = "9195cb0" }
+zk-regex-apis = { version = "2.1.1", git = "https://github.com/zkemail/zk-regex.git" }
 fancy-regex = "0.11.0"
 hex = "0.4.3"
 tokio = { version = "1.16", features = [
