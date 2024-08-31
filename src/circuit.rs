@@ -24,6 +24,7 @@ struct EmailCircuitInput {
     domain_idx: usize,
     timestamp_idx: usize,
     code_idx: usize,
+    command_idx: usize,
 }
 #[derive(Serialize, Deserialize)]
 struct ClaimCircuitInput {
@@ -136,8 +137,8 @@ pub async fn generate_email_circuit_input(
         vec_u8_to_bigint(parsed_email.clone().signature),
         vec_u8_to_bigint(parsed_email.clone().public_key),
         None,
-        Some(1024),
-        None,
+        Some(640),
+        Some(768),
         ignore_body_hash_check,
     );
     let email_circuit_inputs = generate_circuit_inputs(circuit_input_params);
@@ -150,6 +151,10 @@ pub async fn generate_email_circuit_input(
         Err(_) => 0,
     };
     let timestamp_idx = match parsed_email.get_timestamp_idxes() {
+        Ok(indexes) => indexes.0,
+        Err(_) => 0,
+    };
+    let command_idx = match parsed_email.get_command_idxes() {
         Ok(indexes) => indexes.0,
         Err(_) => 0,
     };
@@ -169,6 +174,7 @@ pub async fn generate_email_circuit_input(
         body_hash_idx: email_circuit_inputs.body_hash_idx,
         padded_body_len: email_circuit_inputs.body_len_padded_bytes,
         precomputed_sha: email_circuit_inputs.precomputed_sha,
+        command_idx,
     };
 
     Ok(serde_json::to_string(&email_auth_input)?)

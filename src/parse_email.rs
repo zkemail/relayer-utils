@@ -181,4 +181,10 @@ impl ParsedEmail {
         let str = self.canonicalized_header[idxes.0..idxes.1].to_string();
         Ok(str)
     }
+
+    pub fn get_command_idxes(&self) -> Result<(usize, usize)> {
+        let regex_config = serde_json::from_str(include_str!("../regexes/command.json"))?;
+        let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
+        Ok(idxes)
+    }
 }
