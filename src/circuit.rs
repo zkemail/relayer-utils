@@ -24,6 +24,7 @@ struct EmailCircuitInput {
     domain_idx: usize,
     timestamp_idx: usize,
     code_idx: usize,
+    command_idx: usize,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -164,6 +165,10 @@ pub async fn generate_email_circuit_input(
         Ok(indexes) => indexes.0,
         Err(_) => 0,
     };
+    let command_idx = match parsed_email.get_command_idxes() {
+        Ok(indexes) => indexes.0,
+        Err(_) => 0,
+    };
 
     let email_auth_input = EmailCircuitInput {
         padded_header: email_circuit_inputs.header_padded,
@@ -180,6 +185,7 @@ pub async fn generate_email_circuit_input(
         body_hash_idx: email_circuit_inputs.body_hash_idx,
         padded_body_len: email_circuit_inputs.body_len_padded_bytes,
         precomputed_sha: email_circuit_inputs.precomputed_sha,
+        command_idx,
     };
 
     Ok(serde_json::to_string(&email_auth_input)?)
