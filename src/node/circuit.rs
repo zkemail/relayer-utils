@@ -2,11 +2,15 @@
 
 use neon::{
     context::{Context, FunctionContext},
+    object::Object,
+    prelude::Handle,
     result::JsResult,
-    types::{JsBoolean, JsPromise, JsString},
+    types::{JsBoolean, JsNumber, JsObject, JsPromise, JsString, JsValue},
 };
 
-use crate::{generate_email_circuit_input, hex_to_field_node, runtime, AccountCode};
+use crate::{
+    generate_email_circuit_input, hex_to_field_node, runtime, AccountCode, EmailCircuitParams,
+};
 
 /// Asynchronously generates email authentication input.
 ///
@@ -26,12 +30,34 @@ pub(crate) fn generate_email_circuit_input_node(mut cx: FunctionContext) -> JsRe
     let email = cx.argument::<JsString>(0)?.value(&mut cx);
     let account_code = cx.argument::<JsString>(1)?.value(&mut cx);
     let account_code = AccountCode::from(hex_to_field_node(&mut cx, &account_code)?);
-
-    // Determine if the body hash check should be ignored, defaulting to false if the argument is not provided.
-    let ignore_body_hash_check = cx.argument_opt(2).map_or(false, |arg| {
-        arg.downcast::<JsBoolean, _>(&mut cx)
-            .unwrap_or_else(|_| cx.boolean(false))
-            .value(&mut cx)
+    let params = cx.argument_opt(3).map(|arg| {
+        let params = arg.downcast::<JsObject, _>(&mut cx).unwrap();
+        let sha_precompute_selector = params
+            .get(&mut cx, "shaPrecomputeSelector")
+            .ok()
+            .and_then(|val: Handle<JsValue>| val.downcast::<JsString, _>(&mut cx).ok())
+            .map(|js_string| js_string.value(&mut cx));
+        let max_header_length = params
+            .get(&mut cx, "maxHeaderLength")
+            .ok()
+            .and_then(|val: Handle<JsValue>| val.downcast::<JsNumber, _>(&mut cx).ok())
+            .map(|js_number| js_number.value(&mut cx) as usize);
+        let max_body_length = params
+            .get(&mut cx, "maxBodyLength")
+            .ok()
+            .and_then(|val: Handle<JsValue>| val.downcast::<JsNumber, _>(&mut cx).ok())
+            .map(|js_number| js_number.value(&mut cx) as usize);
+        let ignore_body_hash_check = params
+            .get(&mut cx, "ignoreBodyHashCheck")
+            .ok()
+            .and_then(|val: Handle<JsValue>| val.downcast::<JsBoolean, _>(&mut cx).ok())
+            .map(|js_boolean| js_boolean.value(&mut cx));
+        EmailCircuitParams {
+            sha_precompute_selector,
+            max_header_length,
+            max_body_length,
+            ignore_body_hash_check,
+        }
     });
 
     // Create a new channel and promise for the async operation.
@@ -44,8 +70,7 @@ pub(crate) fn generate_email_circuit_input_node(mut cx: FunctionContext) -> JsRe
     // Spawn an async task to generate the email authentication input.
     rt.spawn(async move {
         // Call the Rust async function to generate the email authentication input.
-        let email_auth_input =
-            generate_email_circuit_input(&email, &account_code, ignore_body_hash_check).await;
+        let email_auth_input = generate_email_circuit_input(&email, &account_code, params).await;
 
         // Use the deferred object to settle the promise once the async operation is complete.
         deferred.settle_with(&channel, move |mut cx| match email_auth_input {

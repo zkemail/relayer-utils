@@ -25,6 +25,15 @@ struct EmailCircuitInput {
     timestamp_idx: usize,
     code_idx: usize,
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct EmailCircuitParams {
+    pub ignore_body_hash_check: Option<bool>,
+    pub max_header_length: Option<usize>,
+    pub max_body_length: Option<usize>,
+    pub sha_precompute_selector: Option<String>,
+}
+
 #[derive(Serialize, Deserialize)]
 struct ClaimCircuitInput {
     email_addr: Vec<u8>,
@@ -66,7 +75,7 @@ impl CircuitInputParams {
         sha_precompute_selector: Option<String>,
         max_header_length: Option<usize>,
         max_body_length: Option<usize>,
-        ignore_body_hash_check: bool,
+        ignore_body_hash_check: Option<bool>,
     ) -> Self {
         CircuitInputParams {
             body,
@@ -77,7 +86,7 @@ impl CircuitInputParams {
             sha_precompute_selector,
             max_header_length: max_header_length.unwrap_or(MAX_HEADER_PADDED_BYTES),
             max_body_length: max_body_length.unwrap_or(MAX_BODY_PADDED_BYTES),
-            ignore_body_hash_check,
+            ignore_body_hash_check: ignore_body_hash_check.unwrap_or(false),
         }
     }
 }
@@ -126,7 +135,7 @@ fn generate_circuit_inputs(params: CircuitInputParams) -> CircuitInput {
 pub async fn generate_email_circuit_input(
     email: &str,
     account_code: &AccountCode,
-    ignore_body_hash_check: bool,
+    params: Option<EmailCircuitParams>,
 ) -> Result<String> {
     let parsed_email = ParsedEmail::new_from_raw_email(&email).await?;
     let circuit_input_params = CircuitInputParams::new(
@@ -135,10 +144,12 @@ pub async fn generate_email_circuit_input(
         parsed_email.get_body_hash_idxes()?.0,
         vec_u8_to_bigint(parsed_email.clone().signature),
         vec_u8_to_bigint(parsed_email.clone().public_key),
-        None,
-        Some(1024),
-        None,
-        ignore_body_hash_check,
+        params
+            .as_ref()
+            .and_then(|p| p.sha_precompute_selector.clone()),
+        params.as_ref().and_then(|p| p.max_header_length),
+        params.as_ref().and_then(|p| p.max_body_length),
+        params.as_ref().and_then(|p| p.ignore_body_hash_check),
     );
     let email_circuit_inputs = generate_circuit_inputs(circuit_input_params);
 
