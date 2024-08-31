@@ -9,40 +9,30 @@ use crate::{
 };
 
 #[derive(Serialize, Deserialize)]
-struct EmailSenderInput {
-    header_padded: Vec<u8>,
-    pubkey: Vec<String>,
+struct EmailCircuitInput {
+    padded_header: Vec<u8>,
+    padded_body: Option<Vec<u8>>,
+    body_hash_idx: Option<usize>,
+    public_key: Vec<String>,
     signature: Vec<String>,
-    header_padded_len: usize,
-    sender_account_code: String,
-    sender_email_idx: usize,
+    padded_header_len: usize,
+    padded_body_len: Option<usize>,
+    precomputed_sha: Option<Vec<u8>>,
+    account_code: String,
+    from_addr_idx: usize,
     subject_idx: usize,
-    recipient_email_idx: usize,
     domain_idx: usize,
     timestamp_idx: usize,
-}
-
-#[derive(Serialize, Deserialize)]
-struct AccountCreationInput {
-    header_padded: Vec<u8>,
-    pubkey: Vec<String>,
-    signature: Vec<String>,
-    header_padded_len: usize,
-    relayer_rand: String,
-    sender_email_idx: usize,
     code_idx: usize,
-    domain_idx: usize,
-    timestamp_idx: usize,
 }
-
 #[derive(Serialize, Deserialize)]
-struct ClaimInput {
+struct ClaimCircuitInput {
     email_addr: Vec<u8>,
     cm_rand: String,
     account_code: String,
 }
 
-pub struct CircuitInput {
+struct CircuitInput {
     pub header_padded: Vec<u8>,
     pub pubkey: Vec<String>,
     pub signature: Vec<String>,
@@ -92,25 +82,7 @@ impl CircuitInputParams {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct EmailAuthInput {
-    padded_header: Vec<u8>,
-    padded_body: Option<Vec<u8>>,
-    body_hash_idx: Option<usize>,
-    public_key: Vec<String>,
-    signature: Vec<String>,
-    padded_header_len: usize,
-    padded_body_len: Option<usize>,
-    precomputed_sha: Option<Vec<u8>>,
-    account_code: String,
-    from_addr_idx: usize,
-    subject_idx: usize,
-    domain_idx: usize,
-    timestamp_idx: usize,
-    code_idx: usize,
-}
-
-pub fn generate_circuit_inputs(params: CircuitInputParams) -> CircuitInput {
+fn generate_circuit_inputs(params: CircuitInputParams) -> CircuitInput {
     let (header_padded, header_padded_len) =
         sha256_pad(params.header.clone(), params.max_header_length);
     let body_sha_length = ((params.body.len() + 63 + 65) / 64) * 64;
@@ -151,106 +123,7 @@ pub fn generate_circuit_inputs(params: CircuitInputParams) -> CircuitInput {
     circuit_input
 }
 
-pub async fn generate_email_sender_input(email: &str, account_code: &str) -> Result<String> {
-    let parsed_email = ParsedEmail::new_from_raw_email(&email).await?;
-    let circuit_input_params = CircuitInputParams::new(
-        vec![],
-        parsed_email.canonicalized_header.as_bytes().to_vec(),
-        parsed_email.get_body_hash_idxes()?.0,
-        vec_u8_to_bigint(parsed_email.clone().signature),
-        vec_u8_to_bigint(parsed_email.clone().public_key),
-        None,
-        Some(1024),
-        Some(64),
-        true,
-    );
-    let email_circuit_inputs = generate_circuit_inputs(circuit_input_params);
-
-    let sender_email_idx = parsed_email.get_from_addr_idxes()?;
-    let domain_idx = parsed_email.get_email_domain_idxes()?;
-    let subject_idx = parsed_email.get_subject_all_idxes()?;
-    let recipient_email_idx = match parsed_email.get_email_addr_in_subject_idxes() {
-        Ok(idx) => idx.0,
-        Err(_) => {
-            0 // Assuming 0 is a safe default or placeholder value
-        }
-    };
-    let timestamp_idx = parsed_email.get_timestamp_idxes()?;
-
-    let email_sender_input = EmailSenderInput {
-        header_padded: email_circuit_inputs.header_padded,
-        pubkey: email_circuit_inputs.pubkey,
-        signature: email_circuit_inputs.signature,
-        header_padded_len: email_circuit_inputs.header_len_padded_bytes,
-        sender_account_code: account_code.to_string(),
-        sender_email_idx: sender_email_idx.0,
-        subject_idx: subject_idx.0,
-        recipient_email_idx: recipient_email_idx,
-        domain_idx: domain_idx.0,
-        timestamp_idx: timestamp_idx.0,
-    };
-
-    Ok(serde_json::to_string(&email_sender_input)?)
-}
-
-pub async fn generate_account_creation_input(email: &str, relayer_rand: &str) -> Result<String> {
-    let parsed_email = ParsedEmail::new_from_raw_email(&email).await?;
-    let circuit_input_params = CircuitInputParams::new(
-        vec![],
-        parsed_email.canonicalized_header.as_bytes().to_vec(),
-        parsed_email.get_body_hash_idxes()?.0,
-        vec_u8_to_bigint(parsed_email.clone().signature),
-        vec_u8_to_bigint(parsed_email.clone().public_key),
-        None,
-        Some(1024),
-        Some(64),
-        true,
-    );
-    let email_circuit_inputs = generate_circuit_inputs(circuit_input_params);
-
-    let sender_email_idx = parsed_email.get_from_addr_idxes()?;
-    let domain_idx = parsed_email.get_email_domain_idxes()?;
-    // let subject_idx = parsed_email.get_subject_all_idxes()?;
-    let code_idx = parsed_email.get_invitation_code_idxes()?;
-    let timestamp_idx = parsed_email.get_timestamp_idxes()?;
-
-    let account_creation_input = AccountCreationInput {
-        header_padded: email_circuit_inputs.header_padded,
-        pubkey: email_circuit_inputs.pubkey,
-        signature: email_circuit_inputs.signature,
-        header_padded_len: email_circuit_inputs.header_len_padded_bytes,
-        relayer_rand: relayer_rand.to_string(),
-        sender_email_idx: sender_email_idx.0,
-        code_idx: code_idx.0,
-        domain_idx: domain_idx.0,
-        timestamp_idx: timestamp_idx.0,
-    };
-
-    Ok(serde_json::to_string(&account_creation_input)?)
-}
-
-pub async fn generate_claim_input(
-    email_address: &str,
-    email_address_rand: &str,
-    account_code: &str,
-) -> Result<String> {
-    let padded_email_address = PaddedEmailAddr::from_email_addr(email_address);
-    let mut padded_email_addr_bytes = vec![];
-
-    for byte in padded_email_address.padded_bytes.into_iter() {
-        padded_email_addr_bytes.push(byte);
-    }
-
-    let claim_input = ClaimInput {
-        email_addr: padded_email_addr_bytes,
-        cm_rand: email_address_rand.to_string(),
-        account_code: account_code.to_string(),
-    };
-
-    Ok(serde_json::to_string(&claim_input)?)
-}
-
-pub async fn generate_email_auth_input(
+pub async fn generate_email_circuit_input(
     email: &str,
     account_code: &AccountCode,
     ignore_body_hash_check: bool,
@@ -281,7 +154,7 @@ pub async fn generate_email_auth_input(
         Err(_) => 0,
     };
 
-    let email_auth_input = EmailAuthInput {
+    let email_auth_input = EmailCircuitInput {
         padded_header: email_circuit_inputs.header_padded,
         public_key: email_circuit_inputs.pubkey,
         signature: email_circuit_inputs.signature,
@@ -299,4 +172,25 @@ pub async fn generate_email_auth_input(
     };
 
     Ok(serde_json::to_string(&email_auth_input)?)
+}
+
+pub async fn generate_claim_input(
+    email_address: &str,
+    email_address_rand: &str,
+    account_code: &str,
+) -> Result<String> {
+    let padded_email_address = PaddedEmailAddr::from_email_addr(email_address);
+    let mut padded_email_addr_bytes = vec![];
+
+    for byte in padded_email_address.padded_bytes.into_iter() {
+        padded_email_addr_bytes.push(byte);
+    }
+
+    let claim_input = ClaimCircuitInput {
+        email_addr: padded_email_addr_bytes,
+        cm_rand: email_address_rand.to_string(),
+        account_code: account_code.to_string(),
+    };
+
+    Ok(serde_json::to_string(&claim_input)?)
 }
