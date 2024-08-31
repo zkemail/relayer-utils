@@ -33,7 +33,7 @@ num-bigint = "0.4.4"
 base64 = "0.21.4"
 rsa = { version = "0.9.6", features = ["serde"] }
 num-traits = "0.2.15"
-cfdkim = { version = "0.3.2", git = "https://github.com/zkemail/dkim.git" }
+cfdkim = { version = "0.3.3", git = "https://github.com/zkemail/dkim.git" }
 hmac-sha256 = { git = "https://github.com/zkemail/rust-hmac-sha256.git" }
 ethers = "2.0.14"
 slog = { version = "2.7.0", features = [
