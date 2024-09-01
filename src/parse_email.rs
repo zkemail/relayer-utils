@@ -19,6 +19,7 @@ pub struct ParsedEmail {
     pub canonicalized_body: String,   // The canonicalized email body.
     pub signature: Vec<u8>,           // The email signature bytes.
     pub public_key: Vec<u8>,          // The public key bytes associated with the email.
+    pub cleaned_body: String,         // The cleaned email body.
 }
 
 impl ParsedEmail {
@@ -52,9 +53,12 @@ impl ParsedEmail {
         // Construct the `ParsedEmail` instance.
         let parsed_email = ParsedEmail {
             canonicalized_header: String::from_utf8(canonicalized_header)?, // Convert bytes to string, may return an error if not valid UTF-8.
-            canonicalized_body: String::from_utf8(canonicalized_body)?, // Convert bytes to string, may return an error if not valid UTF-8.
+            canonicalized_body: String::from_utf8(canonicalized_body.clone())?, // Convert bytes to string, may return an error if not valid UTF-8.
             signature: signature_bytes.into_iter().collect_vec(), // Collect the signature bytes into a vector.
             public_key: public_key.n().to_bytes_be(), // Convert the public key to big-endian bytes.
+            cleaned_body: String::from_utf8(remove_quoted_printable_soft_breaks(
+                canonicalized_body,
+            ))?, // Remove quoted-printable soft breaks from the canonicalized body.
         };
 
         Ok(parsed_email)
@@ -154,8 +158,13 @@ impl ParsedEmail {
     /// Retrieves the index range of the invitation code within the canonicalized email body.
     pub fn get_invitation_code_idxes(&self) -> Result<(usize, usize)> {
         let regex_config = serde_json::from_str(include_str!("../regexes/invitation_code.json"))?;
-        let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
-        Ok(idxes)
+        if self.need_soft_line_breaks() {
+            let idxes = extract_substr_idxes(&self.cleaned_body, &regex_config)?[0];
+            Ok(idxes)
+        } else {
+            let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
+            Ok(idxes)
+        }
     }
 
     /// Extracts the email address from the subject line of the canonicalized email header.
@@ -182,9 +191,40 @@ impl ParsedEmail {
         Ok(str)
     }
 
+    pub fn get_command(&self) -> Result<String> {
+        let regex_config = serde_json::from_str(include_str!("../regexes/command.json"))?;
+        let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
+        let str = self.canonicalized_body[idxes.0..idxes.1].to_string();
+        Ok(str)
+    }
+
     pub fn get_command_idxes(&self) -> Result<(usize, usize)> {
         let regex_config = serde_json::from_str(include_str!("../regexes/command.json"))?;
         let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
         Ok(idxes)
     }
+
+    fn need_soft_line_breaks(&self) -> bool {
+        if let Ok(command) = self.get_command() {
+            command.contains("=\r\n")
+        } else {
+            false
+        }
+    }
+}
+
+fn remove_quoted_printable_soft_breaks(body: Vec<u8>) -> Vec<u8> {
+    let mut result = Vec::with_capacity(body.len());
+    let mut iter = body.iter().enumerate();
+
+    while let Some((i, &byte)) = iter.next() {
+        if byte == b'=' && body.get(i + 1..i + 3) == Some(&[b'\r', b'\n']) {
+            iter.nth(1); // Skip the next two bytes
+        } else {
+            result.push(byte);
+        }
+    }
+
+    result.resize(body.len(), 0);
+    result
 }
