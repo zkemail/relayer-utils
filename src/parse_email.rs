@@ -150,7 +150,11 @@ impl ParsedEmail {
     /// Extracts the invitation code from the canonicalized email body.
     pub fn get_invitation_code(&self) -> Result<String> {
         let regex_config = serde_json::from_str(include_str!("../regexes/invitation_code.json"))?;
-        let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
+        let idxes = if self.need_soft_line_breaks() {
+            extract_substr_idxes(&self.cleaned_body, &regex_config)?[0]
+        } else {
+            extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0]
+        };
         let str = self.canonicalized_body[idxes.0..idxes.1].to_string();
         Ok(str)
     }
