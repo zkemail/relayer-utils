@@ -200,8 +200,13 @@ impl ParsedEmail {
 
     pub fn get_command_idxes(&self) -> Result<(usize, usize)> {
         let regex_config = serde_json::from_str(include_str!("../regexes/command.json"))?;
-        let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
-        Ok(idxes)
+        if self.need_soft_line_breaks() {
+            let idxes = extract_substr_idxes(&self.cleaned_body, &regex_config)?[0];
+            Ok(idxes)
+        } else {
+            let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
+            Ok(idxes)
+        }
     }
 
     fn need_soft_line_breaks(&self) -> bool {
