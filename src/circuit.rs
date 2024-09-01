@@ -159,7 +159,11 @@ pub async fn generate_email_circuit_input(
     let from_addr_idx = parsed_email.get_from_addr_idxes()?.0;
     let domain_idx = parsed_email.get_email_domain_idxes()?.0;
     let subject_idx = parsed_email.get_subject_all_idxes()?.0;
-    let code_idx = match parsed_email.get_invitation_code_idxes() {
+    let code_idx = match parsed_email.get_invitation_code_idxes(
+        params
+            .as_ref()
+            .map_or(false, |p| p.ignore_body_hash_check.unwrap_or(false)),
+    ) {
         Ok(indexes) => indexes.0,
         Err(_) => 0,
     };

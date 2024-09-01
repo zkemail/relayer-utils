@@ -148,26 +148,38 @@ impl ParsedEmail {
     }
 
     /// Extracts the invitation code from the canonicalized email body.
-    pub fn get_invitation_code(&self) -> Result<String> {
+    pub fn get_invitation_code(&self, ignore_body_hash_check: bool) -> Result<String> {
         let regex_config = serde_json::from_str(include_str!("../regexes/invitation_code.json"))?;
-        let idxes = if self.need_soft_line_breaks() {
-            extract_substr_idxes(&self.cleaned_body, &regex_config)?[0]
+        let idxes = if ignore_body_hash_check {
+            extract_substr_idxes(&self.canonicalized_header, &regex_config)?[0]
         } else {
-            extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0]
+            if self.need_soft_line_breaks() {
+                extract_substr_idxes(&self.cleaned_body, &regex_config)?[0]
+            } else {
+                extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0]
+            }
         };
         let str = self.canonicalized_body[idxes.0..idxes.1].to_string();
         Ok(str)
     }
 
     /// Retrieves the index range of the invitation code within the canonicalized email body.
-    pub fn get_invitation_code_idxes(&self) -> Result<(usize, usize)> {
+    pub fn get_invitation_code_idxes(
+        &self,
+        ignore_body_hash_check: bool,
+    ) -> Result<(usize, usize)> {
         let regex_config = serde_json::from_str(include_str!("../regexes/invitation_code.json"))?;
-        if self.need_soft_line_breaks() {
-            let idxes = extract_substr_idxes(&self.cleaned_body, &regex_config)?[0];
+        if ignore_body_hash_check {
+            let idxes = extract_substr_idxes(&self.canonicalized_header, &regex_config)?[0];
             Ok(idxes)
         } else {
-            let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
-            Ok(idxes)
+            if self.need_soft_line_breaks() {
+                let idxes = extract_substr_idxes(&self.cleaned_body, &regex_config)?[0];
+                Ok(idxes)
+            } else {
+                let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
+                Ok(idxes)
+            }
         }
     }
 
