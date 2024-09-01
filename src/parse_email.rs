@@ -209,12 +209,16 @@ impl ParsedEmail {
         }
     }
 
-    fn need_soft_line_breaks(&self) -> bool {
+    pub fn need_soft_line_breaks(&self) -> bool {
         if let Ok(command) = self.get_command() {
             command.contains("=\r\n")
         } else {
             false
         }
+    }
+
+    pub fn get_body_with_soft_line_breaks(&self) -> Result<String> {
+        Ok(self.cleaned_body.clone())
     }
 }
 
