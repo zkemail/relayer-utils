@@ -30,7 +30,7 @@ pub(crate) fn generate_email_circuit_input_node(mut cx: FunctionContext) -> JsRe
     let email = cx.argument::<JsString>(0)?.value(&mut cx);
     let account_code = cx.argument::<JsString>(1)?.value(&mut cx);
     let account_code = AccountCode::from(hex_to_field_node(&mut cx, &account_code)?);
-    let params = cx.argument_opt(3).map(|arg| {
+    let params = cx.argument_opt(2).map(|arg| {
         let params = arg.downcast::<JsObject, _>(&mut cx).unwrap();
         let sha_precompute_selector = params
             .get(&mut cx, "shaPrecomputeSelector")
