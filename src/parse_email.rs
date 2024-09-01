@@ -226,7 +226,7 @@ impl ParsedEmail {
     }
 }
 
-fn remove_quoted_printable_soft_breaks(body: Vec<u8>) -> Vec<u8> {
+pub(crate) fn remove_quoted_printable_soft_breaks(body: Vec<u8>) -> Vec<u8> {
     let mut result = Vec::with_capacity(body.len());
     let mut iter = body.iter().enumerate();
 

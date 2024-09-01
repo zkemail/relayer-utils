@@ -4,8 +4,9 @@ use serde::{Deserialize, Serialize};
 use std::cmp;
 
 use crate::{
-    field_to_hex, generate_partial_sha, sha256_pad, to_circom_bigint_bytes, vec_u8_to_bigint,
-    AccountCode, PaddedEmailAddr, ParsedEmail, MAX_BODY_PADDED_BYTES, MAX_HEADER_PADDED_BYTES,
+    field_to_hex, generate_partial_sha, remove_quoted_printable_soft_breaks, sha256_pad,
+    to_circom_bigint_bytes, vec_u8_to_bigint, AccountCode, PaddedEmailAddr, ParsedEmail,
+    MAX_BODY_PADDED_BYTES, MAX_HEADER_PADDED_BYTES,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -25,7 +26,7 @@ struct EmailCircuitInput {
     timestamp_idx: usize,
     code_idx: usize,
     command_idx: usize,
-    cleaned_body: Option<Vec<u8>>,
+    padded_cleaned_body: Option<Vec<u8>>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -140,27 +141,6 @@ pub async fn generate_email_circuit_input(
     params: Option<EmailCircuitParams>,
 ) -> Result<String> {
     let parsed_email = ParsedEmail::new_from_raw_email(&email).await?;
-    let cleaned_body = if parsed_email.need_soft_line_breaks() {
-        let cleaned_body = parsed_email
-            .get_body_with_soft_line_breaks()?
-            .as_bytes()
-            .to_vec();
-        let body_sha_length = ((cleaned_body.len() + 63 + 65) / 64) * 64;
-        let (body_padded, _) = sha256_pad(
-            cleaned_body,
-            cmp::max(
-                params
-                    .as_ref()
-                    .and_then(|p| p.max_body_length)
-                    .unwrap_or_else(|| MAX_BODY_PADDED_BYTES),
-                body_sha_length,
-            ),
-        );
-        Some(body_padded)
-    } else {
-        None
-    };
-
     let circuit_input_params = CircuitInputParams::new(
         parsed_email.canonicalized_body.as_bytes().to_vec(),
         parsed_email.canonicalized_header.as_bytes().to_vec(),
@@ -191,6 +171,14 @@ pub async fn generate_email_circuit_input(
         Ok(indexes) => indexes.0,
         Err(_) => 0,
     };
+    let padded_cleaned_body = if parsed_email.need_soft_line_breaks() {
+        email_circuit_inputs
+            .body_padded
+            .clone()
+            .map(|body| remove_quoted_printable_soft_breaks(body))
+    } else {
+        None
+    };
 
     let email_auth_input = EmailCircuitInput {
         padded_header: email_circuit_inputs.header_padded,
@@ -208,7 +196,7 @@ pub async fn generate_email_circuit_input(
         padded_body_len: email_circuit_inputs.body_len_padded_bytes,
         precomputed_sha: email_circuit_inputs.precomputed_sha,
         command_idx,
-        cleaned_body,
+        padded_cleaned_body,
     };
 
     Ok(serde_json::to_string(&email_auth_input)?)
