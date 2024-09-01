@@ -25,6 +25,7 @@ struct EmailCircuitInput {
     timestamp_idx: usize,
     code_idx: usize,
     command_idx: usize,
+    cleaned_body: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -139,13 +140,13 @@ pub async fn generate_email_circuit_input(
     params: Option<EmailCircuitParams>,
 ) -> Result<String> {
     let parsed_email = ParsedEmail::new_from_raw_email(&email).await?;
-    let body = if parsed_email.need_soft_line_breaks() {
-        parsed_email.get_body_with_soft_line_breaks()?
+    let cleaned_body = if parsed_email.need_soft_line_breaks() {
+        Some(parsed_email.get_body_with_soft_line_breaks()?)
     } else {
-        parsed_email.get_body()?
+        None
     };
     let circuit_input_params = CircuitInputParams::new(
-        body.as_bytes().to_vec(),
+        parsed_email.canonicalized_body.as_bytes().to_vec(),
         parsed_email.canonicalized_header.as_bytes().to_vec(),
         parsed_email.get_body_hash_idxes()?.0,
         vec_u8_to_bigint(parsed_email.clone().signature),
@@ -191,6 +192,7 @@ pub async fn generate_email_circuit_input(
         padded_body_len: email_circuit_inputs.body_len_padded_bytes,
         precomputed_sha: email_circuit_inputs.precomputed_sha,
         command_idx,
+        cleaned_body,
     };
 
     Ok(serde_json::to_string(&email_auth_input)?)
