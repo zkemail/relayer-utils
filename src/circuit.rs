@@ -25,7 +25,7 @@ struct EmailCircuitInput {
     timestamp_idx: usize,
     code_idx: usize,
     command_idx: usize,
-    cleaned_body: Option<String>,
+    cleaned_body: Option<Vec<u8>>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -141,10 +141,26 @@ pub async fn generate_email_circuit_input(
 ) -> Result<String> {
     let parsed_email = ParsedEmail::new_from_raw_email(&email).await?;
     let cleaned_body = if parsed_email.need_soft_line_breaks() {
-        Some(parsed_email.get_body_with_soft_line_breaks()?)
+        let cleaned_body = parsed_email
+            .get_body_with_soft_line_breaks()?
+            .as_bytes()
+            .to_vec();
+        let body_sha_length = ((cleaned_body.len() + 63 + 65) / 64) * 64;
+        let (body_padded, _) = sha256_pad(
+            cleaned_body,
+            cmp::max(
+                params
+                    .as_ref()
+                    .and_then(|p| p.max_body_length)
+                    .unwrap_or_else(|| MAX_BODY_PADDED_BYTES),
+                body_sha_length,
+            ),
+        );
+        Some(body_padded)
     } else {
         None
     };
+
     let circuit_input_params = CircuitInputParams::new(
         parsed_email.canonicalized_body.as_bytes().to_vec(),
         parsed_email.canonicalized_header.as_bytes().to_vec(),
