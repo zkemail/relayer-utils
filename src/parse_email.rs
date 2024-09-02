@@ -152,12 +152,10 @@ impl ParsedEmail {
         let regex_config = serde_json::from_str(include_str!("../regexes/invitation_code.json"))?;
         let idxes = if ignore_body_hash_check {
             extract_substr_idxes(&self.canonicalized_header, &regex_config)?[0]
+        } else if self.need_soft_line_breaks() {
+            extract_substr_idxes(&self.cleaned_body, &regex_config)?[0]
         } else {
-            if self.need_soft_line_breaks() {
-                extract_substr_idxes(&self.cleaned_body, &regex_config)?[0]
-            } else {
-                extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0]
-            }
+            extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0]
         };
         let str = self.canonicalized_body[idxes.0..idxes.1].to_string();
         Ok(str)
@@ -172,14 +170,12 @@ impl ParsedEmail {
         if ignore_body_hash_check {
             let idxes = extract_substr_idxes(&self.canonicalized_header, &regex_config)?[0];
             Ok(idxes)
+        } else if self.need_soft_line_breaks() {
+            let idxes = extract_substr_idxes(&self.cleaned_body, &regex_config)?[0];
+            Ok(idxes)
         } else {
-            if self.need_soft_line_breaks() {
-                let idxes = extract_substr_idxes(&self.cleaned_body, &regex_config)?[0];
-                Ok(idxes)
-            } else {
-                let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
-                Ok(idxes)
-            }
+            let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
+            Ok(idxes)
         }
     }
 

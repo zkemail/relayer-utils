@@ -67,48 +67,56 @@ pub struct CircuitInputParams {
     ignore_body_hash_check: bool,            // Flag to ignore the body hash check
 }
 
+pub struct CircuitParams {
+    pub body: Vec<u8>,          // The email body in bytes
+    pub header: Vec<u8>,        // The email header in bytes
+    pub body_hash_idx: usize,   // The index of the body hash in the header
+    pub rsa_signature: BigInt,  // The RSA signature as a BigInt
+    pub rsa_public_key: BigInt, // The RSA public key as a BigInt
+}
+
+pub struct CircuitOptions {
+    pub sha_precompute_selector: Option<String>, // Selector for SHA-256 precomputation
+    pub max_header_length: Option<usize>,        // The maximum length of the email header
+    pub max_body_length: Option<usize>,          // The maximum length of the email body
+    pub ignore_body_hash_check: Option<bool>,    // Flag to ignore the body hash check
+}
+
 impl CircuitInputParams {
-    /// Creates a new `CircuitInputParams` instance with provided values or default ones.
+    /// Creates a new `CircuitInputParams` instance with provided parameters and options.
     ///
     /// # Arguments
     ///
-    /// * `body` - A vector of bytes representing the email body.
-    /// * `header` - A vector of bytes representing the email header.
-    /// * `body_hash_idx` - The index of the body hash within the circuit.
-    /// * `rsa_signature` - The RSA signature as a BigInt.
-    /// * `rsa_public_key` - The RSA public key as a BigInt.
-    /// * `sha_precompute_selector` - Optional selector for SHA-256 precomputation.
-    /// * `max_header_length` - Optional maximum length of the email header.
-    /// * `max_body_length` - Optional maximum length of the email body.
-    /// * `ignore_body_hash_check` - Optional flag to ignore the body hash check.
+    /// * `params` - A `CircuitParams` struct containing:
+    ///   * `body`: A vector of bytes representing the email body.
+    ///   * `header`: A vector of bytes representing the email header.
+    ///   * `body_hash_idx`: The index of the body hash within the circuit.
+    ///   * `rsa_signature`: The RSA signature as a BigInt.
+    ///   * `rsa_public_key`: The RSA public key as a BigInt.
+    ///
+    /// * `options` - A `CircuitOptions` struct containing optional parameters:
+    ///   * `sha_precompute_selector`: Selector for SHA-256 precomputation.
+    ///   * `max_header_length`: Maximum length of the email header, with a default value if not provided.
+    ///   * `max_body_length`: Maximum length of the email body, with a default value if not provided.
+    ///   * `ignore_body_hash_check`: Flag to ignore the body hash check, defaults to false if not provided.
     ///
     /// # Returns
     ///
-    /// A `CircuitInputParams` instance with the specified or default parameters.
-    pub fn new(
-        body: Vec<u8>,
-        header: Vec<u8>,
-        body_hash_idx: usize,
-        rsa_signature: BigInt,
-        rsa_public_key: BigInt,
-        sha_precompute_selector: Option<String>,
-        max_header_length: Option<usize>,
-        max_body_length: Option<usize>,
-        ignore_body_hash_check: Option<bool>,
-    ) -> Self {
+    /// A `CircuitInputParams` instance with the specified parameters and options applied.
+    pub fn new(params: CircuitParams, options: CircuitOptions) -> Self {
         CircuitInputParams {
-            body,
-            header,
-            body_hash_idx,
-            rsa_signature,
-            rsa_public_key,
-            sha_precompute_selector,
+            body: params.body,
+            header: params.header,
+            body_hash_idx: params.body_hash_idx,
+            rsa_signature: params.rsa_signature,
+            rsa_public_key: params.rsa_public_key,
+            sha_precompute_selector: options.sha_precompute_selector,
             // Use the provided max_header_length or default to MAX_HEADER_PADDED_BYTES
-            max_header_length: max_header_length.unwrap_or(MAX_HEADER_PADDED_BYTES),
+            max_header_length: options.max_header_length.unwrap_or(MAX_HEADER_PADDED_BYTES),
             // Use the provided max_body_length or default to MAX_BODY_PADDED_BYTES
-            max_body_length: max_body_length.unwrap_or(MAX_BODY_PADDED_BYTES),
+            max_body_length: options.max_body_length.unwrap_or(MAX_BODY_PADDED_BYTES),
             // Use the provided ignore_body_hash_check or default to false
-            ignore_body_hash_check: ignore_body_hash_check.unwrap_or(false),
+            ignore_body_hash_check: options.ignore_body_hash_check.unwrap_or(false),
         }
     }
 }
@@ -203,21 +211,33 @@ pub async fn generate_email_circuit_input(
     params: Option<EmailCircuitParams>,
 ) -> Result<String> {
     // Parse the raw email to extract canonicalized body and header, and other components
-    let parsed_email = ParsedEmail::new_from_raw_email(&email).await?;
-    // Create circuit input parameters from the parsed email and optional parameters
-    let circuit_input_params = CircuitInputParams::new(
-        parsed_email.canonicalized_body.as_bytes().to_vec(),
-        parsed_email.canonicalized_header.as_bytes().to_vec(),
-        parsed_email.get_body_hash_idxes()?.0,
-        vec_u8_to_bigint(parsed_email.clone().signature),
-        vec_u8_to_bigint(parsed_email.clone().public_key),
-        params
+    let parsed_email = ParsedEmail::new_from_raw_email(email).await?;
+
+    // Clone the fields that are used by value before the move occurs
+    let public_key = parsed_email.public_key.clone();
+    let signature = parsed_email.signature.clone();
+
+    // Create a CircuitParams struct from the parsed email
+    let circuit_params = CircuitParams {
+        body: parsed_email.canonicalized_body.as_bytes().to_vec(),
+        header: parsed_email.canonicalized_header.as_bytes().to_vec(),
+        body_hash_idx: parsed_email.get_body_hash_idxes()?.0,
+        rsa_signature: vec_u8_to_bigint(signature),
+        rsa_public_key: vec_u8_to_bigint(public_key),
+    };
+
+    // Create a CircuitOptions struct from the optional parameters
+    let circuit_options = CircuitOptions {
+        sha_precompute_selector: params
             .as_ref()
             .and_then(|p| p.sha_precompute_selector.clone()),
-        params.as_ref().and_then(|p| p.max_header_length),
-        params.as_ref().and_then(|p| p.max_body_length),
-        params.as_ref().and_then(|p| p.ignore_body_hash_check),
-    );
+        max_header_length: params.as_ref().and_then(|p| p.max_header_length),
+        max_body_length: params.as_ref().and_then(|p| p.max_body_length),
+        ignore_body_hash_check: params.as_ref().and_then(|p| p.ignore_body_hash_check),
+    };
+
+    // Create circuit input parameters from the CircuitParams and CircuitOptions structs
+    let circuit_input_params = CircuitInputParams::new(circuit_params, circuit_options);
 
     // Generate the circuit inputs from the parameters
     let email_circuit_inputs = generate_circuit_inputs(circuit_input_params)?;

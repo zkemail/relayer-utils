@@ -62,7 +62,7 @@ pub(crate) fn bytes_to_fields_node(mut cx: FunctionContext) -> JsResult<JsArray>
 
     // Populate the JavaScript array with the field elements.
     for (i, field) in fields.into_iter().enumerate() {
-        let field = cx.string(&field_to_hex(&field));
+        let field = cx.string(field_to_hex(&field));
         js_array.set(&mut cx, i as u32, field)?;
     }
 

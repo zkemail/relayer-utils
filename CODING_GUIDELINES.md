@@ -4,7 +4,7 @@ This document outlines the coding guidelines for contributing to Relayer Utils. 
 
 ## 1. Code Formatting
 
-- **Tool**: Use `rustfmt` to automatically format your code. Ensure that all code is formatted before committing.
+- **Tool**: Use `rustfmt` to automatically format your code. Ensure that all code is formatted before committing. Run `cargo fmt` to format your code according to the project's style guidelines.
 - **Indentation**: Use 4 spaces per indentation level. Do not use tabs.
 - **Line Length**: Aim to keep lines under 100 characters, but it's not a strict rule. Use your judgment to ensure readability.
 - **Imports**: Group imports into four sections: `extern crate`, `use`, `use crate`, and `use super`.
@@ -37,7 +37,12 @@ This document outlines the coding guidelines for contributing to Relayer Utils. 
 - **Code Duplication**: Avoid duplicating code. If you find yourself copying and pasting code, consider refactoring it into a shared function or module.
 - **No warnings**: Ensure that your code compiles without warnings. Fix any warnings before committing.
 
-## 2. Naming Conventions
+## 2. Code Linting
+
+- **Tool**: Use `cargo clippy` to lint your code and catch common mistakes and improve your Rust code. Run `cargo clippy` before committing your code to ensure it adheres to Rust's best practices and the project's specific requirements.
+- **Handling Lints**: Address all warnings and errors reported by `clippy`. If you must ignore a lint, use `#[allow(clippy::lint_name)]` and provide a comment explaining why.
+
+## 3. Naming Conventions
 
 - **Variables and Functions**: Use `snake_case`.
     - Example: `let user_name = "Alice";`
@@ -48,7 +53,7 @@ This document outlines the coding guidelines for contributing to Relayer Utils. 
 - **Module Names**: Use `snake_case`.
     - Example: `mod user_account;`
 
-## 3. Documentation
+## 4. Documentation
 
 - **Public Items**: All public functions, structs, and modules must have documentation comments using `///`.
   - Example:
@@ -75,7 +80,7 @@ This document outlines the coding guidelines for contributing to Relayer Utils. 
     // module contents
     ```
 
-## 4. Error Handling
+## 5. Error Handling
 
 - **Use of `Result` and `Option`**:
   - Use `Result` for operations that can fail and `Option` for values that may or may not be present.
@@ -91,5 +96,3 @@ This document outlines the coding guidelines for contributing to Relayer Utils. 
     ```
 - **Custom Error Types**: When appropriate, define custom error types using `enum` and implement the `anyhow::Error` trait.
 - **Error Propagation**: Propagate errors using `?` where possible to simplify error handling.
-
-

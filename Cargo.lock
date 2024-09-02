@@ -97,9 +97,9 @@ dependencies = [
 
 [[package]]
 name = "async-trait"
-version = "0.1.81"
+version = "0.1.82"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e0c28dcc82d7c8ead5cb13beb15405b57b8546e93215673ff8ca0349a028107"
+checksum = "a27b8a3a6e1a44fa4c8baf1f653e4172e81486d4941f2237e20dc2d0cf4ddff1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1193,16 +1193,6 @@ checksum = "7cd915d99f24784cdc19fd37ef22b97e3ff0ae756c7e492e9fbfe897d61e2aec"
 dependencies = [
  "indenter",
  "once_cell",
-]
-
-[[package]]
-name = "fancy-regex"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b95f7c0680e4142284cf8b22c14a476e87d61b004a3a0861872b32ef7ead40a2"
-dependencies = [
- "bit-set",
- "regex",
 ]
 
 [[package]]
@@ -2852,7 +2842,6 @@ dependencies = [
  "base64 0.21.7",
  "cfdkim",
  "ethers",
- "fancy-regex 0.11.0",
  "file-rotate",
  "halo2curves",
  "hex",
@@ -2868,7 +2857,6 @@ dependencies = [
  "rsa",
  "serde",
  "serde_json",
- "serde_regex",
  "slog",
  "slog-async",
  "slog-json",
@@ -3264,16 +3252,6 @@ dependencies = [
  "itoa",
  "memchr",
  "ryu",
- "serde",
-]
-
-[[package]]
-name = "serde_regex"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8136f1a4ea815d7eac4101cfd0b16dc0cb5e1fe1b8609dfd728058656b7badf"
-dependencies = [
- "regex",
  "serde",
 ]
 
@@ -4485,7 +4463,7 @@ name = "zk-regex-apis"
 version = "2.1.1"
 source = "git+https://github.com/zkemail/zk-regex.git#3b626316b07081378ffdca0d36ed2bec6df5b55a"
 dependencies = [
- "fancy-regex 0.13.0",
+ "fancy-regex",
  "itertools 0.13.0",
  "js-sys",
  "serde",

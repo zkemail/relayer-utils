@@ -15,6 +15,11 @@ use crate::{
     MAX_EMAIL_ADDR_BYTES,
 };
 
+type ShaResult = Vec<u8>; // The result of a SHA-256 hash operation.
+type RemainingBody = Vec<u8>; // The remaining part of a message after a SHA-256 hash operation.
+type RemainingBodyLength = usize; // The length of the remaining message body in bytes.
+type PartialShaResult = Result<(ShaResult, RemainingBody, RemainingBodyLength), Box<dyn Error>>; // The result of a partial SHA-256 hash operation, including the hash, remaining body, and its length, or an error.
+
 #[derive(Debug, Clone, Copy)]
 /// `RelayerRand` is a single field element representing a random value.
 pub struct RelayerRand(pub Fr);
@@ -324,14 +329,14 @@ pub fn partial_sha(msg: &[u8], msg_len: usize) -> Vec<u8> {
 ///
 /// # Returns
 ///
-/// A result containing a tuple of the precomputed SHA-256 hash, the remaining body, and its length,
-/// or an error if the selector is not found or the remaining body is too long.
+/// A tuple containing the SHA-256 hash of the pre-selector part of the message, the remaining body after the selector, and its length.
+/// If an error occurs, it is returned as a `Box<dyn Error>`.
 pub fn generate_partial_sha(
     body: Vec<u8>,
     body_length: usize,
     selector_string: Option<String>,
     max_remaining_body_length: usize,
-) -> Result<(Vec<u8>, Vec<u8>, usize), Box<dyn Error>> {
+) -> PartialShaResult {
     let mut selector_index = 0;
 
     if let Some(selector_str) = selector_string {
