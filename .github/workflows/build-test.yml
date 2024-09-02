@@ -15,8 +15,11 @@ jobs:
     - name: Cache Rust dependencies
       uses: Swatinem/rust-cache@v2
 
-    - name: Setup Yarn
-      uses: Swatinem/setup-yarn@v1
+    - name: Setup Node.js with Yarn
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'yarn'
 
     - name: Install Yarn dependencies
       run: yarn install
