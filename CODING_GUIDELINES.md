@@ -35,6 +35,7 @@ This document outlines the coding guidelines for contributing to Relayer Utils. 
         ```
 - **Function Length**: Aim to keep functions short and focused. If a function is too long, consider breaking it up into smaller functions.
 - **Code Duplication**: Avoid duplicating code. If you find yourself copying and pasting code, consider refactoring it into a shared function or module.
+- **No warnings**: Ensure that your code compiles without warnings. Fix any warnings before committing.
 
 ## 2. Naming Conventions
 
