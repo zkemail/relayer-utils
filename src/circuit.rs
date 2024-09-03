@@ -153,21 +153,6 @@ fn generate_circuit_inputs(params: CircuitInputParams) -> Result<CircuitInput> {
         cmp::max(params.max_body_length, body_sha_length),
     );
 
-    // Ensure that the error type returned by `generate_partial_sha` is sized
-    // by converting it into an `anyhow::Error` if it's not already.
-    let result = generate_partial_sha(
-        body_padded,
-        body_padded_len,
-        params.sha_precompute_selector,
-        params.max_body_length,
-    );
-
-    // Use match to handle the result and convert any error into an anyhow::Error
-    let (precomputed_sha, body_remaining, body_remaining_length) = match result {
-        Ok((sha, remaining, len)) => (sha, remaining, len),
-        Err(e) => panic!("Failed to generate partial SHA: {:?}", e),
-    };
-
     // Initialize the circuit input with the padded header and RSA information
     let mut circuit_input = CircuitInput {
         header_padded,
@@ -182,6 +167,21 @@ fn generate_circuit_inputs(params: CircuitInputParams) -> Result<CircuitInput> {
 
     // If body hash check is not ignored, include the precomputed SHA and body information
     if !params.ignore_body_hash_check {
+        // Ensure that the error type returned by `generate_partial_sha` is sized
+        // by converting it into an `anyhow::Error` if it's not already.
+        let result = generate_partial_sha(
+            body_padded,
+            body_padded_len,
+            params.sha_precompute_selector,
+            params.max_body_length,
+        );
+
+        // Use match to handle the result and convert any error into an anyhow::Error
+        let (precomputed_sha, body_remaining, body_remaining_length) = match result {
+            Ok((sha, remaining, len)) => (sha, remaining, len),
+            Err(e) => panic!("Failed to generate partial SHA: {:?}", e),
+        };
+
         circuit_input.precomputed_sha = Some(precomputed_sha);
         circuit_input.body_hash_idx = Some(params.body_hash_idx);
         circuit_input.body_padded = Some(body_remaining);
@@ -267,14 +267,15 @@ pub async fn generate_email_circuit_input(
         };
 
     // Clean the body if necessary
-    let padded_cleaned_body = if parsed_email.need_soft_line_breaks()? {
-        email_circuit_inputs
-            .body_padded
-            .clone()
-            .map(remove_quoted_printable_soft_breaks)
-    } else {
-        None
-    };
+    let padded_cleaned_body =
+        if parsed_email.need_soft_line_breaks(circuit_input_params.ignore_body_hash_check)? {
+            email_circuit_inputs
+                .body_padded
+                .clone()
+                .map(remove_quoted_printable_soft_breaks)
+        } else {
+            None
+        };
 
     if email_circuit_inputs.precomputed_sha.is_some() {
         let code = parsed_email
@@ -283,11 +284,12 @@ pub async fn generate_email_circuit_input(
         let command = parsed_email.get_command(circuit_input_params.ignore_body_hash_check)?;
 
         // Determine the appropriate body to search in
-        let search_body = if parsed_email.need_soft_line_breaks()? {
-            padded_cleaned_body.as_ref()
-        } else {
-            email_circuit_inputs.body_padded.as_ref()
-        };
+        let search_body =
+            if parsed_email.need_soft_line_breaks(circuit_input_params.ignore_body_hash_check)? {
+                padded_cleaned_body.as_ref()
+            } else {
+                email_circuit_inputs.body_padded.as_ref()
+            };
 
         // Find indices for the code and command in the body
         code_idx = find_index_in_body(search_body, &code);
