@@ -125,8 +125,8 @@ impl ParsedEmail {
     pub fn get_invitation_code(&self) -> Result<String> {
         let regex_config =
             serde_json::from_str(include_str!("../regexes/invitation_code.json")).unwrap();
-        let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
-        let str = self.canonicalized_body[idxes.0..idxes.1].to_string();
+        let idxes = extract_substr_idxes(&self.canonicalized_header, &regex_config)?[0];
+        let str = self.canonicalized_header[idxes.0..idxes.1].to_string();
         Ok(str)
     }
 
