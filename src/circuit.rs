@@ -55,6 +55,7 @@ struct CircuitInput {
     pub body_hash_idx: Option<usize>, // The index in header where the body hash is stored
 }
 
+#[derive(Debug, Clone)]
 pub struct CircuitInputParams {
     body: Vec<u8>,                           // The email body in bytes
     header: Vec<u8>,                         // The email header in bytes
@@ -240,14 +241,14 @@ pub async fn generate_email_circuit_input(
     let circuit_input_params = CircuitInputParams::new(circuit_params, circuit_options);
 
     // Generate the circuit inputs from the parameters
-    let email_circuit_inputs = generate_circuit_inputs(circuit_input_params)?;
+    let email_circuit_inputs = generate_circuit_inputs(circuit_input_params.clone())?;
 
     // Extract indices for various email components
     let from_addr_idx = parsed_email.get_from_addr_idxes()?.0;
     let domain_idx = parsed_email.get_email_domain_idxes()?.0;
     let subject_idx = parsed_email.get_subject_all_idxes()?.0;
     // Handle optional indices with default fallbacks
-    let code_idx = match parsed_email.get_invitation_code_idxes(
+    let mut code_idx = match parsed_email.get_invitation_code_idxes(
         params
             .as_ref()
             .map_or(false, |p| p.ignore_body_hash_check.unwrap_or(false)),
@@ -259,13 +260,14 @@ pub async fn generate_email_circuit_input(
         Ok(indexes) => indexes.0,
         Err(_) => 0,
     };
-    let command_idx = match parsed_email.get_command_idxes() {
-        Ok(indexes) => indexes.0,
-        Err(_) => 0,
-    };
+    let mut command_idx =
+        match parsed_email.get_command_idxes(circuit_input_params.ignore_body_hash_check) {
+            Ok(indexes) => indexes.0,
+            Err(_) => 0,
+        };
 
     // Clean the body if necessary
-    let padded_cleaned_body = if parsed_email.need_soft_line_breaks() {
+    let padded_cleaned_body = if parsed_email.need_soft_line_breaks()? {
         email_circuit_inputs
             .body_padded
             .clone()
@@ -273,6 +275,44 @@ pub async fn generate_email_circuit_input(
     } else {
         None
     };
+
+    if email_circuit_inputs.precomputed_sha.is_some() {
+        let code = parsed_email.get_invitation_code(circuit_input_params.ignore_body_hash_check)?;
+        let command = parsed_email.get_command(circuit_input_params.ignore_body_hash_check)?;
+
+        // Find indices for the code and command in the body
+        if parsed_email.need_soft_line_breaks()? {
+            // If soft line breaks are needed, search in the cleaned body
+            code_idx = padded_cleaned_body
+                .as_ref()
+                .and_then(|body| body.windows(code.len()).position(|w| w == code.as_bytes()))
+                .unwrap_or(0); // Default to 0 if not found
+            command_idx = padded_cleaned_body
+                .as_ref()
+                .and_then(|body| {
+                    // Search for the command in the cleaned body
+                    body.windows(command.len())
+                        .position(|w| w == command.as_bytes())
+                })
+                .unwrap_or(0); // Default to 0 if not found
+        } else {
+            // If no soft line breaks, search in the padded body
+            code_idx = email_circuit_inputs
+                .body_padded
+                .as_ref()
+                .and_then(|body| body.windows(code.len()).position(|w| w == code.as_bytes()))
+                .unwrap_or(0); // Default to 0 if not found
+            command_idx = email_circuit_inputs
+                .body_padded
+                .as_ref()
+                .and_then(|body| {
+                    // Search for the command in the padded body
+                    body.windows(command.len())
+                        .position(|w| w == command.as_bytes())
+                })
+                .unwrap_or(0); // Default to 0 if not found
+        }
+    }
 
     // Construct the email circuit input from the generated data
     let email_auth_input = EmailCircuitInput {

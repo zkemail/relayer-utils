@@ -150,15 +150,19 @@ impl ParsedEmail {
     /// Extracts the invitation code from the canonicalized email body.
     pub fn get_invitation_code(&self, ignore_body_hash_check: bool) -> Result<String> {
         let regex_config = serde_json::from_str(include_str!("../regexes/invitation_code.json"))?;
-        let idxes = if ignore_body_hash_check {
-            extract_substr_idxes(&self.canonicalized_header, &regex_config)?[0]
-        } else if self.need_soft_line_breaks() {
-            extract_substr_idxes(&self.cleaned_body, &regex_config)?[0]
+        if ignore_body_hash_check {
+            let idxes = extract_substr_idxes(&self.canonicalized_header, &regex_config)?[0];
+            let str = self.canonicalized_header[idxes.0..idxes.1].to_string();
+            Ok(str)
+        } else if self.need_soft_line_breaks()? {
+            let idxes = extract_substr_idxes(&self.cleaned_body, &regex_config)?[0];
+            let str = self.cleaned_body[idxes.0..idxes.1].to_string();
+            Ok(str)
         } else {
-            extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0]
-        };
-        let str = self.canonicalized_body[idxes.0..idxes.1].to_string();
-        Ok(str)
+            let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
+            let str = self.canonicalized_body[idxes.0..idxes.1].to_string();
+            Ok(str)
+        }
     }
 
     /// Retrieves the index range of the invitation code within the canonicalized email body.
@@ -170,7 +174,7 @@ impl ParsedEmail {
         if ignore_body_hash_check {
             let idxes = extract_substr_idxes(&self.canonicalized_header, &regex_config)?[0];
             Ok(idxes)
-        } else if self.need_soft_line_breaks() {
+        } else if self.need_soft_line_breaks()? {
             let idxes = extract_substr_idxes(&self.cleaned_body, &regex_config)?[0];
             Ok(idxes)
         } else {
@@ -203,16 +207,37 @@ impl ParsedEmail {
         Ok(str)
     }
 
-    pub fn get_command(&self) -> Result<String> {
+    /// Extracts the command from the canonicalized email header or body.
+    pub fn get_command(&self, ignore_body_hash_check: bool) -> Result<String> {
         let regex_config = serde_json::from_str(include_str!("../regexes/command.json"))?;
-        let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
-        let str = self.canonicalized_body[idxes.0..idxes.1].to_string();
-        Ok(str)
+        if ignore_body_hash_check {
+            let idxes = extract_substr_idxes(&self.canonicalized_header, &regex_config)?[0];
+            let str = self.canonicalized_header[idxes.0..idxes.1].to_string();
+            Ok(str)
+        } else {
+            let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
+            let str = self.canonicalized_body[idxes.0..idxes.1].to_string();
+            if str.contains("=\r\n") {
+                let cleaned_str = remove_quoted_printable_soft_breaks(str.as_bytes().to_vec());
+                // Remove any null bytes at the end of the cleaned string
+                let cleaned_str_no_nulls = cleaned_str
+                    .into_iter()
+                    .filter(|&byte| byte != 0)
+                    .collect::<Vec<u8>>();
+                Ok(String::from_utf8(cleaned_str_no_nulls)?)
+            } else {
+                Ok(str)
+            }
+        }
     }
 
-    pub fn get_command_idxes(&self) -> Result<(usize, usize)> {
+    /// Retrieves the index range of the command within the canonicalized email header or body.
+    pub fn get_command_idxes(&self, ignore_body_hash_check: bool) -> Result<(usize, usize)> {
         let regex_config = serde_json::from_str(include_str!("../regexes/command.json"))?;
-        if self.need_soft_line_breaks() {
+        if ignore_body_hash_check {
+            let idxes = extract_substr_idxes(&self.canonicalized_header, &regex_config)?[0];
+            Ok(idxes)
+        } else if self.need_soft_line_breaks()? {
             let idxes = extract_substr_idxes(&self.cleaned_body, &regex_config)?[0];
             Ok(idxes)
         } else {
@@ -221,19 +246,32 @@ impl ParsedEmail {
         }
     }
 
-    pub fn need_soft_line_breaks(&self) -> bool {
-        if let Ok(command) = self.get_command() {
-            command.contains("=\r\n")
-        } else {
-            false
-        }
+    /// Determines if the email body contains quoted-printable soft line breaks.
+    pub fn need_soft_line_breaks(&self) -> Result<bool> {
+        let regex_config = serde_json::from_str(include_str!("../regexes/command.json"))?;
+        let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
+        let str = self.canonicalized_body[idxes.0..idxes.1].to_string();
+        Ok(str.contains("=\r\n"))
     }
 
+    /// Returns the cleaned email body with quoted-printable soft line breaks removed.
     pub fn get_body_with_soft_line_breaks(&self) -> Result<String> {
         Ok(self.cleaned_body.clone())
     }
 }
 
+/// Removes quoted-printable soft line breaks from an email body.
+///
+/// Quoted-printable encoding uses `=` followed by `\r\n` to indicate a soft line break.
+/// This function removes such sequences from the input `Vec<u8>`.
+///
+/// # Arguments
+///
+/// * `body` - A `Vec<u8>` representing the email body to be cleaned.
+///
+/// # Returns
+///
+/// A `Vec<u8>` with all quoted-printable soft line breaks removed.
 pub(crate) fn remove_quoted_printable_soft_breaks(body: Vec<u8>) -> Vec<u8> {
     let mut result = Vec::with_capacity(body.len());
     let mut iter = body.iter().enumerate();
