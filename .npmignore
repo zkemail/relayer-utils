@@ -2,7 +2,6 @@
 *
 
 # But include the following files and directories
-!binary-arm64.node
 !index.js
 !README.md
 !bin/
