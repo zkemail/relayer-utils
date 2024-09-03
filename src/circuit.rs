@@ -34,7 +34,7 @@ pub struct EmailCircuitParams {
     pub ignore_body_hash_check: Option<bool>, // Flag to ignore the body hash check
     pub max_header_length: Option<usize>,     // The maximum length of the email header
     pub max_body_length: Option<usize>,       // The maximum length of the email body
-    pub sha_precompute_selector: Option<String>, // Text to select the part of the body to precompute the SHA-256 hash
+    pub sha_precompute_selector: Option<String>, // Regex selector for SHA-256 precomputation
 }
 
 #[derive(Serialize, Deserialize)]
@@ -62,7 +62,7 @@ pub struct CircuitInputParams {
     body_hash_idx: usize,                    // The index of the body hash within the circuit
     rsa_signature: BigInt,                   // The RSA signature as a BigInt
     rsa_public_key: BigInt,                  // The RSA public key as a BigInt
-    sha_precompute_selector: Option<String>, // Selector for SHA-256 precomputation
+    sha_precompute_selector: Option<String>, // Regex Selector for SHA-256 precomputation
     max_header_length: usize,                // The maximum length of the email header
     max_body_length: usize,                  // The maximum length of the email body
     ignore_body_hash_check: bool,            // Flag to ignore the body hash check

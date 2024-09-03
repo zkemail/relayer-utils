@@ -2854,6 +2854,7 @@ dependencies = [
  "once_cell",
  "poseidon-rs",
  "rand_core",
+ "regex",
  "rsa",
  "serde",
  "serde_json",

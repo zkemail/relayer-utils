@@ -249,9 +249,17 @@ impl ParsedEmail {
             return Ok(false);
         }
         let regex_config = serde_json::from_str(include_str!("../regexes/command.json"))?;
-        let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
-        let str = self.canonicalized_body[idxes.0..idxes.1].to_string();
-        Ok(str.contains("=\r\n"))
+        match extract_substr_idxes(&self.canonicalized_body, &regex_config) {
+            Ok(idxes) => {
+                let str = self.canonicalized_body[idxes[0].0..idxes[0].1].to_string();
+                Ok(str.contains("=\r\n"))
+            }
+            Err(_) => {
+                let idxes = extract_substr_idxes(&self.cleaned_body, &regex_config)?[0];
+                let str = self.cleaned_body[idxes.0..idxes.1].to_string();
+                Ok(str.contains("=\r\n"))
+            }
+        }
     }
 
     /// Returns the cleaned email body with quoted-printable soft line breaks removed.
