@@ -287,3 +287,29 @@ pub(crate) fn remove_quoted_printable_soft_breaks(body: Vec<u8>) -> Vec<u8> {
     result.resize(body.len(), 0);
     result
 }
+
+/// Finds the index of the first occurrence of a pattern in the given body.
+///
+/// This function searches for the pattern within the body and returns the index of its first occurrence.
+/// If the pattern is not found or is empty, the function returns 0.
+///
+/// # Arguments
+///
+/// * `body` - An `Option` wrapping a reference to a `Vec<u8>` representing the email body.
+/// * `pattern` - A string slice representing the pattern to search for.
+///
+/// # Returns
+///
+/// The index of the first occurrence of the pattern within the body as `usize`.
+pub(crate) fn find_index_in_body(body: Option<&Vec<u8>>, pattern: &str) -> usize {
+    body.and_then(|body_bytes| {
+        if !pattern.is_empty() {
+            body_bytes
+                .windows(pattern.len())
+                .position(|w| w == pattern.as_bytes())
+        } else {
+            None
+        }
+    })
+    .unwrap_or(0) // Default to 0 if not found or pattern is empty
+}

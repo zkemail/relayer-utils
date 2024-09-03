@@ -4,9 +4,9 @@ use serde::{Deserialize, Serialize};
 use std::cmp;
 
 use crate::{
-    field_to_hex, generate_partial_sha, remove_quoted_printable_soft_breaks, sha256_pad,
-    to_circom_bigint_bytes, vec_u8_to_bigint, AccountCode, PaddedEmailAddr, ParsedEmail,
-    MAX_BODY_PADDED_BYTES, MAX_HEADER_PADDED_BYTES,
+    field_to_hex, find_index_in_body, generate_partial_sha, remove_quoted_printable_soft_breaks,
+    sha256_pad, to_circom_bigint_bytes, vec_u8_to_bigint, AccountCode, PaddedEmailAddr,
+    ParsedEmail, MAX_BODY_PADDED_BYTES, MAX_HEADER_PADDED_BYTES,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -277,41 +277,21 @@ pub async fn generate_email_circuit_input(
     };
 
     if email_circuit_inputs.precomputed_sha.is_some() {
-        let code = parsed_email.get_invitation_code(circuit_input_params.ignore_body_hash_check)?;
+        let code = parsed_email
+            .get_invitation_code(circuit_input_params.ignore_body_hash_check)
+            .unwrap_or_default();
         let command = parsed_email.get_command(circuit_input_params.ignore_body_hash_check)?;
 
-        // Find indices for the code and command in the body
-        if parsed_email.need_soft_line_breaks()? {
-            // If soft line breaks are needed, search in the cleaned body
-            code_idx = padded_cleaned_body
-                .as_ref()
-                .and_then(|body| body.windows(code.len()).position(|w| w == code.as_bytes()))
-                .unwrap_or(0); // Default to 0 if not found
-            command_idx = padded_cleaned_body
-                .as_ref()
-                .and_then(|body| {
-                    // Search for the command in the cleaned body
-                    body.windows(command.len())
-                        .position(|w| w == command.as_bytes())
-                })
-                .unwrap_or(0); // Default to 0 if not found
+        // Determine the appropriate body to search in
+        let search_body = if parsed_email.need_soft_line_breaks()? {
+            padded_cleaned_body.as_ref()
         } else {
-            // If no soft line breaks, search in the padded body
-            code_idx = email_circuit_inputs
-                .body_padded
-                .as_ref()
-                .and_then(|body| body.windows(code.len()).position(|w| w == code.as_bytes()))
-                .unwrap_or(0); // Default to 0 if not found
-            command_idx = email_circuit_inputs
-                .body_padded
-                .as_ref()
-                .and_then(|body| {
-                    // Search for the command in the padded body
-                    body.windows(command.len())
-                        .position(|w| w == command.as_bytes())
-                })
-                .unwrap_or(0); // Default to 0 if not found
-        }
+            email_circuit_inputs.body_padded.as_ref()
+        };
+
+        // Find indices for the code and command in the body
+        code_idx = find_index_in_body(search_body, &code);
+        command_idx = find_index_in_body(search_body, &command);
     }
 
     // Construct the email circuit input from the generated data
