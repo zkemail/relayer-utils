@@ -254,11 +254,10 @@ impl ParsedEmail {
                 let str = self.canonicalized_body[idxes[0].0..idxes[0].1].to_string();
                 Ok(str.contains("=\r\n"))
             }
-            Err(_) => {
-                let idxes = extract_substr_idxes(&self.cleaned_body, &regex_config)?[0];
-                let str = self.cleaned_body[idxes.0..idxes.1].to_string();
-                Ok(str.contains("=\r\n"))
-            }
+            Err(_) => match extract_substr_idxes(&self.cleaned_body, &regex_config) {
+                Ok(_) => Ok(true),
+                _ => Ok(false),
+            },
         }
     }
 

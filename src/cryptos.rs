@@ -12,7 +12,7 @@ use crate::{
     converters::{
         bytes_chunk_fields, bytes_to_fields, int64_to_bytes, int8_to_bytes, merge_u8_arrays,
     },
-    remove_quoted_printable_soft_breaks, MAX_EMAIL_ADDR_BYTES,
+    MAX_EMAIL_ADDR_BYTES,
 };
 
 type ShaResult = Vec<u8>; // The result of a SHA-256 hash operation.
@@ -324,7 +324,7 @@ pub fn partial_sha(msg: &[u8], msg_len: usize) -> Vec<u8> {
 ///
 /// * `body` - The message body as a vector of bytes.
 /// * `body_length` - The length of the message body to consider.
-/// * `selector` - An optional string which is a regex selector to find in the body to split the message.
+/// * `selector_regex` - An optional string which is a regex selector to find in the body to split the message.
 /// * `max_remaining_body_length` - The maximum length allowed for the remaining body after the selector.
 ///
 /// # Returns
@@ -352,8 +352,6 @@ pub fn generate_partial_sha(
                 trimmed_body.pop();
             }
 
-            // Remove soft line breaks
-            trimmed_body = remove_quoted_printable_soft_breaks(trimmed_body);
             String::from_utf8(trimmed_body).unwrap()
         };
 
