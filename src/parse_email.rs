@@ -213,18 +213,18 @@ impl ParsedEmail {
         if ignore_body_hash_check {
             Ok("".to_string())
         } else {
-            let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
-            let str = self.canonicalized_body[idxes.0..idxes.1].to_string();
-            if str.contains("=\r\n") {
-                let cleaned_str = remove_quoted_printable_soft_breaks(str.as_bytes().to_vec());
-                // Remove any null bytes at the end of the cleaned string
-                let cleaned_str_no_nulls = cleaned_str
-                    .into_iter()
-                    .filter(|&byte| byte != 0)
-                    .collect::<Vec<u8>>();
-                Ok(String::from_utf8(cleaned_str_no_nulls)?)
-            } else {
-                Ok(str)
+            match extract_substr_idxes(&self.canonicalized_body, &regex_config) {
+                Ok(idxes) => {
+                    let str = self.canonicalized_body[idxes[0].0..idxes[0].1].to_string();
+                    Ok(str)
+                }
+                Err(_) => match extract_substr_idxes(&self.cleaned_body, &regex_config) {
+                    Ok(idxes) => {
+                        let str = self.cleaned_body[idxes[0].0..idxes[0].1].to_string();
+                        Ok(str)
+                    }
+                    _ => Ok("".to_string()),
+                },
             }
         }
     }
