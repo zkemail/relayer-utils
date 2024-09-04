@@ -216,7 +216,7 @@ impl ParsedEmail {
             match extract_substr_idxes(&self.canonicalized_body, &regex_config) {
                 Ok(idxes) => {
                     let str = self.canonicalized_body[idxes[0].0..idxes[0].1].to_string();
-                    Ok(str)
+                    Ok(str.replace("=\r\n", ""))
                 }
                 Err(_) => match extract_substr_idxes(&self.cleaned_body, &regex_config) {
                     Ok(idxes) => {
