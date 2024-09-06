@@ -134,6 +134,11 @@ impl ParsedEmail {
         Ok(self.canonicalized_body.clone())
     }
 
+    /// Returns the canonicalized email body as a string.
+    pub fn get_cleaned_body(&self) -> Result<String> {
+        Ok(self.cleaned_body.clone())
+    }
+
     /// Extracts the timestamp from the canonicalized email header.
     pub fn get_timestamp(&self) -> Result<u64> {
         let idxes = extract_timestamp_idxes(&self.canonicalized_header)?[0];
