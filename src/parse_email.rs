@@ -134,7 +134,7 @@ impl ParsedEmail {
         Ok(self.canonicalized_body.clone())
     }
 
-    /// Returns the canonicalized email body as a string.
+    /// Returns the cleaned email body as a string.
     pub fn get_cleaned_body(&self) -> Result<String> {
         Ok(self.cleaned_body.clone())
     }
