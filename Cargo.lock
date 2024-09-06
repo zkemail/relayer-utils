@@ -2836,7 +2836,7 @@ checksum = "7a66a03ae7c801facd77a29370b4faec201768915ac14a721ba36f20bc9c209b"
 
 [[package]]
 name = "relayer-utils"
-version = "0.3.2"
+version = "0.3.7"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
@@ -2854,6 +2854,7 @@ dependencies = [
  "once_cell",
  "poseidon-rs",
  "rand_core",
+ "regex",
  "rsa",
  "serde",
  "serde_json",

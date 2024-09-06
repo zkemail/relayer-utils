@@ -324,7 +324,7 @@ pub fn partial_sha(msg: &[u8], msg_len: usize) -> Vec<u8> {
 ///
 /// * `body` - The message body as a vector of bytes.
 /// * `body_length` - The length of the message body to consider.
-/// * `selector_string` - An optional string used to find a cutoff point in the message for hashing.
+/// * `selector_regex` - An optional string which is a regex selector to find in the body to split the message.
 /// * `max_remaining_body_length` - The maximum length allowed for the remaining body after the selector.
 ///
 /// # Returns
@@ -334,23 +334,37 @@ pub fn partial_sha(msg: &[u8], msg_len: usize) -> Vec<u8> {
 pub fn generate_partial_sha(
     body: Vec<u8>,
     body_length: usize,
-    selector_string: Option<String>,
+    selector_regex: Option<String>,
     max_remaining_body_length: usize,
 ) -> PartialShaResult {
     let mut selector_index = 0;
 
-    if let Some(selector_str) = selector_string {
-        let selector = selector_str.as_bytes();
-        // Find selector in body and return the starting index
-        let body_slice = &body[..body_length];
-        selector_index = match body_slice
-            .windows(selector.len())
-            .position(|window| window == selector)
-        {
-            Some(index) => index,
-            None => return Err("Selector not found in body".into()),
+    // Check if a selector is provided
+    if let Some(selector) = selector_regex {
+        // Create a regex pattern from the selector
+        let pattern = regex::Regex::new(&selector).unwrap();
+        let body_str = {
+            // Undo SHA padding
+            let mut trimmed_body = body.clone();
+            while !(trimmed_body.last() == Some(&10)
+                && trimmed_body.get(trimmed_body.len() - 2) == Some(&13))
+            {
+                trimmed_body.pop();
+            }
+
+            String::from_utf8(trimmed_body).unwrap()
         };
-    }
+
+        // Find the index of the selector in the body
+        if let Some(matched) = pattern.find(&body_str) {
+            selector_index = matched.start();
+        } else {
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Selector {} not found in the body", selector),
+            )));
+        }
+    };
 
     // Calculate the cutoff index for SHA-256 block size (64 bytes)
     let sha_cutoff_index = (selector_index / 64) * 64;

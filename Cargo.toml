@@ -1,6 +1,6 @@
 [package]
 name = "relayer-utils"
-version = "0.3.2"
+version = "0.3.7"
 authors = ["Sora Suegami", "Aditya Bisht"]
 license = "MIT"
 edition = "2018"
@@ -43,6 +43,7 @@ slog-term = "2.9.0"
 slog-json = "2.6.1"
 lazy_static = "1.4"
 file-rotate = "0.7.5"
+regex = "1.10.6"
 
 [dependencies.neon]
 version = "0.10"

@@ -11,21 +11,22 @@ use crate::{
 
 #[derive(Serialize, Deserialize)]
 struct EmailCircuitInput {
-    padded_header: Vec<u8>,               // The padded version of the email header
-    padded_body: Option<Vec<u8>>,         // The padded version of the email body, if present
-    body_hash_idx: Option<usize>,         // The index in header where the body hash is stored
-    public_key: Vec<String>, // The public key associated with the email, in string format
-    signature: Vec<String>,  // The signature of the email, in string format
-    padded_header_len: usize, // The length of the padded header
-    padded_body_len: Option<usize>, // The length of the padded body, if present
+    padded_header: Vec<u8>,           // The padded version of the email header
+    padded_body: Option<Vec<u8>>,     // The padded version of the email body, if present
+    body_hash_idx: Option<usize>,     // The index in header where the body hash is stored
+    public_key: Vec<String>,          // The public key associated with the email, in string format
+    signature: Vec<String>,           // The signature of the email, in string format
+    padded_header_len: usize,         // The length of the padded header
+    padded_body_len: Option<usize>,   // The length of the padded body, if present
     precomputed_sha: Option<Vec<u8>>, // The precomputed SHA-256 hash of part of the body, if needed
-    account_code: String,    // The account code associated with the email
-    from_addr_idx: usize,    // The index of the sender's address in header
-    subject_idx: usize,      // The index of the email subject in header
-    domain_idx: usize,       // The index of the email domain in header
-    timestamp_idx: usize,    // The index of the timestamp in header
-    code_idx: usize,         // The index of the invitation code in header or body
-    command_idx: usize,      // The index of the command in body
+    account_code: String,             // The account code associated with the email
+    from_addr_idx: usize,             // The index of the sender's address in header
+    #[serde(skip_serializing_if = "Option::is_none")]
+    subject_idx: Option<usize>, // The index of the email subject in header
+    domain_idx: usize,                // The index of the email domain in header
+    timestamp_idx: usize,             // The index of the timestamp in header
+    code_idx: usize,                  // The index of the invitation code in header or body
+    command_idx: usize,               // The index of the command in body
     padded_cleaned_body: Option<Vec<u8>>, // The padded body after removing quoted-printable soft breaks, if needed
 }
 
@@ -34,7 +35,7 @@ pub struct EmailCircuitParams {
     pub ignore_body_hash_check: Option<bool>, // Flag to ignore the body hash check
     pub max_header_length: Option<usize>,     // The maximum length of the email header
     pub max_body_length: Option<usize>,       // The maximum length of the email body
-    pub sha_precompute_selector: Option<String>, // Text to select the part of the body to precompute the SHA-256 hash
+    pub sha_precompute_selector: Option<String>, // Regex selector for SHA-256 precomputation
 }
 
 #[derive(Serialize, Deserialize)]
@@ -62,7 +63,7 @@ pub struct CircuitInputParams {
     body_hash_idx: usize,                    // The index of the body hash within the circuit
     rsa_signature: BigInt,                   // The RSA signature as a BigInt
     rsa_public_key: BigInt,                  // The RSA public key as a BigInt
-    sha_precompute_selector: Option<String>, // Selector for SHA-256 precomputation
+    sha_precompute_selector: Option<String>, // Regex Selector for SHA-256 precomputation
     max_header_length: usize,                // The maximum length of the email header
     max_body_length: usize,                  // The maximum length of the email body
     ignore_body_hash_check: bool,            // Flag to ignore the body hash check
@@ -145,14 +146,6 @@ fn generate_circuit_inputs(params: CircuitInputParams) -> Result<CircuitInput> {
     let (header_padded, header_padded_len) =
         sha256_pad(params.header.clone(), params.max_header_length);
 
-    // Calculate the length needed for SHA-256 padding of the body
-    let body_sha_length = ((params.body.len() + 63 + 65) / 64) * 64;
-    // Pad the body to the maximum length or the calculated SHA-256 padding length
-    let (body_padded, body_padded_len) = sha256_pad(
-        params.body,
-        cmp::max(params.max_body_length, body_sha_length),
-    );
-
     // Initialize the circuit input with the padded header and RSA information
     let mut circuit_input = CircuitInput {
         header_padded,
@@ -167,6 +160,14 @@ fn generate_circuit_inputs(params: CircuitInputParams) -> Result<CircuitInput> {
 
     // If body hash check is not ignored, include the precomputed SHA and body information
     if !params.ignore_body_hash_check {
+        // Calculate the length needed for SHA-256 padding of the body
+        let body_sha_length = ((params.body.len() + 63 + 65) / 64) * 64;
+        // Pad the body to the maximum length or the calculated SHA-256 padding length
+        let (body_padded, body_padded_len) = sha256_pad(
+            params.body,
+            cmp::max(params.max_body_length, body_sha_length),
+        );
+
         // Ensure that the error type returned by `generate_partial_sha` is sized
         // by converting it into an `anyhow::Error` if it's not already.
         let result = generate_partial_sha(
@@ -246,7 +247,11 @@ pub async fn generate_email_circuit_input(
     // Extract indices for various email components
     let from_addr_idx = parsed_email.get_from_addr_idxes()?.0;
     let domain_idx = parsed_email.get_email_domain_idxes()?.0;
-    let subject_idx = parsed_email.get_subject_all_idxes()?.0;
+    let subject_idx = if email_circuit_inputs.body_padded.is_none() {
+        Some(parsed_email.get_subject_all_idxes()?.0)
+    } else {
+        None
+    };
     // Handle optional indices with default fallbacks
     let mut code_idx = match parsed_email.get_invitation_code_idxes(
         params
@@ -266,16 +271,11 @@ pub async fn generate_email_circuit_input(
             Err(_) => 0,
         };
 
-    // Clean the body if necessary
-    let padded_cleaned_body =
-        if parsed_email.need_soft_line_breaks(circuit_input_params.ignore_body_hash_check)? {
-            email_circuit_inputs
-                .body_padded
-                .clone()
-                .map(remove_quoted_printable_soft_breaks)
-        } else {
-            None
-        };
+    // Clean the body
+    let padded_cleaned_body = email_circuit_inputs
+        .body_padded
+        .clone()
+        .map(remove_quoted_printable_soft_breaks);
 
     if email_circuit_inputs.precomputed_sha.is_some() {
         let code = parsed_email
@@ -283,13 +283,8 @@ pub async fn generate_email_circuit_input(
             .unwrap_or_default();
         let command = parsed_email.get_command(circuit_input_params.ignore_body_hash_check)?;
 
-        // Determine the appropriate body to search in
-        let search_body =
-            if parsed_email.need_soft_line_breaks(circuit_input_params.ignore_body_hash_check)? {
-                padded_cleaned_body.as_ref()
-            } else {
-                email_circuit_inputs.body_padded.as_ref()
-            };
+        // Body is padded and cleaned, so use it for search
+        let search_body = padded_cleaned_body.as_ref();
 
         // Find indices for the code and command in the body
         code_idx = find_index_in_body(search_body, &code);
