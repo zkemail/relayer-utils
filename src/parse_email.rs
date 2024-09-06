@@ -154,13 +154,9 @@ impl ParsedEmail {
             let idxes = extract_substr_idxes(&self.canonicalized_header, &regex_config)?[0];
             let str = self.canonicalized_header[idxes.0..idxes.1].to_string();
             Ok(str)
-        } else if self.need_soft_line_breaks(ignore_body_hash_check)? {
+        } else {
             let idxes = extract_substr_idxes(&self.cleaned_body, &regex_config)?[0];
             let str = self.cleaned_body[idxes.0..idxes.1].to_string();
-            Ok(str)
-        } else {
-            let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
-            let str = self.canonicalized_body[idxes.0..idxes.1].to_string();
             Ok(str)
         }
     }
@@ -174,11 +170,8 @@ impl ParsedEmail {
         if ignore_body_hash_check {
             let idxes = extract_substr_idxes(&self.canonicalized_header, &regex_config)?[0];
             Ok(idxes)
-        } else if self.need_soft_line_breaks(ignore_body_hash_check)? {
-            let idxes = extract_substr_idxes(&self.cleaned_body, &regex_config)?[0];
-            Ok(idxes)
         } else {
-            let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
+            let idxes = extract_substr_idxes(&self.cleaned_body, &regex_config)?[0];
             Ok(idxes)
         }
     }
@@ -234,30 +227,9 @@ impl ParsedEmail {
         let regex_config = serde_json::from_str(include_str!("../regexes/command.json"))?;
         if ignore_body_hash_check {
             Ok((0, 0))
-        } else if self.need_soft_line_breaks(ignore_body_hash_check)? {
+        } else {
             let idxes = extract_substr_idxes(&self.cleaned_body, &regex_config)?[0];
             Ok(idxes)
-        } else {
-            let idxes = extract_substr_idxes(&self.canonicalized_body, &regex_config)?[0];
-            Ok(idxes)
-        }
-    }
-
-    /// Determines if the email body contains quoted-printable soft line breaks.
-    pub fn need_soft_line_breaks(&self, ignore_body_hash_check: bool) -> Result<bool> {
-        if ignore_body_hash_check {
-            return Ok(false);
-        }
-        let regex_config = serde_json::from_str(include_str!("../regexes/command.json"))?;
-        match extract_substr_idxes(&self.canonicalized_body, &regex_config) {
-            Ok(idxes) => {
-                let str = self.canonicalized_body[idxes[0].0..idxes[0].1].to_string();
-                Ok(str.contains("=\r\n"))
-            }
-            Err(_) => match extract_substr_idxes(&self.cleaned_body, &regex_config) {
-                Ok(_) => Ok(true),
-                _ => Ok(false),
-            },
         }
     }
 
