@@ -1,18 +1,22 @@
 pub mod circuit;
+pub mod command_templates;
 pub mod constants;
 pub mod converters;
 pub mod cryptos;
 pub mod logger;
 pub mod node;
 pub mod parse_email;
+pub mod proof;
 
 pub use circuit::*;
+pub use command_templates::*;
 pub(crate) use constants::*;
 pub use converters::*;
 pub use cryptos::*;
 pub use logger::*;
 pub(crate) use node::*;
 pub use parse_email::*;
+pub use proof::*;
 
 pub use neon::{context::ModuleContext, result::NeonResult};
 pub use zk_regex_apis::extract_substrs::*;
