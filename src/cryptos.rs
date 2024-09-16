@@ -1,46 +1,86 @@
-use std::error::Error;
-
-use crate::converters::*;
+//! Cryptographic functions.
 
 use ethers::types::Bytes;
 use halo2curves::ff::Field;
-use neon::prelude::*;
-use poseidon_rs::*;
-use rand_core::{OsRng, RngCore};
-use sha2::{Digest, Sha256};
-pub use zk_regex_apis::padding::pad_string;
+use hmac_sha256::Hash;
+use poseidon_rs::{poseidon_bytes, poseidon_fields, Fr, PoseidonError};
+use rand_core::RngCore;
+use std::error::Error;
+use zk_regex_apis::padding::pad_string;
 
-pub const MAX_EMAIL_ADDR_BYTES: usize = 256;
+use crate::{
+    converters::{
+        bytes_chunk_fields, bytes_to_fields, int64_to_bytes, int8_to_bytes, merge_u8_arrays,
+    },
+    MAX_EMAIL_ADDR_BYTES,
+};
+
+type ShaResult = Vec<u8>; // The result of a SHA-256 hash operation.
+type RemainingBody = Vec<u8>; // The remaining part of a message after a SHA-256 hash operation.
+type RemainingBodyLength = usize; // The length of the remaining message body in bytes.
+type PartialShaResult = Result<(ShaResult, RemainingBody, RemainingBodyLength), Box<dyn Error>>; // The result of a partial SHA-256 hash operation, including the hash, remaining body, and its length, or an error.
 
 #[derive(Debug, Clone, Copy)]
+/// `RelayerRand` is a single field element representing a random value.
 pub struct RelayerRand(pub Fr);
 
 impl RelayerRand {
+    /// Constructs a new `RelayerRand` using a random number generator.
+    ///
+    /// # Arguments
+    ///
+    /// * `r` - A mutable reference to an object that implements `RngCore`.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `RelayerRand`.
     pub fn new<R: RngCore>(mut r: R) -> Self {
         Self(Fr::random(&mut r))
     }
 
+    /// Constructs a new `RelayerRand` from a given seed.
+    ///
+    /// # Arguments
+    ///
+    /// * `seed` - A byte slice used as the seed for randomness.
+    ///
+    /// # Returns
+    ///
+    /// A result that is either a new instance of `RelayerRand` or a `PoseidonError`.
     pub fn new_from_seed(seed: &[u8]) -> Result<Self, PoseidonError> {
         let value = poseidon_bytes(seed)?;
         Ok(Self(value))
     }
 
+    /// Hashes the `RelayerRand` using Poseidon hash function.
+    ///
+    /// # Returns
+    ///
+    /// A result that is either the Poseidon hash of the `RelayerRand` or a `PoseidonError`.
     pub fn hash(&self) -> Result<Fr, PoseidonError> {
         poseidon_fields(&[self.0])
     }
 }
 
 #[derive(Debug, Clone)]
+/// `PaddedEmailAddr` is a structure that holds a padded email address and its original length.
 pub struct PaddedEmailAddr {
-    pub padded_bytes: Vec<u8>,
-    pub email_addr_len: usize,
+    pub padded_bytes: Vec<u8>, // Padded email address bytes
+    pub email_addr_len: usize, // Original email address length
 }
 
 impl PaddedEmailAddr {
+    /// Creates a new `PaddedEmailAddr` from a given email address.
+    ///
+    /// # Arguments
+    ///
+    /// * `email_addr` - A string slice representing the email address to be padded.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `PaddedEmailAddr`.
     pub fn from_email_addr(email_addr: &str) -> Self {
         let email_addr_len = email_addr.as_bytes().len();
-        // let mut padded_bytes = email_addr.as_bytes().to_vec();
-        // padded_bytes.append(&mut vec![0; MAX_EMAIL_ADDR_BYTES - email_addr_len]);
         let padded_bytes = pad_string(email_addr, MAX_EMAIL_ADDR_BYTES);
         Self {
             padded_bytes,
@@ -48,47 +88,86 @@ impl PaddedEmailAddr {
         }
     }
 
+    /// Converts the padded email address into a vector of field elements.
+    ///
+    /// # Returns
+    ///
+    /// A vector of `Fr` representing the field elements of the padded email address.
     pub fn to_email_addr_fields(&self) -> Vec<Fr> {
-        bytes2fields(&self.padded_bytes)
+        bytes_to_fields(&self.padded_bytes)
     }
 
-    // pub fn to_pointer(&self, relayer_rand: &RelayerRand) -> Result<Fr, PoseidonError> {
-    //     self.to_commitment(&relayer_rand.0)
-    // }
-
+    /// Creates a commitment to the padded email address using a random field element.
+    ///
+    /// # Arguments
+    ///
+    /// * `rand` - A reference to a field element used as randomness in the commitment.
+    ///
+    /// # Returns
+    ///
+    /// A result that is either the commitment as a field element or a `PoseidonError`.
     pub fn to_commitment(&self, rand: &Fr) -> Result<Fr, PoseidonError> {
         let mut inputs = vec![*rand];
         inputs.append(&mut self.to_email_addr_fields());
         poseidon_fields(&inputs)
     }
 
+    /// Creates a commitment to the padded email address using a signature to extract randomness.
+    ///
+    /// # Arguments
+    ///
+    /// * `signature` - A byte slice representing the signature from which randomness is extracted.
+    ///
+    /// # Returns
+    ///
+    /// A result that is either the commitment as a field element or a `PoseidonError`.
     pub fn to_commitment_with_signature(&self, signature: &[u8]) -> Result<Fr, PoseidonError> {
         let cm_rand = extract_rand_from_signature(signature)?;
         poseidon_fields(&[vec![cm_rand], self.to_email_addr_fields()].concat())
     }
 }
 
-pub fn extract_rand_from_signature(signature: &[u8]) -> Result<Fr, PoseidonError> {
-    let mut signature = signature.to_vec();
-    signature.reverse();
-    let mut inputs = bytes_chunk_fields(&signature, 121, 2, 17);
-    inputs.push(Fr::one());
-    let cm_rand = poseidon_fields(&inputs)?;
-    Ok(cm_rand)
-}
-
 #[derive(Debug, Clone, Copy)]
+/// `AccountCode` is a structure that holds a single field element representing an account code.
 pub struct AccountCode(pub Fr);
 
 impl AccountCode {
+    /// Constructs a new `AccountCode` using a random number generator.
+    ///
+    /// # Arguments
+    ///
+    /// * `rng` - An object that implements `RngCore`.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `AccountCode`.
     pub fn new<R: RngCore>(rng: R) -> Self {
         Self(Fr::random(rng))
     }
 
+    /// Constructs a new `AccountCode` from a given field element.
+    ///
+    /// # Arguments
+    ///
+    /// * `elem` - A field element to be used as the account code.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `AccountCode`.
     pub fn from(elem: Fr) -> Self {
         Self(elem)
     }
 
+    /// Creates a commitment to the account code using the padded email address and a hash of the relayer's randomness.
+    ///
+    /// # Arguments
+    ///
+    /// * `email_addr` - A reference to a `PaddedEmailAddr` instance.
+    /// * `relayer_rand_hash` - A reference to a field element representing the hash of the relayer's randomness.
+    ///
+    /// # Returns
+    ///
+    /// A result that is either the commitment as a field element or a `PoseidonError`.
     pub fn to_commitment(
         &self,
         email_addr: &PaddedEmailAddr,
@@ -102,9 +181,20 @@ impl AccountCode {
 }
 
 #[derive(Debug, Clone, Copy)]
+/// `AccountSalt` is the poseidon hash of the padded email address and account code.
 pub struct AccountSalt(pub Fr);
 
 impl AccountSalt {
+    /// Creates a new `AccountSalt` using the padded email address and account code.
+    ///
+    /// # Arguments
+    ///
+    /// * `email_addr` - A reference to a `PaddedEmailAddr` instance.
+    /// * `account_code` - An `AccountCode` instance representing the account code.
+    ///
+    /// # Returns
+    ///
+    /// A result that is either a new instance of `AccountSalt` or a `PoseidonError`.
     pub fn new(
         email_addr: &PaddedEmailAddr,
         account_code: AccountCode,
@@ -116,166 +206,63 @@ impl AccountSalt {
     }
 }
 
-/// `public_key_n` is little endian.
+/// Extracts a random field element from a signature.
+///
+/// # Arguments
+///
+/// * `signature` - A byte slice representing the signature.
+///
+/// # Returns
+///
+/// A result that is either a random field element or a `PoseidonError`.
+pub fn extract_rand_from_signature(signature: &[u8]) -> Result<Fr, PoseidonError> {
+    let mut signature = signature.to_vec();
+    signature.reverse();
+    let mut inputs = bytes_chunk_fields(&signature, 121, 2, 17);
+    inputs.push(Fr::one());
+    let cm_rand = poseidon_fields(&inputs)?;
+    Ok(cm_rand)
+}
+
+/// Computes the Poseidon hash of a public key.
+///
+/// # Arguments
+///
+/// * `public_key_n` - A byte slice representing the public key in little endian format.
+///
+/// # Returns
+///
+/// A result that is either the Poseidon hash of the public key or a `PoseidonError`.
 pub fn public_key_hash(public_key_n: &[u8]) -> Result<Fr, PoseidonError> {
     let inputs = bytes_chunk_fields(public_key_n, 121, 2, 17);
     poseidon_fields(&inputs)
 }
 
-/// `signature` is little endian.
+/// Computes the Poseidon hash to generate an email nullifier.
+///
+/// # Arguments
+///
+/// * `signature` - A byte slice representing the signature in little endian format.
+///
+/// # Returns
+///
+/// A result that is either the Poseidon hash of the signature or a `PoseidonError`.
 pub fn email_nullifier(signature: &[u8]) -> Result<Fr, PoseidonError> {
     let inputs = bytes_chunk_fields(signature, 121, 2, 17);
     let sign_rand = poseidon_fields(&inputs)?;
     poseidon_fields(&[sign_rand])
 }
 
-pub fn gen_relayer_rand_node(mut cx: FunctionContext) -> JsResult<JsString> {
-    let mut rng = OsRng;
-    let relayer_rand = RelayerRand::new(&mut rng);
-    let relayer_rand_str = field2hex(&relayer_rand.0);
-    Ok(cx.string(relayer_rand_str))
-}
-
-// pub fn relayer_rand_hash_node(mut cx: FunctionContext) -> JsResult<JsString> {
-//     let relayer_rand = cx.argument::<JsString>(0)?.value(&mut cx);
-//     let relayer_rand = hex2field_node(&mut cx, &relayer_rand)?;
-//     let relayer_rand_hash = match RelayerRand(relayer_rand).hash() {
-//         Ok(fr) => fr,
-//         Err(e) => return cx.throw_error(&format!("RelayerRand hash failed: {}", e)),
-//     };
-//     let relayer_rand_hash_str = field2hex(&relayer_rand_hash);
-//     Ok(cx.string(relayer_rand_hash_str))
-// }
-
-// pub fn pad_string_node(mut cx: FunctionContext) -> JsResult<JsArray> {
-//     let string = cx.argument::<JsString>(0)?.value(&mut cx);
-//     let padded_bytes_size = cx.argument::<JsNumber>(1)?.value(&mut cx) as usize;
-//     let padded_bytes = JsArray::new(&mut cx, padded_bytes_size as u32);
-//     for (idx, byte) in string.as_bytes().into_iter().enumerate() {
-//         let js_byte = cx.number(*byte);
-//         padded_bytes.set(&mut cx, idx as u32, js_byte)?;
-//     }
-//     for idx in string.len()..padded_bytes_size {
-//         let js_byte = cx.number(0);
-//         padded_bytes.set(&mut cx, idx as u32, js_byte)?;
-//     }
-//     Ok(padded_bytes)
-// }
-
-pub fn pad_email_addr_node(mut cx: FunctionContext) -> JsResult<JsArray> {
-    let email_addr = cx.argument::<JsString>(0)?.value(&mut cx);
-    let padded_email_addr = PaddedEmailAddr::from_email_addr(&email_addr);
-    let padded_email_addr_bytes =
-        JsArray::new(&mut cx, padded_email_addr.padded_bytes.len() as u32);
-    for (idx, byte) in padded_email_addr.padded_bytes.into_iter().enumerate() {
-        let js_byte = cx.number(byte);
-        padded_email_addr_bytes.set(&mut cx, idx as u32, js_byte)?;
-    }
-    Ok(padded_email_addr_bytes)
-}
-
-// pub fn email_addr_pointer_node(mut cx: FunctionContext) -> JsResult<JsString> {
-//     let email_addr = cx.argument::<JsString>(0)?.value(&mut cx);
-//     let relayer_rand = cx.argument::<JsString>(1)?.value(&mut cx);
-//     let relayer_rand = hex2field_node(&mut cx, &relayer_rand)?;
-//     let padded_email_addr = PaddedEmailAddr::from_email_addr(&email_addr);
-//     let email_addr_pointer = match padded_email_addr.to_pointer(&RelayerRand(relayer_rand)) {
-//         Ok(fr) => fr,
-//         Err(e) => return cx.throw_error(&format!("EmailAddrPointer failed: {}", e)),
-//     };
-//     let email_addr_pointer_str = field2hex(&email_addr_pointer);
-//     Ok(cx.string(email_addr_pointer_str))
-// }
-
-pub fn email_addr_commit_rand_node(mut cx: FunctionContext) -> JsResult<JsString> {
-    let mut rng = OsRng;
-    let commit_rand = Fr::random(&mut rng);
-    let commit_rand_str = field2hex(&commit_rand);
-    Ok(cx.string(commit_rand_str))
-}
-
-pub fn email_addr_commit_node(mut cx: FunctionContext) -> JsResult<JsString> {
-    let email_addr = cx.argument::<JsString>(0)?.value(&mut cx);
-    let rand = cx.argument::<JsString>(1)?.value(&mut cx);
-    let rand = hex2field_node(&mut cx, &rand)?;
-    let padded_email_addr = PaddedEmailAddr::from_email_addr(&email_addr);
-    let email_addr_commit = match padded_email_addr.to_commitment(&rand) {
-        Ok(fr) => fr,
-        Err(e) => return cx.throw_error(&format!("EmailAddrCommit failed: {}", e)),
-    };
-    let email_addr_commit_str = field2hex(&email_addr_commit);
-    Ok(cx.string(email_addr_commit_str))
-}
-
-pub fn email_addr_commit_with_signature_node(mut cx: FunctionContext) -> JsResult<JsString> {
-    let email_addr = cx.argument::<JsString>(0)?.value(&mut cx);
-    let signature = cx.argument::<JsString>(1)?.value(&mut cx);
-    let signature = match hex::decode(&signature[2..]) {
-        Ok(bytes) => bytes,
-        Err(e) => return cx.throw_error(&format!("signature is an invalid hex string: {}", e)),
-    };
-    // signature.reverse();
-    let padded_email_addr = PaddedEmailAddr::from_email_addr(&email_addr);
-    let email_addr_commit = match padded_email_addr.to_commitment_with_signature(&signature) {
-        Ok(fr) => fr,
-        Err(e) => return cx.throw_error(&format!("EmailAddrCommit failed: {}", e)),
-    };
-    let email_addr_commit_str = field2hex(&email_addr_commit);
-    Ok(cx.string(email_addr_commit_str))
-}
-
-pub fn extract_rand_from_signature_node(mut cx: FunctionContext) -> JsResult<JsString> {
-    let signature = cx.argument::<JsString>(0)?.value(&mut cx);
-    let signature = match hex::decode(&signature[2..]) {
-        Ok(bytes) => bytes,
-        Err(e) => return cx.throw_error(&format!("signature is an invalid hex string: {}", e)),
-    };
-    // signature.reverse();
-    let rand = match extract_rand_from_signature(&signature) {
-        Ok(fr) => fr,
-        Err(e) => return cx.throw_error(&format!("extract_rand_from_signature failed: {}", e)),
-    };
-    let rand_str = field2hex(&rand);
-    Ok(cx.string(rand_str))
-}
-
-pub fn gen_account_code_node(mut cx: FunctionContext) -> JsResult<JsString> {
-    let mut rng = OsRng;
-    let account_code = AccountCode::new(&mut rng);
-    let account_code_str = field2hex(&account_code.0);
-    Ok(cx.string(account_code_str))
-}
-
-pub fn public_key_hash_node(mut cx: FunctionContext) -> JsResult<JsString> {
-    let public_key_n = cx.argument::<JsString>(0)?.value(&mut cx);
-    let mut public_key_n = match hex::decode(&public_key_n[2..]) {
-        Ok(bytes) => bytes,
-        Err(e) => return cx.throw_error(&format!("public_key_n is an invalid hex string: {}", e)),
-    };
-    public_key_n.reverse();
-    let hash_field = match public_key_hash(&public_key_n) {
-        Ok(hash_field) => hash_field,
-        Err(e) => return cx.throw_error(&format!("public_key_hash failed: {}", e)),
-    };
-    let hash_str = field2hex(&hash_field);
-    Ok(cx.string(hash_str))
-}
-
-pub fn email_nullifier_node(mut cx: FunctionContext) -> JsResult<JsString> {
-    let signature = cx.argument::<JsString>(0)?.value(&mut cx);
-    let mut signature = match hex::decode(&signature[2..]) {
-        Ok(bytes) => bytes,
-        Err(e) => return cx.throw_error(&format!("signature is an invalid hex string: {}", e)),
-    };
-    signature.reverse();
-    let nullifier = match email_nullifier(&signature) {
-        Ok(nullifier) => nullifier,
-        Err(e) => return cx.throw_error(&format!("email_nullifier failed: {}", e)),
-    };
-    let nullifier_str = field2hex(&nullifier);
-    Ok(cx.string(nullifier_str))
-}
-
+/// Pads the given data to be a valid SHA-256 message block and extends it to a specified maximum length.
+///
+/// # Arguments
+///
+/// * `data` - The original data to be padded.
+/// * `max_sha_bytes` - The maximum length in bytes to which the data should be extended.
+///
+/// # Returns
+///
+/// A tuple containing the padded data and the length of the original data before padding.
 pub fn sha256_pad(mut data: Vec<u8>, max_sha_bytes: usize) -> (Vec<u8>, usize) {
     let length_bits = data.len() * 8; // Convert length from bytes to bits
     let length_in_bytes = int64_to_bytes(length_bits as u64);
@@ -290,6 +277,7 @@ pub fn sha256_pad(mut data: Vec<u8>, max_sha_bytes: usize) -> (Vec<u8>, usize) {
     // Append the original length in bits at the end of the data
     data = merge_u8_arrays(data, length_in_bytes);
 
+    // Ensure that the padding is complete
     assert!(
         (data.len() * 8) % 512 == 0,
         "Padding did not complete properly!"
@@ -302,6 +290,7 @@ pub fn sha256_pad(mut data: Vec<u8>, max_sha_bytes: usize) -> (Vec<u8>, usize) {
         data = merge_u8_arrays(data, int64_to_bytes(0));
     }
 
+    // Ensure that the data is padded to the maximum length
     assert!(
         data.len() == max_sha_bytes,
         "Padding to max length did not complete properly! Your padded message is {} long but max is {}!",
@@ -312,42 +301,79 @@ pub fn sha256_pad(mut data: Vec<u8>, max_sha_bytes: usize) -> (Vec<u8>, usize) {
     (data, message_len)
 }
 
+/// Computes the SHA-256 hash of a message up to a specified length.
+///
+/// # Arguments
+///
+/// * `msg` - The message to be hashed.
+/// * `msg_len` - The length of the message to consider for the hash.
+///
+/// # Returns
+///
+/// A vector containing the SHA-256 hash of the message.
 pub fn partial_sha(msg: &[u8], msg_len: usize) -> Vec<u8> {
-    let mut hasher = Sha256::new();
-    // Assuming msg_len is used to specify how much of msg to hash.
-    // This example simply hashes the entire msg for simplicity.
+    let mut hasher = Hash::new();
     hasher.update(&msg[..msg_len]);
-    let result = hasher.finalize();
+    let result = hasher.cache_state();
     result.to_vec()
 }
 
+/// Generates a partial SHA-256 hash of a message up to the point of a selector string, if provided.
+///
+/// # Arguments
+///
+/// * `body` - The message body as a vector of bytes.
+/// * `body_length` - The length of the message body to consider.
+/// * `selector_regex` - An optional string which is a regex selector to find in the body to split the message.
+/// * `max_remaining_body_length` - The maximum length allowed for the remaining body after the selector.
+///
+/// # Returns
+///
+/// A tuple containing the SHA-256 hash of the pre-selector part of the message, the remaining body after the selector, and its length.
+/// If an error occurs, it is returned as a `Box<dyn Error>`.
 pub fn generate_partial_sha(
     body: Vec<u8>,
     body_length: usize,
-    selector_string: Option<String>,
+    selector_regex: Option<String>,
     max_remaining_body_length: usize,
-) -> Result<(Vec<u8>, Vec<u8>, usize), Box<dyn Error>> {
-    let selector_index = 0;
+) -> PartialShaResult {
+    let mut selector_index = 0;
 
-    if let Some(selector_str) = selector_string {
-        let selector = selector_str.as_bytes();
-        // Find selector in body and return the starting index
-        let body_slice = &body[..body_length];
-        let _selector_index = match body_slice
-            .windows(selector.len())
-            .position(|window| window == selector)
-        {
-            Some(index) => index,
-            None => return Err("Selector not found in body".into()),
+    // Check if a selector is provided
+    if let Some(selector) = selector_regex {
+        // Create a regex pattern from the selector
+        let pattern = regex::Regex::new(&selector).unwrap();
+        let body_str = {
+            // Undo SHA padding
+            let mut trimmed_body = body.clone();
+            while !(trimmed_body.last() == Some(&10)
+                && trimmed_body.get(trimmed_body.len() - 2) == Some(&13))
+            {
+                trimmed_body.pop();
+            }
+
+            String::from_utf8(trimmed_body).unwrap()
         };
-    }
 
+        // Find the index of the selector in the body
+        if let Some(matched) = pattern.find(&body_str) {
+            selector_index = matched.start();
+        } else {
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Selector {} not found in the body", selector),
+            )));
+        }
+    };
+
+    // Calculate the cutoff index for SHA-256 block size (64 bytes)
     let sha_cutoff_index = (selector_index / 64) * 64;
     let precompute_text = &body[..sha_cutoff_index];
     let mut body_remaining = body[sha_cutoff_index..].to_vec();
 
     let body_remaining_length = body_length - precompute_text.len();
 
+    // Check if the remaining body length exceeds the maximum allowed length
     if body_remaining_length > max_remaining_body_length {
         return Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::Other,
@@ -358,6 +384,7 @@ pub fn generate_partial_sha(
         )));
     }
 
+    // Ensure the remaining body is padded correctly to 64-byte blocks
     if body_remaining.len() % 64 != 0 {
         return Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::Other,
@@ -365,60 +392,33 @@ pub fn generate_partial_sha(
         )));
     }
 
+    // Pad the remaining body to the maximum length with zeros
     while body_remaining.len() < max_remaining_body_length {
         body_remaining.push(0);
     }
 
+    // Compute the SHA-256 hash of the pre-selector part of the message
     let precomputed_sha = partial_sha(precompute_text, sha_cutoff_index);
     Ok((precomputed_sha, body_remaining, body_remaining_length))
 }
 
+/// Computes the Keccak-256 hash of the given data.
+///
+/// # Arguments
+///
+/// * `data` - A byte slice representing the data to hash.
+///
+/// # Returns
+///
+/// The Keccak-256 hash as a `Bytes` object.
 pub fn keccak256(data: &[u8]) -> Bytes {
     Bytes::from(ethers::utils::keccak256(data))
 }
 
-pub fn account_code_commit_node(mut cx: FunctionContext) -> JsResult<JsString> {
-    let account_code = cx.argument::<JsString>(0)?.value(&mut cx);
-    let email_addr = cx.argument::<JsString>(1)?.value(&mut cx);
-    let relayer_rand_hash = cx.argument::<JsString>(2)?.value(&mut cx);
-    let account_code = hex2field_node(&mut cx, &account_code)?;
-    let padded_email_addr = PaddedEmailAddr::from_email_addr(&email_addr);
-    let relayer_rand_hash = hex2field_node(&mut cx, &relayer_rand_hash)?;
-    let account_code_commit =
-        match AccountCode(account_code).to_commitment(&padded_email_addr, &relayer_rand_hash) {
-            Ok(fr) => fr,
-            Err(e) => return cx.throw_error(&format!("AccountCodeCommit failed: {}", e)),
-        };
-    let account_code_commit_str = field2hex(&account_code_commit);
-    Ok(cx.string(account_code_commit_str))
-}
-
-pub fn relayer_rand_hash_node(mut cx: FunctionContext) -> JsResult<JsString> {
-    let relayer_rand = cx.argument::<JsString>(0)?.value(&mut cx);
-    let relayer_rand = hex2field_node(&mut cx, &relayer_rand)?;
-    let relayer_rand_hash = match RelayerRand(relayer_rand).hash() {
-        Ok(fr) => fr,
-        Err(e) => return cx.throw_error(&format!("RelayerRand hash failed: {}", e)),
-    };
-    let relayer_rand_hash_str = field2hex(&relayer_rand_hash);
-    Ok(cx.string(relayer_rand_hash_str))
-}
-
-pub fn account_salt_node(mut cx: FunctionContext) -> JsResult<JsString> {
-    let email_addr = cx.argument::<JsString>(0)?.value(&mut cx);
-    let padded_email_addr = PaddedEmailAddr::from_email_addr(&email_addr);
-    let account_code_str = cx.argument::<JsString>(1)?.value(&mut cx);
-    let account_code = hex2field_node(&mut cx, &account_code_str)?;
-    let account_salt = match AccountSalt::new(&padded_email_addr, AccountCode(account_code)) {
-        Ok(account_salt) => account_salt,
-        Err(e) => return cx.throw_error(&format!("AccountSalt failed: {}", e)),
-    };
-    let account_salt_str = field2hex(&account_salt.0);
-    Ok(cx.string(account_salt_str))
-}
-
 #[cfg(test)]
 mod tests {
+    use crate::field_to_hex;
+
     use super::*;
 
     #[test]
@@ -433,6 +433,6 @@ mod tests {
                 234, 122, 176, 142, 40, 104, 251, 50, 24, 70, 64, 82, 249, 83
             ])
         );
-        assert_eq!(field2hex(&hash_field), expected_hash);
+        assert_eq!(field_to_hex(&hash_field), expected_hash);
     }
 }

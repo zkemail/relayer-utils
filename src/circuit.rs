@@ -1,362 +1,352 @@
-use std::cmp;
-
-use crate::*;
 use anyhow::Result;
 use num_bigint::BigInt;
 use serde::{Deserialize, Serialize};
+use std::cmp;
 
-use crate::{generate_partial_sha, sha256_pad, to_circom_bigint_bytes, uint8_array_to_char_array};
-
-pub const MAX_HEADER_PADDED_BYTES: usize = 1024;
-pub const MAX_BODY_PADDED_BYTES: usize = 1536;
-pub const CIRCOM_BIGINT_N: usize = 121;
-pub const CIRCOM_BIGINT_K: usize = 17;
-
-#[derive(Serialize, Deserialize)]
-struct EmailSenderInput {
-    in_padded: Vec<String>,
-    pubkey: Vec<String>,
-    signature: Vec<String>,
-    in_padded_len: String,
-    sender_account_code: String,
-    sender_email_idx: usize,
-    subject_idx: usize,
-    recipient_email_idx: usize,
-    domain_idx: usize,
-    timestamp_idx: usize,
-}
+use crate::{
+    field_to_hex, find_index_in_body, generate_partial_sha, remove_quoted_printable_soft_breaks,
+    sha256_pad, to_circom_bigint_bytes, vec_u8_to_bigint, AccountCode, PaddedEmailAddr,
+    ParsedEmail, MAX_BODY_PADDED_BYTES, MAX_HEADER_PADDED_BYTES,
+};
 
 #[derive(Serialize, Deserialize)]
-struct AccountCreationInput {
-    in_padded: Vec<String>,
-    pubkey: Vec<String>,
-    signature: Vec<String>,
-    in_padded_len: String,
-    relayer_rand: String,
-    sender_email_idx: usize,
-    code_idx: usize,
-    domain_idx: usize,
-    timestamp_idx: usize,
+struct EmailCircuitInput {
+    padded_header: Vec<u8>,           // The padded version of the email header
+    padded_body: Option<Vec<u8>>,     // The padded version of the email body, if present
+    body_hash_idx: Option<usize>,     // The index in header where the body hash is stored
+    public_key: Vec<String>,          // The public key associated with the email, in string format
+    signature: Vec<String>,           // The signature of the email, in string format
+    padded_header_len: usize,         // The length of the padded header
+    padded_body_len: Option<usize>,   // The length of the padded body, if present
+    precomputed_sha: Option<Vec<u8>>, // The precomputed SHA-256 hash of part of the body, if needed
+    account_code: String,             // The account code associated with the email
+    from_addr_idx: usize,             // The index of the sender's address in header
+    #[serde(skip_serializing_if = "Option::is_none")]
+    subject_idx: Option<usize>, // The index of the email subject in header
+    domain_idx: usize,                // The index of the email domain in header
+    timestamp_idx: usize,             // The index of the timestamp in header
+    code_idx: usize,                  // The index of the invitation code in header or body
+    command_idx: usize,               // The index of the command in body
+    padded_cleaned_body: Option<Vec<u8>>, // The padded body after removing quoted-printable soft breaks, if needed
 }
 
 #[derive(Serialize, Deserialize)]
-struct ClaimInput {
-    email_addr: Vec<u8>,
-    cm_rand: String,
-    account_code: String,
+pub struct EmailCircuitParams {
+    pub ignore_body_hash_check: Option<bool>, // Flag to ignore the body hash check
+    pub max_header_length: Option<usize>,     // The maximum length of the email header
+    pub max_body_length: Option<usize>,       // The maximum length of the email body
+    pub sha_precompute_selector: Option<String>, // Regex selector for SHA-256 precomputation
 }
 
-pub struct CircuitInput {
-    pub in_padded: Vec<String>,
-    pub pubkey: Vec<String>,
-    pub signature: Vec<String>,
-    pub in_len_padded_bytes: String,
-    pub precomputed_sha: Option<Vec<String>>,
-    pub in_body_padded: Option<Vec<String>>,
-    pub in_body_len_padded_bytes: Option<String>,
-    pub body_hash_idx: Option<String>,
+#[derive(Serialize, Deserialize)]
+struct ClaimCircuitInput {
+    email_addr: Vec<u8>,  // The email address in byte format
+    cm_rand: String,      // Random string used for commitment randomness
+    account_code: String, // The account code as a string
 }
 
+struct CircuitInput {
+    pub header_padded: Vec<u8>, // The padded version of the email header
+    pub pubkey: Vec<String>,    // The public key in string format
+    pub signature: Vec<String>, // The signature in string format
+    pub header_len_padded_bytes: usize, // The length of the padded header in bytes
+    pub precomputed_sha: Option<Vec<u8>>, // The precomputed SHA-256 hash of the body, if present
+    pub body_padded: Option<Vec<u8>>, // The padded version of the email body, if present
+    pub body_len_padded_bytes: Option<usize>, // The length of the padded body in bytes, if present
+    pub body_hash_idx: Option<usize>, // The index in header where the body hash is stored
+}
+
+#[derive(Debug, Clone)]
 pub struct CircuitInputParams {
-    body: Vec<u8>,
-    message: Vec<u8>,
-    body_hash: String,
-    rsa_signature: BigInt,
-    rsa_public_key: BigInt,
-    sha_precompute_selector: Option<String>,
-    max_message_length: usize,
-    max_body_length: usize,
-    ignore_body_hash_check: bool,
+    body: Vec<u8>,                           // The email body in bytes
+    header: Vec<u8>,                         // The email header in bytes
+    body_hash_idx: usize,                    // The index of the body hash within the circuit
+    rsa_signature: BigInt,                   // The RSA signature as a BigInt
+    rsa_public_key: BigInt,                  // The RSA public key as a BigInt
+    sha_precompute_selector: Option<String>, // Regex Selector for SHA-256 precomputation
+    max_header_length: usize,                // The maximum length of the email header
+    max_body_length: usize,                  // The maximum length of the email body
+    ignore_body_hash_check: bool,            // Flag to ignore the body hash check
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct EmailAuthInput {
-    padded_header: Vec<String>,
-    public_key: Vec<String>,
-    signature: Vec<String>,
-    padded_header_len: String,
-    account_code: String,
-    from_addr_idx: usize,
-    subject_idx: usize,
-    domain_idx: usize,
-    timestamp_idx: usize,
-    code_idx: usize,
+pub struct CircuitParams {
+    pub body: Vec<u8>,          // The email body in bytes
+    pub header: Vec<u8>,        // The email header in bytes
+    pub body_hash_idx: usize,   // The index of the body hash in the header
+    pub rsa_signature: BigInt,  // The RSA signature as a BigInt
+    pub rsa_public_key: BigInt, // The RSA public key as a BigInt
+}
+
+pub struct CircuitOptions {
+    pub sha_precompute_selector: Option<String>, // Selector for SHA-256 precomputation
+    pub max_header_length: Option<usize>,        // The maximum length of the email header
+    pub max_body_length: Option<usize>,          // The maximum length of the email body
+    pub ignore_body_hash_check: Option<bool>,    // Flag to ignore the body hash check
 }
 
 impl CircuitInputParams {
-    // Provides default values for optional parameters
-    pub fn new(
-        body: Vec<u8>,
-        message: Vec<u8>,
-        body_hash: String,
-        rsa_signature: BigInt,
-        rsa_public_key: BigInt,
-        sha_precompute_selector: Option<String>,
-        max_message_length: Option<usize>,
-        max_body_length: Option<usize>,
-        ignore_body_hash_check: Option<bool>,
-    ) -> Self {
+    /// Creates a new `CircuitInputParams` instance with provided parameters and options.
+    ///
+    /// # Arguments
+    ///
+    /// * `params` - A `CircuitParams` struct containing:
+    ///   * `body`: A vector of bytes representing the email body.
+    ///   * `header`: A vector of bytes representing the email header.
+    ///   * `body_hash_idx`: The index of the body hash within the circuit.
+    ///   * `rsa_signature`: The RSA signature as a BigInt.
+    ///   * `rsa_public_key`: The RSA public key as a BigInt.
+    ///
+    /// * `options` - A `CircuitOptions` struct containing optional parameters:
+    ///   * `sha_precompute_selector`: Selector for SHA-256 precomputation.
+    ///   * `max_header_length`: Maximum length of the email header, with a default value if not provided.
+    ///   * `max_body_length`: Maximum length of the email body, with a default value if not provided.
+    ///   * `ignore_body_hash_check`: Flag to ignore the body hash check, defaults to false if not provided.
+    ///
+    /// # Returns
+    ///
+    /// A `CircuitInputParams` instance with the specified parameters and options applied.
+    pub fn new(params: CircuitParams, options: CircuitOptions) -> Self {
         CircuitInputParams {
-            body,
-            message,
-            body_hash,
-            rsa_signature,
-            rsa_public_key,
-            sha_precompute_selector,
-            max_message_length: max_message_length.unwrap_or(MAX_HEADER_PADDED_BYTES),
-            max_body_length: max_body_length.unwrap_or(MAX_BODY_PADDED_BYTES),
-            ignore_body_hash_check: ignore_body_hash_check.unwrap_or(false),
+            body: params.body,
+            header: params.header,
+            body_hash_idx: params.body_hash_idx,
+            rsa_signature: params.rsa_signature,
+            rsa_public_key: params.rsa_public_key,
+            sha_precompute_selector: options.sha_precompute_selector,
+            // Use the provided max_header_length or default to MAX_HEADER_PADDED_BYTES
+            max_header_length: options.max_header_length.unwrap_or(MAX_HEADER_PADDED_BYTES),
+            // Use the provided max_body_length or default to MAX_BODY_PADDED_BYTES
+            max_body_length: options.max_body_length.unwrap_or(MAX_BODY_PADDED_BYTES),
+            // Use the provided ignore_body_hash_check or default to false
+            ignore_body_hash_check: options.ignore_body_hash_check.unwrap_or(false),
         }
     }
 }
 
-pub fn generate_circuit_inputs(params: CircuitInputParams) -> CircuitInput {
-    let (message_padded, message_padded_len) =
-        sha256_pad(params.message.clone(), params.max_message_length);
-    let body_sha_length = ((params.body.len() + 63 + 65) / 64) * 64;
-    let (body_padded, body_padded_len) = sha256_pad(
-        params.body,
-        cmp::max(params.max_body_length, body_sha_length),
-    );
+/// Generates the inputs for the circuit from the given parameters.
+///
+/// This function takes `CircuitInputParams` which includes the email body and header,
+/// RSA signature and public key, and other optional parameters. It processes these
+/// inputs to create a `CircuitInput` struct which is used in the zero-knowledge proof
+/// circuit.
+///
+/// # Arguments
+///
+/// * `params` - A `CircuitInputParams` struct containing the necessary parameters.
+///
+/// # Returns
+///
+/// A `Result` which is either a `CircuitInput` struct on success or an error on failure.
+///
+/// # Panics
+///
+/// This function panics if the partial SHA-256 generation fails.
+fn generate_circuit_inputs(params: CircuitInputParams) -> Result<CircuitInput> {
+    // Pad the header to the specified maximum length or the default
+    let (header_padded, header_padded_len) =
+        sha256_pad(params.header.clone(), params.max_header_length);
 
-    let result = generate_partial_sha(
-        body_padded,
-        body_padded_len,
-        params.sha_precompute_selector,
-        params.max_body_length,
-    );
-
-    let (precomputed_sha, body_remaining, body_remaining_length) = match result {
-        Ok((sha, remaining, len)) => (sha, remaining, len),
-        Err(e) => panic!("Failed to generate partial SHA: {:?}", e),
-    };
-
+    // Initialize the circuit input with the padded header and RSA information
     let mut circuit_input = CircuitInput {
-        in_padded: uint8_array_to_char_array(message_padded),
+        header_padded,
         pubkey: to_circom_bigint_bytes(params.rsa_public_key),
         signature: to_circom_bigint_bytes(params.rsa_signature),
-        in_len_padded_bytes: message_padded_len.to_string(),
+        header_len_padded_bytes: header_padded_len,
         precomputed_sha: None,
-        in_body_padded: None,
-        in_body_len_padded_bytes: None,
+        body_padded: None,
+        body_len_padded_bytes: None,
         body_hash_idx: None,
     };
 
+    // If body hash check is not ignored, include the precomputed SHA and body information
     if !params.ignore_body_hash_check {
-        circuit_input.precomputed_sha = Some(uint8_array_to_char_array(precomputed_sha));
-        // Convert message into a string
-        let message_string = String::from_utf8(params.message).expect("Found invalid UTF-8");
-        let body_hash_idx = message_string
-            .find(&params.body_hash)
-            .unwrap_or_else(|| panic!("Body hash not found in message"));
-        circuit_input.body_hash_idx = Some(body_hash_idx.to_string());
-        circuit_input.in_body_padded = Some(uint8_array_to_char_array(body_remaining));
-        circuit_input.in_body_len_padded_bytes = Some(body_remaining_length.to_string());
+        // Calculate the length needed for SHA-256 padding of the body
+        let body_sha_length = ((params.body.len() + 63 + 65) / 64) * 64;
+        // Pad the body to the maximum length or the calculated SHA-256 padding length
+        let (body_padded, body_padded_len) = sha256_pad(
+            params.body,
+            cmp::max(params.max_body_length, body_sha_length),
+        );
+
+        // Ensure that the error type returned by `generate_partial_sha` is sized
+        // by converting it into an `anyhow::Error` if it's not already.
+        let result = generate_partial_sha(
+            body_padded,
+            body_padded_len,
+            params.sha_precompute_selector,
+            params.max_body_length,
+        );
+
+        // Use match to handle the result and convert any error into an anyhow::Error
+        let (precomputed_sha, body_remaining, body_remaining_length) = match result {
+            Ok((sha, remaining, len)) => (sha, remaining, len),
+            Err(e) => panic!("Failed to generate partial SHA: {:?}", e),
+        };
+
+        circuit_input.precomputed_sha = Some(precomputed_sha);
+        circuit_input.body_hash_idx = Some(params.body_hash_idx);
+        circuit_input.body_padded = Some(body_remaining);
+        circuit_input.body_len_padded_bytes = Some(body_remaining_length);
     }
-    circuit_input
+
+    Ok(circuit_input)
 }
 
-pub async fn generate_email_sender_input(email: &str, account_code: &str) -> Result<String> {
-    let parsed_email = ParsedEmail::new_from_raw_email(&email).await?;
-    let circuit_input_params = circuit::CircuitInputParams::new(
-        vec![],
-        parsed_email.canonicalized_header.as_bytes().to_vec(),
-        "".to_string(),
-        vec_u8_to_bigint(parsed_email.clone().signature),
-        vec_u8_to_bigint(parsed_email.clone().public_key),
-        None,
-        Some(1024),
-        Some(64),
-        Some(true),
-    );
-    let email_circuit_inputs = circuit::generate_circuit_inputs(circuit_input_params);
+/// Asynchronously generates the circuit input for an email.
+///
+/// This function processes an email and its associated account code along with optional
+/// parameters to produce a JSON string that represents the input to the zero-knowledge
+/// proof circuit for email authentication.
+///
+/// # Arguments
+///
+/// * `email` - A string slice that holds the raw email data.
+/// * `account_code` - A reference to the `AccountCode` associated with the email.
+/// * `params` - Optional parameters for the circuit input generation encapsulated in `EmailCircuitParams`.
+///
+/// # Returns
+///
+/// A `Result` which is either a JSON string of the `EmailCircuitInput` on success or an error on failure.
+pub async fn generate_email_circuit_input(
+    email: &str,
+    account_code: &AccountCode,
+    params: Option<EmailCircuitParams>,
+) -> Result<String> {
+    // Parse the raw email to extract canonicalized body and header, and other components
+    let parsed_email = ParsedEmail::new_from_raw_email(email).await?;
 
-    let sender_email_idx = parsed_email.get_from_addr_idxes().unwrap();
-    let domain_idx = parsed_email.get_email_domain_idxes().unwrap();
-    let subject_idx = parsed_email.get_subject_all_idxes().unwrap();
-    let recipient_email_idx = match parsed_email.get_email_addr_in_subject_idxes() {
-        Ok(idx) => idx.0,
-        Err(_) => {
-            0 // Assuming 0 is a safe default or placeholder value
-        }
+    // Clone the fields that are used by value before the move occurs
+    let public_key = parsed_email.public_key.clone();
+    let signature = parsed_email.signature.clone();
+
+    // Create a CircuitParams struct from the parsed email
+    let circuit_params = CircuitParams {
+        body: parsed_email.canonicalized_body.as_bytes().to_vec(),
+        header: parsed_email.canonicalized_header.as_bytes().to_vec(),
+        body_hash_idx: parsed_email.get_body_hash_idxes()?.0,
+        rsa_signature: vec_u8_to_bigint(signature),
+        rsa_public_key: vec_u8_to_bigint(public_key),
     };
-    let timestamp_idx = parsed_email.get_timestamp_idxes().unwrap();
 
-    let email_sender_input = EmailSenderInput {
-        in_padded: email_circuit_inputs.in_padded,
-        pubkey: email_circuit_inputs.pubkey,
+    // Create a CircuitOptions struct from the optional parameters
+    let circuit_options = CircuitOptions {
+        sha_precompute_selector: params
+            .as_ref()
+            .and_then(|p| p.sha_precompute_selector.clone()),
+        max_header_length: params.as_ref().and_then(|p| p.max_header_length),
+        max_body_length: params.as_ref().and_then(|p| p.max_body_length),
+        ignore_body_hash_check: params.as_ref().and_then(|p| p.ignore_body_hash_check),
+    };
+
+    // Create circuit input parameters from the CircuitParams and CircuitOptions structs
+    let circuit_input_params = CircuitInputParams::new(circuit_params, circuit_options);
+
+    // Generate the circuit inputs from the parameters
+    let email_circuit_inputs = generate_circuit_inputs(circuit_input_params.clone())?;
+
+    // Extract indices for various email components
+    let from_addr_idx = parsed_email.get_from_addr_idxes()?.0;
+    let domain_idx = parsed_email.get_email_domain_idxes()?.0;
+    let subject_idx = if email_circuit_inputs.body_padded.is_none() {
+        Some(parsed_email.get_subject_all_idxes()?.0)
+    } else {
+        None
+    };
+    // Handle optional indices with default fallbacks
+    let mut code_idx = match parsed_email.get_invitation_code_idxes(
+        params
+            .as_ref()
+            .map_or(false, |p| p.ignore_body_hash_check.unwrap_or(false)),
+    ) {
+        Ok(indexes) => indexes.0,
+        Err(_) => 0,
+    };
+    let timestamp_idx = match parsed_email.get_timestamp_idxes() {
+        Ok(indexes) => indexes.0,
+        Err(_) => 0,
+    };
+    let mut command_idx =
+        match parsed_email.get_command_idxes(circuit_input_params.ignore_body_hash_check) {
+            Ok(indexes) => indexes.0,
+            Err(_) => 0,
+        };
+
+    // Clean the body
+    let padded_cleaned_body = email_circuit_inputs
+        .body_padded
+        .clone()
+        .map(remove_quoted_printable_soft_breaks);
+
+    if email_circuit_inputs.precomputed_sha.is_some() {
+        let code = parsed_email
+            .get_invitation_code(circuit_input_params.ignore_body_hash_check)
+            .unwrap_or_default();
+        let command = parsed_email.get_command(circuit_input_params.ignore_body_hash_check)?;
+
+        // Body is padded and cleaned, so use it for search
+        let search_body = padded_cleaned_body.as_ref();
+
+        // Find indices for the code and command in the body
+        code_idx = find_index_in_body(search_body, &code);
+        command_idx = find_index_in_body(search_body, &command);
+    }
+
+    // Construct the email circuit input from the generated data
+    let email_auth_input = EmailCircuitInput {
+        padded_header: email_circuit_inputs.header_padded,
+        public_key: email_circuit_inputs.pubkey,
         signature: email_circuit_inputs.signature,
-        in_padded_len: email_circuit_inputs.in_len_padded_bytes,
-        sender_account_code: account_code.to_string(),
-        sender_email_idx: sender_email_idx.0,
-        subject_idx: subject_idx.0,
-        recipient_email_idx: recipient_email_idx,
-        domain_idx: domain_idx.0,
-        timestamp_idx: timestamp_idx.0,
+        padded_header_len: email_circuit_inputs.header_len_padded_bytes,
+        account_code: field_to_hex(&account_code.0),
+        from_addr_idx,
+        subject_idx,
+        domain_idx,
+        timestamp_idx,
+        code_idx,
+        padded_body: email_circuit_inputs.body_padded,
+        body_hash_idx: email_circuit_inputs.body_hash_idx,
+        padded_body_len: email_circuit_inputs.body_len_padded_bytes,
+        precomputed_sha: email_circuit_inputs.precomputed_sha,
+        command_idx,
+        padded_cleaned_body,
     };
 
-    Ok(serde_json::to_string(&email_sender_input)?)
+    // Serialize the email circuit input to JSON and return
+    Ok(serde_json::to_string(&email_auth_input)?)
 }
 
-pub async fn generate_account_creation_input(email: &str, relayer_rand: &str) -> Result<String> {
-    let parsed_email = ParsedEmail::new_from_raw_email(&email).await?;
-    let circuit_input_params = circuit::CircuitInputParams::new(
-        vec![],
-        parsed_email.canonicalized_header.as_bytes().to_vec(),
-        "".to_string(),
-        vec_u8_to_bigint(parsed_email.clone().signature),
-        vec_u8_to_bigint(parsed_email.clone().public_key),
-        None,
-        Some(1024),
-        Some(64),
-        Some(true),
-    );
-    let email_circuit_inputs = circuit::generate_circuit_inputs(circuit_input_params);
-
-    let sender_email_idx = parsed_email.get_from_addr_idxes().unwrap();
-    let domain_idx = parsed_email.get_email_domain_idxes().unwrap();
-    // let subject_idx = parsed_email.get_subject_all_idxes().unwrap();
-    let code_idx = parsed_email.get_invitation_code_idxes().unwrap();
-    let timestamp_idx = parsed_email.get_timestamp_idxes().unwrap();
-
-    let account_creation_input = AccountCreationInput {
-        in_padded: email_circuit_inputs.in_padded,
-        pubkey: email_circuit_inputs.pubkey,
-        signature: email_circuit_inputs.signature,
-        in_padded_len: email_circuit_inputs.in_len_padded_bytes,
-        relayer_rand: relayer_rand.to_string(),
-        sender_email_idx: sender_email_idx.0,
-        code_idx: code_idx.0,
-        domain_idx: domain_idx.0,
-        timestamp_idx: timestamp_idx.0,
-    };
-
-    Ok(serde_json::to_string(&account_creation_input)?)
-}
-
+/// Asynchronously generates the circuit input for a claim.
+///
+/// This function takes an email address, a random string for commitment randomness,
+/// and an account code to produce a JSON string that represents the input to the
+/// zero-knowledge proof circuit for claim generation.
+///
+/// # Arguments
+///
+/// * `email_address` - A string slice that holds the email address.
+/// * `email_address_rand` - A string slice used for commitment randomness.
+/// * `account_code` - A string slice representing the account code.
+///
+/// # Returns
+///
+/// A `Result` which is either a JSON string of the `ClaimCircuitInput` on success or an error on failure.
 pub async fn generate_claim_input(
     email_address: &str,
     email_address_rand: &str,
     account_code: &str,
 ) -> Result<String> {
+    // Convert the email address to a padded format
     let padded_email_address = PaddedEmailAddr::from_email_addr(email_address);
-    let mut padded_email_addr_bytes = vec![];
+    // Collect the padded bytes into a vector
+    let padded_email_addr_bytes = padded_email_address.padded_bytes;
 
-    for byte in padded_email_address.padded_bytes.into_iter() {
-        padded_email_addr_bytes.push(byte);
-    }
-
-    let claim_input = ClaimInput {
+    // Construct the claim circuit input
+    let claim_input = ClaimCircuitInput {
         email_addr: padded_email_addr_bytes,
         cm_rand: email_address_rand.to_string(),
         account_code: account_code.to_string(),
     };
 
+    // Serialize the claim circuit input to JSON and return
     Ok(serde_json::to_string(&claim_input)?)
-}
-
-pub fn generate_account_creation_input_node(mut cx: FunctionContext) -> JsResult<JsPromise> {
-    let email = cx.argument::<JsString>(0)?.value(&mut cx);
-    let relayer_rand = cx.argument::<JsString>(1)?.value(&mut cx);
-
-    let channel = cx.channel();
-    let (deferred, promise) = cx.promise();
-    let rt = runtime(&mut cx)?;
-
-    rt.spawn(async move {
-        let account_creation_input = generate_account_creation_input(&email, &relayer_rand).await;
-        deferred.settle_with(&channel, move |mut cx| match account_creation_input {
-            Ok(account_creation_input) => {
-                let account_creation_input = cx.string(account_creation_input);
-                Ok(account_creation_input)
-            }
-            Err(err) => cx.throw_error(format!("Could not generate email sender input: {}", err)),
-        });
-    });
-
-    Ok(promise)
-}
-
-pub fn generate_email_sender_input_node(mut cx: FunctionContext) -> JsResult<JsPromise> {
-    let email = cx.argument::<JsString>(0)?.value(&mut cx);
-    let account_code = cx.argument::<JsString>(1)?.value(&mut cx);
-
-    let channel = cx.channel();
-    let (deferred, promise) = cx.promise();
-    let rt = runtime(&mut cx)?;
-
-    rt.spawn(async move {
-        let email_sender_input = generate_email_sender_input(&email, &account_code).await;
-        deferred.settle_with(&channel, move |mut cx| match email_sender_input {
-            Ok(email_sender_input) => {
-                let email_sender_input = cx.string(email_sender_input);
-                Ok(email_sender_input)
-            }
-            Err(err) => cx.throw_error(format!("Could not generate email sender input: {}", err)),
-        });
-    });
-
-    Ok(promise)
-}
-
-pub async fn generate_email_auth_input(email: &str, account_code: &AccountCode) -> Result<String> {
-    let parsed_email = ParsedEmail::new_from_raw_email(&email).await?;
-    let circuit_input_params = circuit::CircuitInputParams::new(
-        vec![],
-        parsed_email.canonicalized_header.as_bytes().to_vec(),
-        "".to_string(),
-        vec_u8_to_bigint(parsed_email.clone().signature),
-        vec_u8_to_bigint(parsed_email.clone().public_key),
-        None,
-        Some(1024),
-        Some(64),
-        Some(true),
-    );
-    let email_circuit_inputs = circuit::generate_circuit_inputs(circuit_input_params);
-
-    let from_addr_idx = parsed_email.get_from_addr_idxes().unwrap().0;
-    let domain_idx = parsed_email.get_email_domain_idxes().unwrap().0;
-    let subject_idx = parsed_email.get_subject_all_idxes().unwrap().0;
-    let code_idx = match parsed_email.get_invitation_code_idxes() {
-        Ok(indexes) => indexes.0,
-        Err(_) => 0,
-    };
-    let timestamp_idx = parsed_email.get_timestamp_idxes().unwrap().0;
-
-    let email_auth_input = EmailAuthInput {
-        padded_header: email_circuit_inputs.in_padded,
-        public_key: email_circuit_inputs.pubkey,
-        signature: email_circuit_inputs.signature,
-        padded_header_len: email_circuit_inputs.in_len_padded_bytes,
-        account_code: field2hex(&account_code.0),
-        from_addr_idx: from_addr_idx,
-        subject_idx: subject_idx,
-        domain_idx: domain_idx,
-        timestamp_idx: timestamp_idx,
-        code_idx,
-    };
-
-    Ok(serde_json::to_string(&email_auth_input)?)
-}
-
-pub fn generate_email_auth_input_node(mut cx: FunctionContext) -> JsResult<JsPromise> {
-    let email = cx.argument::<JsString>(0)?.value(&mut cx);
-    let account_code = cx.argument::<JsString>(1)?.value(&mut cx);
-    let account_code = AccountCode::from(hex2field_node(&mut cx, &account_code)?);
-    let channel = cx.channel();
-    let (deferred, promise) = cx.promise();
-    let rt = runtime(&mut cx)?;
-
-    rt.spawn(async move {
-        let email_auth_input = generate_email_auth_input(&email, &account_code).await;
-        deferred.settle_with(&channel, move |mut cx| match email_auth_input {
-            Ok(email_auth_input) => {
-                let email_auth_input = cx.string(email_auth_input);
-                Ok(email_auth_input)
-            }
-            Err(err) => cx.throw_error(format!("Could not generate email auth input: {}", err)),
-        });
-    });
-
-    Ok(promise)
 }
