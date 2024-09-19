@@ -12,17 +12,33 @@ const INT_REGEX: &str = r"-?\d+";
 const ETH_ADDR_REGEX: &str = r"0x[a-fA-F0-9]{40}";
 const DECIMALS_REGEX: &str = r"\d+\.\d+";
 
+/// Represents different types of template values.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TemplateValue {
+    /// A string value.
     String(String),
+    /// An unsigned integer value.
     Uint(U256),
+    /// A signed integer value.
     Int(I256),
+    /// A decimal value represented as a string.
     Decimals(String),
+    /// An Ethereum address.
     EthAddr(Address),
+    /// A fixed value represented as a string.
     Fixed(String),
 }
 
 impl TemplateValue {
+    /// Encodes the template value into ABI format.
+    ///
+    /// # Arguments
+    ///
+    /// * `decimal_size` - An optional value specifying the number of decimal places for Decimals type.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the encoded bytes or an error.
     pub fn abi_encode(&self, decimal_size: Option<u8>) -> Result<Bytes> {
         match self {
             Self::String(string) => Ok(Bytes::from(abi::encode(&[Token::String(string.clone())]))),
@@ -36,7 +52,17 @@ impl TemplateValue {
         }
     }
 
-    pub fn decimals_str_to_uint(str: &str, decimal_size: u8) -> U256 {
+    /// Converts a decimal string to a U256 integer.
+    ///
+    /// # Arguments
+    ///
+    /// * `str` - The decimal string to convert.
+    /// * `decimal_size` - The number of decimal places.
+    ///
+    /// # Returns
+    ///
+    /// A `U256` representing the decimal value.
+    fn decimals_str_to_uint(str: &str, decimal_size: u8) -> U256 {
         let decimal_size = decimal_size as usize;
         let dot = Regex::new("\\.").unwrap().find(str);
         let (before_dot_str, mut after_dot_str) = match dot {
@@ -54,6 +80,16 @@ impl TemplateValue {
     }
 }
 
+/// Extracts template values from a command input string.
+///
+/// # Arguments
+///
+/// * `input` - The input string to extract values from.
+/// * `templates` - A vector of template strings.
+///
+/// # Returns
+///
+/// A `Result` containing a vector of `TemplateValue`s or an error.
 pub fn extract_template_vals_from_command(
     input: &str,
     templates: Vec<String>,
@@ -88,13 +124,24 @@ pub fn extract_template_vals_from_command(
     }
 }
 
-pub fn extract_template_vals(input: &str, templates: Vec<String>) -> Result<Vec<TemplateValue>> {
+/// Extracts template values from an input string.
+///
+/// # Arguments
+///
+/// * `input` - The input string to extract values from.
+/// * `templates` - A vector of template strings.
+///
+/// # Returns
+///
+/// A `Result` containing a vector of `TemplateValue`s or an error.
+fn extract_template_vals(input: &str, templates: Vec<String>) -> Result<Vec<TemplateValue>> {
     let input_decomposed: Vec<&str> = input.split_whitespace().collect();
     let mut template_vals = Vec::new();
 
     for (input_idx, template) in templates.iter().enumerate() {
         match template.as_str() {
             "{string}" => {
+                // Extract and validate string value
                 let string_match = Regex::new(STRING_REGEX)
                     .unwrap()
                     .find(input_decomposed[input_idx])
@@ -109,6 +156,7 @@ pub fn extract_template_vals(input: &str, templates: Vec<String>) -> Result<Vec<
                 template_vals.push(TemplateValue::String(string));
             }
             "{uint}" => {
+                // Extract and validate unsigned integer value
                 let uint_match = Regex::new(UINT_REGEX)
                     .unwrap()
                     .find(input_decomposed[input_idx])
@@ -125,6 +173,7 @@ pub fn extract_template_vals(input: &str, templates: Vec<String>) -> Result<Vec<
                 template_vals.push(TemplateValue::Uint(uint));
             }
             "{int}" => {
+                // Extract and validate signed integer value
                 let int_match = Regex::new(INT_REGEX)
                     .unwrap()
                     .find(input_decomposed[input_idx])
@@ -140,6 +189,7 @@ pub fn extract_template_vals(input: &str, templates: Vec<String>) -> Result<Vec<
                 template_vals.push(TemplateValue::Int(int));
             }
             "{decimals}" => {
+                // Extract and validate decimal value
                 let decimals_match = Regex::new(DECIMALS_REGEX)
                     .unwrap()
                     .find(input_decomposed[input_idx])
@@ -156,6 +206,7 @@ pub fn extract_template_vals(input: &str, templates: Vec<String>) -> Result<Vec<
                 template_vals.push(TemplateValue::Decimals(decimals));
             }
             "{ethAddr}" => {
+                // Extract and validate Ethereum address
                 let address_match = Regex::new(ETH_ADDR_REGEX)
                     .unwrap()
                     .find(input_decomposed[input_idx])
@@ -173,7 +224,16 @@ pub fn extract_template_vals(input: &str, templates: Vec<String>) -> Result<Vec<
     Ok(template_vals)
 }
 
-// Generated by Github Copilot!
+/// Converts an unsigned integer to a decimal string representation.
+///
+/// # Arguments
+///
+/// * `uint` - The unsigned integer to convert.
+/// * `decimal` - The number of decimal places to use.
+///
+/// # Returns
+///
+/// A string representation of the decimal value.
 pub fn uint_to_decimal_string(uint: u128, decimal: usize) -> String {
     // Convert amount to string in wei format (no decimals)
     let uint_str = uint.to_string();
