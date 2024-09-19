@@ -15,14 +15,20 @@ use zk_regex_apis::extract_substrs::{
     extract_substr_idxes, extract_timestamp_idxes, extract_to_addr_idxes,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
 /// `ParsedEmail` holds the canonicalized parts of an email along with its signature and public key.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParsedEmail {
-    pub canonicalized_header: String, // The canonicalized email header.
-    pub canonicalized_body: String,   // The canonicalized email body.
-    pub signature: Vec<u8>,           // The email signature bytes.
-    pub public_key: Vec<u8>,          // The public key bytes associated with the email.
-    pub cleaned_body: String,         // The cleaned email body.
+    /// The canonicalized email header.
+    pub canonicalized_header: String,
+    /// The canonicalized email body.
+    pub canonicalized_body: String,
+    /// The email signature bytes.
+    pub signature: Vec<u8>,
+    /// The public key bytes associated with the email.
+    pub public_key: Vec<u8>,
+    /// The cleaned email body.
+    pub cleaned_body: String,
+    /// The email headers.
     pub headers: EmailHeaders,
 }
 
@@ -57,6 +63,7 @@ impl ParsedEmail {
         // Extract all headers
         let parsed_mail = parse_mail(raw_email.as_bytes())?;
         let headers: EmailHeaders = EmailHeaders::new_from_mail(&parsed_mail);
+
         // Construct the `ParsedEmail` instance.
         let parsed_email = ParsedEmail {
             canonicalized_header: String::from_utf8(canonicalized_header)?, // Convert bytes to string, may return an error if not valid UTF-8.
@@ -270,12 +277,14 @@ pub(crate) fn remove_quoted_printable_soft_breaks(body: Vec<u8>) -> Vec<u8> {
 
     while let Some((i, &byte)) = iter.next() {
         if byte == b'=' && body.get(i + 1..i + 3) == Some(&[b'\r', b'\n']) {
-            iter.nth(1); // Skip the next two bytes
+            // Skip the next two bytes (soft line break)
+            iter.nth(1);
         } else {
             result.push(byte);
         }
     }
 
+    // Resize the result to match the original body length
     result.resize(body.len(), 0);
     result
 }
@@ -296,6 +305,7 @@ pub(crate) fn remove_quoted_printable_soft_breaks(body: Vec<u8>) -> Vec<u8> {
 pub(crate) fn find_index_in_body(body: Option<&Vec<u8>>, pattern: &str) -> usize {
     body.and_then(|body_bytes| {
         if !pattern.is_empty() {
+            // Search for the pattern in the body
             body_bytes
                 .windows(pattern.len())
                 .position(|w| w == pattern.as_bytes())
@@ -306,10 +316,20 @@ pub(crate) fn find_index_in_body(body: Option<&Vec<u8>>, pattern: &str) -> usize
     .unwrap_or(0) // Default to 0 if not found or pattern is empty
 }
 
+/// Represents the email headers as a collection of key-value pairs.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EmailHeaders(HashMap<String, Vec<String>>);
 
 impl EmailHeaders {
+    /// Creates a new `EmailHeaders` instance from a parsed email.
+    ///
+    /// # Arguments
+    ///
+    /// * `parsed_mail` - A reference to a `ParsedMail` instance.
+    ///
+    /// # Returns
+    ///
+    /// A new `EmailHeaders` instance containing the headers from the parsed email.
     pub fn new_from_mail(parsed_mail: &ParsedMail) -> Self {
         let mut headers = HashMap::new();
         for header in &parsed_mail.headers {
@@ -320,6 +340,15 @@ impl EmailHeaders {
         Self(headers)
     }
 
+    /// Retrieves the value(s) of a specific header.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the header to retrieve.
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing a `Vec<String>` of header values if the header exists, or `None` if it doesn't.
     pub fn get_header(&self, name: &str) -> Option<Vec<String>> {
         self.0.get(name).cloned()
     }
