@@ -1,11 +1,12 @@
 //! This module contains the `ParsedEmail` struct and its implementation.
 
+use std::collections::HashMap;
+
 use anyhow::Result;
 use cfdkim::{canonicalize_signed_email, resolve_public_key};
 use hex;
 use itertools::Itertools;
 use mailparse::{parse_mail, ParsedMail};
-use neon::prelude::*;
 use rsa::traits::PublicKeyParts;
 use serde::{Deserialize, Serialize};
 use zk_regex_apis::extract_substrs::{
@@ -22,10 +23,6 @@ pub struct ParsedEmail {
     pub signature: Vec<u8>,           // The email signature bytes.
     pub public_key: Vec<u8>,          // The public key bytes associated with the email.
     pub cleaned_body: String,         // The cleaned email body.
-    pub canonicalized_header: String,
-    pub canonicalized_body: String,
-    pub signature: Vec<u8>,
-    pub public_key: Vec<u8>,
     pub headers: EmailHeaders,
 }
 
@@ -57,6 +54,9 @@ impl ParsedEmail {
         let (canonicalized_header, canonicalized_body, signature_bytes) =
             canonicalize_signed_email(raw_email.as_bytes())?;
 
+        // Extract all headers
+        let parsed_mail = parse_mail(raw_email.as_bytes())?;
+        let headers: EmailHeaders = EmailHeaders::new_from_mail(&parsed_mail);
         // Construct the `ParsedEmail` instance.
         let parsed_email = ParsedEmail {
             canonicalized_header: String::from_utf8(canonicalized_header)?, // Convert bytes to string, may return an error if not valid UTF-8.
@@ -66,15 +66,6 @@ impl ParsedEmail {
             cleaned_body: String::from_utf8(remove_quoted_printable_soft_breaks(
                 canonicalized_body,
             ))?, // Remove quoted-printable soft breaks from the canonicalized body.
-            canonicalize_signed_email(raw_email.as_bytes()).unwrap();
-        // Extract all headers
-        let parsed_mail = parse_mail(raw_email.as_bytes())?;
-        let headers: EmailHeaders = EmailHeaders::new_from_mail(&parsed_mail);
-        let parsed_email = ParsedEmail {
-            canonicalized_header: String::from_utf8(canonicalized_header)?,
-            canonicalized_body: String::from_utf8(canonicalized_body)?,
-            signature: signature_bytes.into_iter().collect_vec(),
-            public_key: public_key.n().to_bytes_be(),
             headers,
         };
 
@@ -232,54 +223,6 @@ impl ParsedEmail {
                 Ok(idxes) => {
                     let str = self.canonicalized_body[idxes[0].0..idxes[0].1].to_string();
                     Ok(str.replace("=\r\n", ""))
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmailHeaders(Arc<HashMap<String, Vec<String>>>);
-
-impl EmailHeaders {
-    pub fn new_from_mail(parsed_mail: &ParsedMail) -> Self {
-        let mut headers = HashMap::new();
-        for header in &parsed_mail.headers {
-            let key = header.get_key().to_string();
-            let value = header.get_value();
-            headers.entry(key).or_insert_with(Vec::new).push(value);
-        }
-        Self(Arc::new(headers)) // Wrap the HashMap in Arc and then in EmailHeaders
-    }
-
-    pub fn get_header(&self, name: &str) -> Option<Vec<String>> {
-        self.0.get(name).cloned()
-    }
-}
-
-pub fn parse_email_node(mut cx: FunctionContext) -> JsResult<JsPromise> {
-    let raw_email = cx.argument::<JsString>(0)?.value(&mut cx);
-    let channel = cx.channel();
-    let (deferred, promise) = cx.promise();
-    let rt = runtime(&mut cx)?;
-
-    rt.spawn(async move {
-        let parsed_email = ParsedEmail::new_from_raw_email(&raw_email).await;
-        deferred.settle_with(&channel, move |mut cx| {
-            match parsed_email {
-                // Resolve the promise with the release date
-                Ok(parsed_email) => {
-                    let signature_str = parsed_email.signature_string();
-                    let public_key_str = parsed_email.public_key_string();
-                    let obj = cx.empty_object();
-                    let canonicalized_header = cx.string(parsed_email.canonicalized_header);
-                    obj.set(&mut cx, "canonicalizedHeader", canonicalized_header)?;
-                    // let signed_header = cx.string(
-                    //     "0x".to_string() + hex::encode(parsed_email.signed_header).as_str(),
-                    // );
-                    // obj.set(&mut cx, "signedHeader", signed_header)?;
-                    let signature = cx.string(&signature_str);
-                    obj.set(&mut cx, "signature", signature)?;
-
-                    let public_key = cx.string(&public_key_str);
-                    obj.set(&mut cx, "publicKey", public_key)?;
-                    // let dkim_domain = cx.string(&parsed_email.dkim_domain);
-                    // obj.set(&mut cx, "dkimDomain", dkim_domain)?;
-                    Ok(obj)
                 }
                 Err(_) => match extract_substr_idxes(&self.cleaned_body, &regex_config) {
                     Ok(idxes) => {
@@ -361,4 +304,23 @@ pub(crate) fn find_index_in_body(body: Option<&Vec<u8>>, pattern: &str) -> usize
         }
     })
     .unwrap_or(0) // Default to 0 if not found or pattern is empty
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmailHeaders(HashMap<String, Vec<String>>);
+
+impl EmailHeaders {
+    pub fn new_from_mail(parsed_mail: &ParsedMail) -> Self {
+        let mut headers = HashMap::new();
+        for header in &parsed_mail.headers {
+            let key = header.get_key().to_string();
+            let value = header.get_value();
+            headers.entry(key).or_insert_with(Vec::new).push(value);
+        }
+        Self(headers)
+    }
+
+    pub fn get_header(&self, name: &str) -> Option<Vec<String>> {
+        self.0.get(name).cloned()
+    }
 }
