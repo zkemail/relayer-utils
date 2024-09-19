@@ -7,11 +7,6 @@ use ethers::types::{Bytes, U256};
 
 use ::serde::Deserialize;
 
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
-
-use crate::{field_to_hex, hex_to_field, AccountCode, AccountSalt, PaddedEmailAddr};
-
 /// Represents the response from the prover.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ProverRes {
@@ -108,50 +103,4 @@ pub async fn generate_proof(
         .collect();
 
     Ok((proof, pub_signals))
-}
-
-/// Calculates a default hash for the given input string.
-///
-/// # Arguments
-///
-/// * `input` - The input string to hash.
-///
-/// # Returns
-///
-/// A string representation of the calculated hash.
-pub fn calculate_default_hash(input: &str) -> String {
-    let mut hasher = DefaultHasher::new();
-    input.hash(&mut hasher);
-    let hash_code = hasher.finish();
-
-    hash_code.to_string()
-}
-
-/// Calculates the account salt based on the email address and account code.
-///
-/// # Arguments
-///
-/// * `email_addr` - The email address string.
-/// * `account_code` - The account code string.
-///
-/// # Returns
-///
-/// A string representation of the calculated account salt.
-pub fn calculate_account_salt(email_addr: &str, account_code: &str) -> String {
-    // Pad the email address
-    let padded_email_addr = PaddedEmailAddr::from_email_addr(email_addr);
-
-    // Convert account code to field element
-    let account_code = if account_code.starts_with("0x") {
-        hex_to_field(account_code).unwrap()
-    } else {
-        hex_to_field(&format!("0x{}", account_code)).unwrap()
-    };
-    let account_code = AccountCode::from(account_code);
-
-    // Generate account salt
-    let account_salt = AccountSalt::new(&padded_email_addr, account_code).unwrap();
-
-    // Convert account salt to hexadecimal representation
-    field_to_hex(&account_salt.0)
 }

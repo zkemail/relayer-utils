@@ -1,11 +1,13 @@
 //! Cryptographic functions.
 
+use crate::{field_to_hex, hex_to_field};
 use ethers::types::Bytes;
 use halo2curves::ff::Field;
-use hmac_sha256::Hash;
 use poseidon_rs::{poseidon_bytes, poseidon_fields, Fr, PoseidonError};
 use rand_core::RngCore;
+use std::collections::hash_map::DefaultHasher;
 use std::error::Error;
+use std::hash::{Hash, Hasher};
 use zk_regex_apis::padding::pad_string;
 
 use crate::{
@@ -312,7 +314,7 @@ pub fn sha256_pad(mut data: Vec<u8>, max_sha_bytes: usize) -> (Vec<u8>, usize) {
 ///
 /// A vector containing the SHA-256 hash of the message.
 pub fn partial_sha(msg: &[u8], msg_len: usize) -> Vec<u8> {
-    let mut hasher = Hash::new();
+    let mut hasher = hmac_sha256::Hash::new();
     hasher.update(&msg[..msg_len]);
     let result = hasher.cache_state();
     result.to_vec()
@@ -435,4 +437,50 @@ mod tests {
         );
         assert_eq!(field_to_hex(&hash_field), expected_hash);
     }
+}
+
+/// Calculates a default hash for the given input string.
+///
+/// # Arguments
+///
+/// * `input` - The input string to hash.
+///
+/// # Returns
+///
+/// A string representation of the calculated hash.
+pub fn calculate_default_hash(input: &str) -> String {
+    let mut hasher = DefaultHasher::new();
+    input.hash(&mut hasher);
+    let hash_code = hasher.finish();
+
+    hash_code.to_string()
+}
+
+/// Calculates the account salt based on the email address and account code.
+///
+/// # Arguments
+///
+/// * `email_addr` - The email address string.
+/// * `account_code` - The account code string.
+///
+/// # Returns
+///
+/// A string representation of the calculated account salt.
+pub fn calculate_account_salt(email_addr: &str, account_code: &str) -> String {
+    // Pad the email address
+    let padded_email_addr = PaddedEmailAddr::from_email_addr(email_addr);
+
+    // Convert account code to field element
+    let account_code = if account_code.starts_with("0x") {
+        hex_to_field(account_code).unwrap()
+    } else {
+        hex_to_field(&format!("0x{}", account_code)).unwrap()
+    };
+    let account_code = AccountCode::from(account_code);
+
+    // Generate account salt
+    let account_salt = AccountSalt::new(&padded_email_addr, account_code).unwrap();
+
+    // Convert account salt to hexadecimal representation
+    field_to_hex(&account_salt.0)
 }
