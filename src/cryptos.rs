@@ -5,14 +5,18 @@ use halo2curves::ff::Field;
 use hmac_sha256::Hash;
 use poseidon_rs::{poseidon_bytes, poseidon_fields, Fr, PoseidonError};
 use rand_core::RngCore;
-use std::error::Error;
+use serde::{
+    de::{self, Visitor},
+    Deserialize, Deserializer,
+};
+use std::{error::Error, fmt};
 use zk_regex_apis::padding::pad_string;
 
 use crate::{
     converters::{
         bytes_chunk_fields, bytes_to_fields, int64_to_bytes, int8_to_bytes, merge_u8_arrays,
     },
-    MAX_EMAIL_ADDR_BYTES,
+    hex_to_field, MAX_EMAIL_ADDR_BYTES,
 };
 
 type ShaResult = Vec<u8>; // The result of a SHA-256 hash operation.
@@ -130,6 +134,62 @@ impl PaddedEmailAddr {
 #[derive(Debug, Clone, Copy)]
 /// `AccountCode` is a structure that holds a single field element representing an account code.
 pub struct AccountCode(pub Fr);
+
+impl<'de> Deserialize<'de> for AccountCode {
+    /// Deserializes a string into an `AccountCode`.
+    ///
+    /// # Arguments
+    ///
+    /// * `deserializer` - The deserializer to use for converting the string into an `AccountCode`.
+    ///
+    /// # Returns
+    ///
+    /// A result that is either an `AccountCode` or a deserialization error.
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct AccountCodeVisitor;
+
+        impl<'de> Visitor<'de> for AccountCodeVisitor {
+            type Value = AccountCode;
+
+            /// Describes what the visitor expects to receive.
+            ///
+            /// # Arguments
+            ///
+            /// * `formatter` - A formatter to write the expected type description.
+            ///
+            /// # Returns
+            ///
+            /// A `fmt::Result` indicating success or failure.
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a valid field element for AccountCode")
+            }
+
+            /// Visits a string and attempts to convert it into an `AccountCode`.
+            ///
+            /// # Arguments
+            ///
+            /// * `value` - The string value to convert.
+            ///
+            /// # Returns
+            ///
+            /// A result that is either an `AccountCode` or a deserialization error.
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                // Convert the string to a field element
+                let fr_value = hex_to_field(value).map_err(de::Error::custom)?;
+                Ok(AccountCode(fr_value))
+            }
+        }
+
+        // Deserialize the string using the AccountCodeVisitor
+        deserializer.deserialize_str(AccountCodeVisitor)
+    }
+}
 
 impl AccountCode {
     /// Constructs a new `AccountCode` using a random number generator.
