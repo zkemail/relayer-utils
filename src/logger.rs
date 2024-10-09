@@ -66,7 +66,10 @@ fn init_logger() -> slog::Logger {
             slog_async::Async::new(slog::Duplicate(log_terminal_json_drain, log_file_drain).fuse())
                 .build()
                 .fuse();
-        slog::Logger::root(log_drain, o!("version" => env!("CARGO_PKG_VERSION")))
+        slog::Logger::root(
+            log_drain,
+            o!("version" => env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "unknown".to_string())),
+        )
     } else {
         // Otherwise, use formatted text for terminal and JSON for file logging.
         let log_drain =
@@ -75,6 +78,9 @@ fn init_logger() -> slog::Logger {
                 .overflow_strategy(slog_async::OverflowStrategy::Block) // Set overflow strategy to block when the channel is full.
                 .build()
                 .fuse();
-        slog::Logger::root(log_drain, o!("version" => env!("CARGO_PKG_VERSION")))
+        slog::Logger::root(
+            log_drain,
+            o!("version" => env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "unknown".to_string())),
+        )
     }
 }
