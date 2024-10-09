@@ -5,15 +5,15 @@ use ethers::types::Bytes;
 use halo2curves::ff::Field;
 use poseidon_rs::{poseidon_bytes, poseidon_fields, Fr, PoseidonError};
 use rand_core::RngCore;
+use serde::{
+    de::{self, Visitor},
+    Deserialize, Deserializer,
+};
 use std::{
     collections::hash_map::DefaultHasher,
     error::Error,
     fmt,
     hash::{Hash, Hasher},
-};
-use serde::{
-    de::{self, Visitor},
-    Deserialize, Deserializer,
 };
 use zk_regex_apis::padding::pad_string;
 
@@ -21,7 +21,7 @@ use crate::{
     converters::{
         bytes_chunk_fields, bytes_to_fields, int64_to_bytes, int8_to_bytes, merge_u8_arrays,
     },
-    hex_to_field, MAX_EMAIL_ADDR_BYTES,
+    MAX_EMAIL_ADDR_BYTES,
 };
 
 type ShaResult = Vec<u8>; // The result of a SHA-256 hash operation.
