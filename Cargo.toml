@@ -34,6 +34,7 @@ num-traits = "0.2.15"
 cfdkim = { version = "0.3.3", git = "https://github.com/zkemail/dkim.git" }
 hmac-sha256 = { git = "https://github.com/zkemail/rust-hmac-sha256.git" }
 ethers = "2.0.14"
+reqwest = "0.11.22"
 slog = { version = "2.7.0", features = [
     "max_level_trace",
     "release_max_level_warn",
@@ -44,6 +45,7 @@ slog-json = "2.6.1"
 lazy_static = "1.4"
 file-rotate = "0.7.5"
 regex = "1.10.6"
+mailparse = "0.15.0"
 
 [dependencies.neon]
 version = "0.10"
