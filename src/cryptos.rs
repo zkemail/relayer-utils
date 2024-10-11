@@ -7,7 +7,7 @@ use poseidon_rs::{poseidon_bytes, poseidon_fields, Fr, PoseidonError};
 use rand_core::RngCore;
 use serde::{
     de::{self, Visitor},
-    Deserialize, Deserializer,
+    Deserialize, Deserializer, Serialize, Serializer,
 };
 use std::{
     collections::hash_map::DefaultHasher,
@@ -196,6 +196,27 @@ impl<'de> Deserialize<'de> for AccountCode {
     }
 }
 
+impl Serialize for AccountCode {
+    /// Serializes an `AccountCode` into a string.
+    ///
+    /// # Arguments
+    ///
+    /// * `serializer` - The serializer to use for converting the `AccountCode` into a string.
+    ///
+    /// # Returns
+    ///
+    /// A result that is either a serialized string or a serialization error.
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // Convert the field element to a hexadecimal string
+        let hex_value = field_to_hex(&self.0);
+        // Serialize the hexadecimal string
+        serializer.serialize_str(&hex_value)
+    }
+}
+
 impl AccountCode {
     /// Constructs a new `AccountCode` using a random number generator.
     ///
@@ -268,6 +289,29 @@ impl AccountSalt {
         inputs.push(account_code.0);
         inputs.push(Fr::zero());
         Ok(AccountSalt(poseidon_fields(&inputs)?))
+    }
+
+    /// Creates a new `AccountSalt` from a byte slice.
+    ///
+    /// # Arguments
+    ///
+    /// * `bytes` - A byte slice to be converted into a field element for the account salt.
+    ///
+    /// # Returns
+    ///
+    /// A result that is either a new instance of `AccountSalt` or a `PoseidonError`.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, PoseidonError> {
+        // Convert bytes to field elements
+        let fields = bytes_to_fields(bytes);
+
+        // Add a zero field element to the inputs
+        let mut inputs = fields;
+        inputs.push(Fr::zero());
+
+        // Compute the Poseidon hash
+        let salt = poseidon_fields(&inputs)?;
+
+        Ok(AccountSalt(salt))
     }
 }
 
