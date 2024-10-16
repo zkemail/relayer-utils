@@ -1,7 +1,7 @@
 //! This module provides utility functions for converting between different data types and formats.
 
 use anyhow::{anyhow, Result};
-use ethers::types::U256;
+use ethers::types::{H160, U256};
 use halo2curves::ff::PrimeField;
 use itertools::Itertools;
 use num_bigint::BigInt;
@@ -78,10 +78,6 @@ pub fn field_to_hex(field: &Fr) -> String {
     format!("{:?}", field)
 }
 
-// pub fn digits2int(input_digits: &str) -> Result<u64> {
-//     Ok(input_digits.parse()?)
-// }
-
 /// Converts a byte slice into a vector of `Fr` field elements.
 ///
 /// Each chunk of 31 bytes from the input is extended to 32 bytes and converted to an `Fr` element.
@@ -101,6 +97,17 @@ pub fn bytes_to_fields(bytes: &[u8]) -> Vec<Fr> {
             Fr::from_bytes(&extended).expect("fail to convert bytes to a field value")
         })
         .collect()
+}
+
+/// Converts a byte slice to a hexadecimal string.
+///
+/// # Arguments
+/// * `bytes` - A reference to the byte slice to convert.
+///
+/// # Returns
+/// A hexadecimal string representation of the byte slice.
+pub fn bytes_to_hex(bytes: &[u8]) -> String {
+    format!("0x{}", hex::encode(bytes))
 }
 
 /// Converts a byte slice into a vector of `Fr` field elements, chunked by bit size.
@@ -176,6 +183,17 @@ pub fn bytes_chunk_fields(
 /// A `Vec<u8>` representing the big-endian byte order of the integer.
 pub fn int64_to_bytes(num: u64) -> Vec<u8> {
     num.to_be_bytes().to_vec()
+}
+
+/// Converts an `H160` address to a hexadecimal string with "0x" prefix.
+///
+/// # Arguments
+/// * `h160` - The `H160` address to convert.
+///
+/// # Returns
+/// A hexadecimal string representing the `H160` address.
+pub fn h160_to_hex(h160: &H160) -> String {
+    format!("0x{}", hex::encode(h160.0))
 }
 
 /// Converts an 8-bit integer to a `Vec<u8>` with a single element.
