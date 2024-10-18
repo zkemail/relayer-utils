@@ -5,30 +5,18 @@ on: push
 jobs:
   build-test:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Setup Rust
-      run: rustup show
+      - name: Setup Rust
+        run: rustup show
 
-    - name: Cache Rust dependencies
-      uses: Swatinem/rust-cache@v2
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
 
-    - name: Setup Node.js with Yarn
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-        cache: 'yarn'
+      - name: Build Rust binary
+        run: cargo build --release
 
-    - name: Install Yarn dependencies
-      run: yarn install
-
-    - name: Build Rust binary
-      run: cargo build --release
-      
-    - name: Test Rust binary
-      run: cargo test --release
-
-    - name: Build node binary
-      run: yarn build-release
+      - name: Test Rust binary
+        run: cargo test --release

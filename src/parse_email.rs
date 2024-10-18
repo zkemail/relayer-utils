@@ -3,7 +3,9 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use cfdkim::{canonicalize_signed_email, resolve_public_key};
+use cfdkim::canonicalize_signed_email;
+#[cfg(not(target_arch = "wasm32"))]
+use cfdkim::resolve_public_key;
 use hex;
 use itertools::Itertools;
 use mailparse::{parse_mail, ParsedMail};
@@ -50,11 +52,14 @@ impl ParsedEmail {
         let logger = slog::Logger::root(slog::Discard, slog::o!());
 
         // Resolve the public key from the raw email bytes.
-        let public_key = resolve_public_key(&logger, raw_email.as_bytes()).await?;
-        let public_key = match public_key {
-            cfdkim::DkimPublicKey::Rsa(pk) => pk,
+        #[cfg(not(target_arch = "wasm32"))]
+        let public_key = match resolve_public_key(&logger, raw_email.as_bytes()).await? {
+            cfdkim::DkimPublicKey::Rsa(pk) => pk.n().to_bytes_be(),
             _ => panic!("Unsupported public key type."), // Panics if the public key type is not RSA.
         };
+
+        #[cfg(target_arch = "wasm32")]
+        let public_key = Vec::new();
 
         // Canonicalize the signed email to separate the header, body, and signature.
         let (canonicalized_header, canonicalized_body, signature_bytes) =
@@ -69,7 +74,7 @@ impl ParsedEmail {
             canonicalized_header: String::from_utf8(canonicalized_header)?, // Convert bytes to string, may return an error if not valid UTF-8.
             canonicalized_body: String::from_utf8(canonicalized_body.clone())?, // Convert bytes to string, may return an error if not valid UTF-8.
             signature: signature_bytes.into_iter().collect_vec(), // Collect the signature bytes into a vector.
-            public_key: public_key.n().to_bytes_be(), // Convert the public key to big-endian bytes.
+            public_key,
             cleaned_body: String::from_utf8(remove_quoted_printable_soft_breaks(
                 canonicalized_body,
             ))?, // Remove quoted-printable soft breaks from the canonicalized body.

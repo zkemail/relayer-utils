@@ -1,7 +1,0 @@
-# Exclude all files by default
-*
-
-# But include the following files and directories
-!index.js
-!README.md
-!bin/

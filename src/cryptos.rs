@@ -71,7 +71,7 @@ impl RelayerRand {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// `PaddedEmailAddr` is a structure that holds a padded email address and its original length.
 pub struct PaddedEmailAddr {
     pub padded_bytes: Vec<u8>, // Padded email address bytes
@@ -269,6 +269,27 @@ impl AccountCode {
 #[derive(Debug, Clone, Copy)]
 /// `AccountSalt` is the poseidon hash of the padded email address and account code.
 pub struct AccountSalt(pub Fr);
+
+impl Serialize for AccountSalt {
+    /// Serializes an `AccountSalt` into a string.
+    ///
+    /// # Arguments
+    ///
+    /// * `serializer` - The serializer to use for converting the `AccountSalt` into a string.
+    ///
+    /// # Returns
+    ///
+    /// A result that is either a serialized string or a serialization error.
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // Convert the field element to a hexadecimal string
+        let hex_value = field_to_hex(&self.0);
+        // Serialize the hexadecimal string
+        serializer.serialize_str(&hex_value)
+    }
+}
 
 impl AccountSalt {
     /// Creates a new `AccountSalt` using the padded email address and account code.
