@@ -1,10 +1,19 @@
 //! Cryptographic functions.
 
+#[cfg(target_arch = "wasm32")]
+use crate::EmailHeaders;
 use crate::{field_to_hex, hex_to_field};
+use anyhow::Result;
 use ethers::types::Bytes;
 use halo2curves::ff::Field;
 use poseidon_rs::{poseidon_bytes, poseidon_fields, Fr, PoseidonError};
 use rand_core::RngCore;
+#[cfg(target_arch = "wasm32")]
+use regex::Regex;
+#[cfg(target_arch = "wasm32")]
+use rsa::pkcs8::DecodePublicKey;
+#[cfg(target_arch = "wasm32")]
+use rsa::traits::PublicKeyParts;
 use serde::{
     de::{self, Visitor},
     Deserialize, Deserializer, Serialize, Serializer,
@@ -611,4 +620,83 @@ pub fn calculate_account_salt(email_addr: &str, account_code: &str) -> String {
 
     // Convert account salt to hexadecimal representation
     field_to_hex(&account_salt.0)
+}
+
+#[cfg(target_arch = "wasm32")]
+/// Fetches the public key from DNS records using the DKIM signature in the email headers.
+///
+/// # Arguments
+///
+/// * `email_headers` - An `EmailHeaders` object containing the headers of the email.
+///
+/// # Returns
+///
+/// A `Result` containing a vector of bytes representing the public key, or an error if the key is not found.
+pub async fn fetch_public_key(email_headers: EmailHeaders) -> Result<Vec<u8>> {
+    let mut selector = String::new();
+    let mut domain = String::new();
+
+    // Extract the selector and domain from the DKIM-Signature header
+    if let Some(headers) = email_headers.get_header("DKIM-Signature") {
+        if let Some(header) = headers.first() {
+            let s_re = Regex::new(r"s=([^;]+);").unwrap();
+            let d_re = Regex::new(r"d=([^;]+);").unwrap();
+
+            selector = s_re
+                .captures(header)
+                .and_then(|cap| cap.get(1))
+                .map_or("", |m| m.as_str())
+                .to_string();
+            domain = d_re
+                .captures(header)
+                .and_then(|cap| cap.get(1))
+                .map_or("", |m| m.as_str())
+                .to_string();
+        }
+    }
+
+    println!("Selector: {}, Domain: {}", selector, domain);
+
+    // Fetch the DNS TXT record for the domain key
+    let response = reqwest::get(format!(
+        "https://dns.google/resolve?name={}._domainkey.{}&type=TXT",
+        selector, domain
+    ))
+    .await?;
+    let data: serde_json::Value = response.json().await?;
+
+    // Extract the 'p' value from the Answer section
+    let mut p_value = None;
+    if let Some(answers) = data.get("Answer").and_then(|a| a.as_array()) {
+        for answer in answers {
+            if let Some(data) = answer.get("data").and_then(|d| d.as_str()) {
+                let parts: Vec<&str> = data.split(';').collect();
+                for part in parts {
+                    let key_value: Vec<&str> = part.trim().split('=').collect();
+                    if key_value.len() == 2 && key_value[0].trim() == "p" {
+                        p_value = Some(key_value[1].trim().to_string());
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    if let Some(public_key_b64) = p_value {
+        // Decode the base64 string to get the public key bytes
+        let public_key_bytes = base64::decode(public_key_b64)?;
+
+        // Load the public key from DER format
+        let public_key = rsa::RsaPublicKey::from_public_key_der(&public_key_bytes)?;
+
+        // Extract the modulus from the public key
+        let modulus = public_key.n();
+
+        // Convert the modulus to a byte array in big-endian order
+        let modulus_bytes = modulus.to_bytes_be();
+
+        Ok(modulus_bytes)
+    } else {
+        Err(anyhow::anyhow!("Public key not found"))
+    }
 }

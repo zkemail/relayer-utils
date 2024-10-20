@@ -2,6 +2,8 @@
 
 use std::collections::HashMap;
 
+#[cfg(target_arch = "wasm32")]
+use crate::cryptos::fetch_public_key;
 use anyhow::Result;
 use cfdkim::canonicalize_signed_email;
 #[cfg(not(target_arch = "wasm32"))]
@@ -9,6 +11,8 @@ use cfdkim::resolve_public_key;
 use hex;
 use itertools::Itertools;
 use mailparse::{parse_mail, ParsedMail};
+#[cfg(target_arch = "wasm32")]
+use regex::Regex;
 use rsa::traits::PublicKeyParts;
 use serde::{Deserialize, Serialize};
 use zk_regex_apis::extract_substrs::{
@@ -51,6 +55,10 @@ impl ParsedEmail {
         // Initialize a logger for the function scope.
         let logger = slog::Logger::root(slog::Discard, slog::o!());
 
+        // Extract all headers
+        let parsed_mail = parse_mail(raw_email.as_bytes())?;
+        let headers: EmailHeaders = EmailHeaders::new_from_mail(&parsed_mail);
+
         // Resolve the public key from the raw email bytes.
         #[cfg(not(target_arch = "wasm32"))]
         let public_key = match resolve_public_key(&logger, raw_email.as_bytes()).await? {
@@ -59,15 +67,11 @@ impl ParsedEmail {
         };
 
         #[cfg(target_arch = "wasm32")]
-        let public_key = Vec::new();
+        let public_key = fetch_public_key(headers.clone()).await?;
 
         // Canonicalize the signed email to separate the header, body, and signature.
         let (canonicalized_header, canonicalized_body, signature_bytes) =
             canonicalize_signed_email(raw_email.as_bytes())?;
-
-        // Extract all headers
-        let parsed_mail = parse_mail(raw_email.as_bytes())?;
-        let headers: EmailHeaders = EmailHeaders::new_from_mail(&parsed_mail);
 
         // Construct the `ParsedEmail` instance.
         let parsed_email = ParsedEmail {
