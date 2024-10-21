@@ -281,7 +281,7 @@ impl ParsedEmail {
 ///
 /// A `Vec<u8>` with all quoted-printable soft line breaks removed.
 pub(crate) fn remove_quoted_printable_soft_breaks(body: Vec<u8>) -> Vec<u8> {
-    let mut result = Vec::with_capacity(body.len());
+    let mut partial_result = Vec::with_capacity(body.len());
     let mut iter = body.iter().enumerate();
 
     while let Some((i, &byte)) = iter.next() {
@@ -289,11 +289,28 @@ pub(crate) fn remove_quoted_printable_soft_breaks(body: Vec<u8>) -> Vec<u8> {
             // Skip the next two bytes (soft line break)
             iter.nth(1);
         } else {
-            result.push(byte);
+            partial_result.push(byte);
         }
     }
 
-    // Resize the result to match the original body length
+    // Run while loop again to remove any remaining soft line breaks
+    let mut result = Vec::new();
+    let mut i = 0;
+
+    while i < partial_result.len() {
+        if partial_result[i] == b'\r'
+            && i + 1 < partial_result.len()
+            && partial_result[i + 1] == b'\n'
+        {
+            // Skip both bytes (soft line break)
+            i += 2;
+        } else {
+            result.push(partial_result[i]);
+            i += 1;
+        }
+    }
+
+    // Resize the partial_result to match the original body length
     result.resize(body.len(), 0);
     result
 }
