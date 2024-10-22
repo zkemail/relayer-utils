@@ -94,6 +94,11 @@ pub fn extract_template_vals_from_command(
     input: &str,
     templates: Vec<String>,
 ) -> Result<Vec<TemplateValue>, anyhow::Error> {
+    // Skip to text/html part
+    let re = Regex::new(r"(?s)Content-Type:\s*text/html;.*?\r?\n\r?\n(.*?)(?:--\S+|$)").unwrap();
+    let caps = re.captures(input).unwrap();
+    let input = caps.get(1).unwrap().as_str();
+
     // Convert the template to a regex pattern, escaping necessary characters and replacing placeholders
     let pattern = templates
         .iter()
