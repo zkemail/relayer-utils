@@ -20,3 +20,17 @@ jobs:
 
       - name: Test Rust binary
         run: cargo test --release
+
+      - name: Install wasm-pack
+        run: cargo install wasm-pack
+
+      - name: Build pkg from WASM
+        run: wasm-pack build --target web
+
+      - name: Install bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: JS WASM Tests
+        run: bun test
