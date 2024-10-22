@@ -29,9 +29,15 @@ pub async fn parseEmail(raw_email: String) -> Promise {
     match ParsedEmail::new_from_raw_email(&raw_email).await {
         Ok(parsed_email) => match to_value(&parsed_email) {
             Ok(serialized_email) => Promise::resolve(&serialized_email),
-            Err(_) => Promise::reject(&JsValue::from_str("Failed to serialize ParsedEmail")),
+            Err(err) => Promise::reject(&JsValue::from_str(&format!(
+                "Failed to serialize ParsedEmail: {}",
+                err
+            ))),
         },
-        Err(_) => Promise::reject(&JsValue::from_str("Failed to parse email")),
+        Err(err) => Promise::reject(&JsValue::from_str(&format!(
+            "Failed to parse email: {}",
+            err
+        ))),
     }
 }
 

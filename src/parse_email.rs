@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 #[cfg(target_arch = "wasm32")]
 use crate::cryptos::fetch_public_key;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use cfdkim::canonicalize_signed_email;
 #[cfg(not(target_arch = "wasm32"))]
 use cfdkim::resolve_public_key;
@@ -62,9 +62,9 @@ impl ParsedEmail {
         // Resolve the public key from the raw email bytes.
         #[cfg(not(target_arch = "wasm32"))]
         let public_key = match resolve_public_key(&logger, raw_email.as_bytes()).await? {
-            cfdkim::DkimPublicKey::Rsa(pk) => pk.n().to_bytes_be(),
-            _ => panic!("Unsupported public key type."), // Panics if the public key type is not RSA.
-        };
+            cfdkim::DkimPublicKey::Rsa(pk) => Ok(pk.n().to_bytes_be()),
+            _ => Err(anyhow!("Unsupported public key type.")),
+        }?;
 
         #[cfg(target_arch = "wasm32")]
         let public_key = fetch_public_key(headers.clone()).await?;

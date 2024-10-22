@@ -20,3 +20,11 @@ jobs:
 
       - name: Test Rust binary
         run: cargo test --release
+
+      - name: Install bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: JS WASM Tests
+        run: bun test
