@@ -1,6 +1,6 @@
 [package]
 name = "relayer-utils"
-version = "0.3.9"
+version = "0.4.1"
 authors = ["Sora Suegami", "Aditya Bisht"]
 license = "MIT"
 edition = "2018"
