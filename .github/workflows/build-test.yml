@@ -21,6 +21,9 @@ jobs:
       - name: Test Rust binary
         run: cargo test --release
 
+      - name: Install wasm-pack
+        run: cargo install wasm-pack
+
       - name: Build pkg from WASM
         run: wasm-pack build --target web
 
