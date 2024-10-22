@@ -91,13 +91,15 @@ impl TemplateValue {
 ///
 /// A `Result` containing a vector of `TemplateValue`s or an error.
 pub fn extract_template_vals_from_command(
-    input: &str,
+    mut input: &mut str,
     templates: Vec<String>,
 ) -> Result<Vec<TemplateValue>, anyhow::Error> {
     // Skip to text/html part
     let re = Regex::new(r"(?s)Content-Type:\s*text/html;").unwrap();
-    let text_html_idx = re.find(input).unwrap().end();
-    let input = &input[text_html_idx..];
+    if let Some(matched) = re.find(input) {
+        let text_html_idx = matched.end();
+        input = &mut input[text_html_idx..];
+    }
 
     // Convert the template to a regex pattern, escaping necessary characters and replacing placeholders
     let pattern = templates
