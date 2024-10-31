@@ -1,0 +1,21 @@
+{
+  "name": "@dimidumo/relayer-utils",
+  "type": "module",
+  "collaborators": [
+    "Sora Suegami",
+    "Aditya Bisht",
+    "Dimitri Dumonet"
+  ],
+  "version": "0.4.9",
+  "license": "MIT",
+  "exports": {
+    "./web": {
+      "types": "./web/relayer_utils.d.ts",
+      "default": "./web/relayer_utils.js"
+    },
+    "./node": {
+      "types": "./node/relayer_utils.d.ts",
+      "default": "./node/relayer_utils.js"
+    }
+  }
+}

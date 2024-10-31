@@ -1,7 +1,13 @@
 {
-  "name": "relayer-utils",
+  "name": "@dimidumo/relayer-utils",
   "module": "index.ts",
   "type": "module",
+  "scripts": {
+    "build": "sh wasm_build.sh",
+    "deploy-npm": "cd pkg && npm publish --access public && cd ..",
+    "deploy": "bun run build && bun run deploy-npm"
+  },
+  "version": "0.4.4",
   "devDependencies": {
     "@types/bun": "latest",
     "prettier": "^3.3.3"
