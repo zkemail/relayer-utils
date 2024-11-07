@@ -6,7 +6,7 @@
     "Aditya Bisht",
     "Dimitri Dumonet"
   ],
-  "version": "0.4.9",
+  "version": "0.4.12",
   "license": "MIT",
   "exports": {
     "./web": {
