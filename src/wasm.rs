@@ -3,12 +3,16 @@ use js_sys::Promise;
 #[cfg(target_arch = "wasm32")]
 use rand::rngs::OsRng;
 #[cfg(target_arch = "wasm32")]
-use serde_wasm_bindgen::to_value;
+use serde_wasm_bindgen::{from_value, to_value};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
 #[cfg(target_arch = "wasm32")]
-use crate::{hex_to_field, AccountCode, AccountSalt, PaddedEmailAddr, ParsedEmail};
+use crate::{
+    generate_circuit_inputs_with_decomposed_regexes_and_external_inputs, hex_to_field, AccountCode,
+    AccountSalt, CircuitInputWithDecomposedRegexesAndExternalInputsParams, DecomposedRegex,
+    ExternalInput, PaddedEmailAddr, ParsedEmail,
+};
 
 #[wasm_bindgen]
 #[allow(non_snake_case)]
@@ -110,5 +114,64 @@ pub async fn padEmailAddr(email_addr: String) -> Promise {
     match to_value(&padded_email_addr) {
         Ok(serialized_addr) => Promise::resolve(&serialized_addr),
         Err(_) => Promise::reject(&JsValue::from_str("Failed to serialize padded_email_addr")),
+    }
+}
+
+#[wasm_bindgen]
+#[allow(non_snake_case)]
+#[cfg(target_arch = "wasm32")]
+pub async fn generateCircuitInputsWithDecomposedRegexesAndExternalInputs(
+    email_addr: String,
+    decomposed_regexes: JsValue,
+    external_inputs: JsValue,
+    params: JsValue,
+) -> Promise {
+    // Deserialize decomposed_regexes
+    let decomposed_regexes: Vec<DecomposedRegex> = match from_value(decomposed_regexes) {
+        Ok(val) => val,
+        Err(_) => {
+            return Promise::reject(&JsValue::from_str("Invalid decomposed_regexes input"));
+        }
+    };
+
+    // Deserialize external_inputs
+    let external_inputs: Vec<ExternalInput> = match from_value(external_inputs) {
+        Ok(val) => val,
+        Err(_) => {
+            return Promise::reject(&JsValue::from_str("Invalid external_inputs input"));
+        }
+    };
+
+    // Deserialize params
+    let params: CircuitInputWithDecomposedRegexesAndExternalInputsParams = match from_value(params)
+    {
+        Ok(val) => val,
+        Err(_) => {
+            return Promise::reject(&JsValue::from_str("Invalid params input"));
+        }
+    };
+
+    // Call the async function and await the result
+    let circuit_inputs = match generate_circuit_inputs_with_decomposed_regexes_and_external_inputs(
+        &email_addr,
+        decomposed_regexes,
+        external_inputs,
+        params,
+    )
+    .await
+    {
+        Ok(inputs) => inputs,
+        Err(err) => {
+            return Promise::reject(&JsValue::from_str(&format!(
+                "Failed to generate CircuitInputs: {}",
+                err
+            )));
+        }
+    };
+
+    // Serialize the output to JsValue
+    match to_value(&circuit_inputs) {
+        Ok(serialized_inputs) => Promise::resolve(&serialized_inputs),
+        Err(_) => Promise::reject(&JsValue::from_str("Failed to serialize CircuitInputs")),
     }
 }
