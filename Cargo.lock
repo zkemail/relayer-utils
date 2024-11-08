@@ -3019,6 +3019,7 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "cfdkim",
+ "console_error_panic_hook",
  "ethers",
  "file-rotate",
  "halo2curves",

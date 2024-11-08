@@ -54,7 +54,7 @@ echo "✅ Using wasm-pack version $WASM_PACK_VERSION"
 
 # Build for Node.js
 echo "📦 Building Node.js target..."
-wasm-pack build --target bundler --out-dir pkg/node --scope @dimidumo
+wasm-pack build --target nodejs --out-dir pkg/node --scope @dimidumo
 
 # Build for web
 echo "🌐 Building web target..."

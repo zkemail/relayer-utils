@@ -126,52 +126,52 @@ pub async fn generateCircuitInputsWithDecomposedRegexesAndExternalInputs(
     external_inputs: JsValue,
     params: JsValue,
 ) -> Promise {
-    // Deserialize decomposed_regexes
-    let decomposed_regexes: Vec<DecomposedRegex> = match from_value(decomposed_regexes) {
-        Ok(val) => val,
-        Err(_) => {
-            return Promise::reject(&JsValue::from_str("Invalid decomposed_regexes input"));
-        }
-    };
+    console_error_panic_hook::set_once();
 
-    // Deserialize external_inputs
-    let external_inputs: Vec<ExternalInput> = match from_value(external_inputs) {
-        Ok(val) => val,
-        Err(_) => {
-            return Promise::reject(&JsValue::from_str("Invalid external_inputs input"));
-        }
-    };
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| async move {
+        // Deserialize decomposed_regexes
+        let decomposed_regexes: Vec<DecomposedRegex> = from_value(decomposed_regexes)
+            .map_err(|_| String::from("Invalid decomposed_regexes input"))?;
 
-    // Deserialize params
-    let params: CircuitInputWithDecomposedRegexesAndExternalInputsParams = match from_value(params)
-    {
-        Ok(val) => val,
-        Err(_) => {
-            return Promise::reject(&JsValue::from_str("Invalid params input"));
-        }
-    };
+        // Deserialize external_inputs
+        let external_inputs: Vec<ExternalInput> = from_value(external_inputs)
+            .map_err(|_| String::from("Invalid external_inputs input"))?;
 
-    // Call the async function and await the result
-    let circuit_inputs = match generate_circuit_inputs_with_decomposed_regexes_and_external_inputs(
-        &email_addr,
-        decomposed_regexes,
-        external_inputs,
-        params,
-    )
-    .await
-    {
-        Ok(inputs) => inputs,
-        Err(err) => {
-            return Promise::reject(&JsValue::from_str(&format!(
-                "Failed to generate CircuitInputs: {}",
-                err
-            )));
-        }
-    };
+        // Deserialize params
+        let params: CircuitInputWithDecomposedRegexesAndExternalInputsParams =
+            from_value(params).map_err(|_| String::from("Invalid params input"))?;
 
-    // Serialize the output to JsValue
-    match to_value(&circuit_inputs) {
-        Ok(serialized_inputs) => Promise::resolve(&serialized_inputs),
-        Err(_) => Promise::reject(&JsValue::from_str("Failed to serialize CircuitInputs")),
+        // Call the async function and await the result
+        let circuit_inputs = generate_circuit_inputs_with_decomposed_regexes_and_external_inputs(
+            &email_addr,
+            decomposed_regexes,
+            external_inputs,
+            params,
+        )
+        .await
+        .map_err(|err| format!("Failed to generate CircuitInputs: {}", err))?;
+
+        // Serialize the output to JsValue
+        to_value(&circuit_inputs).map_err(|_| String::from("Failed to serialize CircuitInputs"))
+    }));
+
+    match result {
+        Ok(future) => match future.await {
+            Ok(serialized_inputs) => Promise::resolve(&serialized_inputs),
+            Err(err_msg) => Promise::reject(&JsValue::from_str(&err_msg)),
+        },
+        Err(panic) => {
+            let panic_msg = match panic.downcast::<String>() {
+                Ok(msg) => *msg,
+                Err(panic) => match panic.downcast::<&str>() {
+                    Ok(msg) => msg.to_string(),
+                    Err(_) => "Unknown panic occurred".to_string(),
+                },
+            };
+            Promise::reject(&JsValue::from_str(&format!(
+                "Panic occurred: {}",
+                panic_msg
+            )))
+        }
     }
 }
