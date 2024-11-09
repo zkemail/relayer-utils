@@ -487,7 +487,7 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
 
         // Extract substring indices using the decomposed regex configuration
         let idxes: Vec<(usize, usize)> =
-            extract_substr_idxes(input, &decomposed_regex_config, true)?;
+            extract_substr_idxes(input, &decomposed_regex_config, false)?;
 
         // Add the first index to the circuit inputs
         circuit_inputs[format!("{}RegexIdx", decomposed_regex.name)] = idxes[0].0.into();
