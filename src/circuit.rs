@@ -471,7 +471,7 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
 
         // Determine the input string based on the regex location
         let input = if decomposed_regex.location == "header" {
-            &String::from_utf8(email_circuit_inputs.header_padded.clone())?
+            &String::from_utf8_lossy(&email_circuit_inputs.header_padded.clone()).into_owned()
         } else if decomposed_regex.location == "body" && params.remove_soft_lines_breaks {
             &cleaned_body
                 .as_ref()
