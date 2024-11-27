@@ -1,9 +1,10 @@
+// TODO: Can only run one test file at a time, since init() will colide
 import { expect, test, describe } from "bun:test";
-// import init, { parseEmail } from "../pkg";
-import { generateCircuitInputsWithDecomposedRegexesAndExternalInputs } from "../pkg/index.node";
+import { generateCircuitInputsWithDecomposedRegexesAndExternalInputs, init } from "../pkg";
 import { readFile } from "fs/promises";
 
 describe("generateCircuitInputsWithDecomposedRegexesAndExternalInputs test suite", async () => {
+  await init();
   const helloEml = await readFile("tests/fixtures/test.eml", "utf-8");
   console.log("got eml: ", helloEml);
 
