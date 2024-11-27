@@ -3,11 +3,13 @@
  * This file does not work with jest, so for now we renamed it so it doesn't run.
  */
 import { expect, test, describe } from "bun:test";
-// import init, { parseEmail } from "../pkg";
+
+import init, { parseEmail } from "../pkg";
 import airbnbEmail from "./airbnb_eml";
-import { parseEmail } from "../pkg/index.node";
 
 describe("Parse email test suite", async () => {
+  await init();
+
   test("Should parse valid email", async () => {
     const parsedEmail = await parseEmail(airbnbEmail);
     expect(parsedEmail).not.toBeUndefined();
