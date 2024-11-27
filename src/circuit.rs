@@ -8,9 +8,10 @@ use zk_regex_apis::extract_substrs::{
 };
 
 use crate::{
-    field_to_hex, find_index_in_body, generate_partial_sha, remove_quoted_printable_soft_breaks,
-    sha256_pad, string_to_circom_bigint_bytes, to_circom_bigint_bytes, vec_u8_to_bigint,
-    AccountCode, PaddedEmailAddr, ParsedEmail, MAX_BODY_PADDED_BYTES, MAX_HEADER_PADDED_BYTES,
+    field_to_hex, find_index_in_body, generate_partial_sha, hex_to_u256,
+    remove_quoted_printable_soft_breaks, sha256_pad, string_to_circom_bigint_bytes,
+    to_circom_bigint_bytes, vec_u8_to_bigint, AccountCode, PaddedEmailAddr, ParsedEmail,
+    MAX_BODY_PADDED_BYTES, MAX_HEADER_PADDED_BYTES,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -108,10 +109,11 @@ pub struct DecomposedRegex {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CircuitInputWithDecomposedRegexesAndExternalInputsParams {
-    pub max_header_length: usize, // The maximum length of the email header
-    pub max_body_length: usize,   // The maximum length of the email body
-    pub ignore_body_hash_check: bool, // Flag to ignore the body hash check
-    pub remove_soft_lines_breaks: bool, // Flag to remove soft line breaks from the body
+    pub prover_eth_address: Option<String>, // The Ethereum address of the prover
+    pub max_header_length: usize,           // The maximum length of the email header
+    pub max_body_length: usize,             // The maximum length of the email body
+    pub ignore_body_hash_check: bool,       // Flag to ignore the body hash check
+    pub remove_soft_lines_breaks: bool,     // Flag to remove soft line breaks from the body
     pub sha_precompute_selector: Option<String>, // Optional regex selector for SHA-256 precomputation
 }
 
@@ -512,6 +514,15 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
         circuit_inputs[external_input.name] = value.into();
     }
 
+    if params.prover_eth_address.is_some() {
+        circuit_inputs["proverETHAddress"] =
+            hex_to_u256(params.prover_eth_address.as_deref().unwrap_or(""))?
+                .to_string()
+                .into();
+    } else {
+        circuit_inputs["proverETHAddress"] = "0".into();
+    }
+
     // Return the circuit inputs as a JSON object
     Ok(circuit_inputs)
 }
@@ -577,6 +588,7 @@ mod tests {
                 ignore_body_hash_check: false,
                 remove_soft_lines_breaks: true,
                 sha_precompute_selector: None,
+                prover_eth_address: Some("0x9401296121FC9B78F84fc856B1F8dC88f4415B2e".to_string()),
             },
         )
         .await?;

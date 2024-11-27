@@ -302,7 +302,8 @@ pub fn u256_to_hex(x: &U256) -> String {
 pub fn hex_to_u256(hex: &str) -> Result<U256, hex::FromHexError> {
     let bytes: Vec<u8> = hex::decode(&hex[2..])?;
     let mut array = [0u8; 32];
-    array.copy_from_slice(&bytes);
+    // Copy the bytes into the end of the array, padding with zeros at the start
+    array[(32 - bytes.len())..].copy_from_slice(&bytes);
     Ok(U256::from_big_endian(&array))
 }
 
