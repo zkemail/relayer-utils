@@ -131,15 +131,15 @@ pub async fn generateCircuitInputsWithDecomposedRegexesAndExternalInputs(
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| async move {
         // Deserialize decomposed_regexes
         let decomposed_regexes: Vec<DecomposedRegex> = from_value(decomposed_regexes)
-            .map_err(|_| String::from("Invalid decomposed_regexes input"))?;
+            .map_err(|e| format!("Invalid decomposed_regexes input: {}", e))?;
 
         // Deserialize external_inputs
         let external_inputs: Vec<ExternalInput> = from_value(external_inputs)
-            .map_err(|_| String::from("Invalid external_inputs input"))?;
+            .map_err(|e| format!("Invalid external_inputs input: {}", e))?;
 
         // Deserialize params
         let params: CircuitInputWithDecomposedRegexesAndExternalInputsParams =
-            from_value(params).map_err(|_| String::from("Invalid params input"))?;
+            from_value(params).map_err(|e| format!("Invalid params input: {}", e))?;
 
         // Call the async function and await the result
         let circuit_inputs = generate_circuit_inputs_with_decomposed_regexes_and_external_inputs(
