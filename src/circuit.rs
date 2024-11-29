@@ -610,4 +610,69 @@ mod tests {
 
         Ok(())
     }
+
+    #[tokio::test]
+    async fn test_generate_regex_inputs_with_external_inputs() -> Result<()> {
+        // Get the test file path relative to the project root
+        let test_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("test.eml");
+
+        let email = std::fs::read_to_string(test_file)?;
+
+        let mut decomposed_regexes = Vec::new();
+        let part_1 = RegexPartConfig {
+            is_public: false,
+            regex_def: "Hi".to_string(),
+        };
+        let part_2 = RegexPartConfig {
+            is_public: true,
+            regex_def: "!".to_string(),
+        };
+
+        decomposed_regexes.push(DecomposedRegex {
+            parts: vec![part_1, part_2],
+            name: "hi".to_string(),
+            max_length: 64,
+            location: "body".to_string(),
+        });
+
+        let external_inputs = vec![ExternalInput {
+            name: "address".to_string(),
+            value: Some("testerman@zkemail.com".to_string()),
+            max_length: 64,
+        }];
+
+        let input = generate_circuit_inputs_with_decomposed_regexes_and_external_inputs(
+            &email,
+            decomposed_regexes,
+            external_inputs,
+            CircuitInputWithDecomposedRegexesAndExternalInputsParams {
+                max_body_length: 2816,
+                max_header_length: 1024,
+                ignore_body_hash_check: false,
+                remove_soft_lines_breaks: true,
+                sha_precompute_selector: None,
+            },
+        )
+        .await?;
+
+        // Save the input to a file in the test output directory
+        let output_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("outputs")
+            .join("input.json");
+
+        // Create the output directory if it doesn't exist
+        if let Some(parent) = output_file.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        // Save the input to a file
+        let input_str = serde_json::to_string_pretty(&input)?;
+        std::fs::write(output_file, input_str)?;
+
+        Ok(())
+    }
 }
