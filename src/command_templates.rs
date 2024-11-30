@@ -122,9 +122,10 @@ pub fn extract_template_vals_from_command(
     if let Some(matched) = regex.find(input) {
         // Calculate the number of bytes to skip before the match
         let skipped_bytes = matched.start();
+        let end = matched.end();
 
         // Extract the values based on the matched pattern
-        let current_input = &input[skipped_bytes..];
+        let current_input = &input[skipped_bytes..end];
         extract_template_vals(current_input, templates)
     } else {
         // If there's no match, return an error indicating no match was found
