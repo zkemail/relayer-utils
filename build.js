@@ -23,7 +23,15 @@ import * as wasm_bindgen from "./relayer_utils_bg.js";
 import { __wbg_set_wasm } from "./relayer_utils_bg.js";
 
 const wasmBase64 = '${wasmBase64}';
-const wasmBytes = Uint8Array.from(Buffer.from(wasmBase64, 'base64'));
+// Don't use Buffer for browser compatibility
+// Decode the base64 string into a binary string
+const binaryString = atob(wasmBase64);
+
+// Convert the binary string into a Uint8Array
+const wasmBytes = new Uint8Array(binaryString.length);
+for (let i = 0; i < binaryString.length; i++) {
+    wasmBytes[i] = binaryString.charCodeAt(i);
+}
 
 let wasm;
 
