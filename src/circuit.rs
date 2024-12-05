@@ -1,12 +1,17 @@
 use anyhow::Result;
 use num_bigint::BigInt;
 use serde::{Deserialize, Serialize};
-use std::cmp;
+use serde_json::{json, Value};
+use std::{cmp, collections::VecDeque};
+use zk_regex_apis::extract_substrs::{
+    extract_substr_idxes, DecomposedRegexConfig, RegexPartConfig,
+};
 
 use crate::{
-    field_to_hex, find_index_in_body, generate_partial_sha, remove_quoted_printable_soft_breaks,
-    sha256_pad, to_circom_bigint_bytes, vec_u8_to_bigint, AccountCode, PaddedEmailAddr,
-    ParsedEmail, MAX_BODY_PADDED_BYTES, MAX_HEADER_PADDED_BYTES,
+    field_to_hex, find_index_in_body, generate_partial_sha, hex_to_u256,
+    remove_quoted_printable_soft_breaks, sha256_pad, string_to_circom_bigint_bytes,
+    to_circom_bigint_bytes, vec_u8_to_bigint, AccountCode, PaddedEmailAddr, ParsedEmail,
+    MAX_BODY_PADDED_BYTES, MAX_HEADER_PADDED_BYTES,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -82,6 +87,34 @@ pub struct CircuitOptions {
     pub max_header_length: Option<usize>,        // The maximum length of the email header
     pub max_body_length: Option<usize>,          // The maximum length of the email body
     pub ignore_body_hash_check: Option<bool>,    // Flag to ignore the body hash check
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ExternalInput {
+    pub name: String,          // The name of the external input
+    pub value: Option<String>, // The optional value of the external input
+    pub max_length: usize,     // The maximum length of the input value
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DecomposedRegex {
+    pub parts: Vec<RegexPartConfig>, // The parts of the regex configuration
+    pub name: String,                // The name of the decomposed regex
+    pub max_length: usize,           // The maximum length of the regex match
+    pub location: String, // The location where the regex is applied (e.g., header or body)
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CircuitInputWithDecomposedRegexesAndExternalInputsParams {
+    pub prover_eth_address: Option<String>, // The Ethereum address of the prover
+    pub max_header_length: usize,           // The maximum length of the email header
+    pub max_body_length: usize,             // The maximum length of the email body
+    pub ignore_body_hash_check: bool,       // Flag to ignore the body hash check
+    pub remove_soft_lines_breaks: bool,     // Flag to remove soft line breaks from the body
+    pub sha_precompute_selector: Option<String>, // Optional regex selector for SHA-256 precomputation
 }
 
 impl CircuitInputParams {
@@ -349,4 +382,297 @@ pub async fn generate_claim_input(
 
     // Serialize the claim circuit input to JSON and return
     Ok(serde_json::to_string(&claim_input)?)
+}
+
+/// Asynchronously generates circuit inputs with decomposed regexes and external inputs.
+///
+/// This function processes an email, applies decomposed regexes, and incorporates external inputs
+/// to produce a JSON object representing the inputs for a zero-knowledge proof circuit.
+///
+/// # Arguments
+///
+/// * `email` - A string slice containing the raw email data.
+/// * `decomposed_regexes` - A vector of `DecomposedRegex` structs for regex processing.
+/// * `external_inputs` - A vector of `ExternalInput` structs for additional inputs.
+/// * `params` - Parameters for circuit input generation encapsulated in `CircuitInputWithDecomposedRegexesAndExternalInputsParams`.
+///
+/// # Returns
+///
+/// A `Result` which is either a JSON object of the circuit inputs on success or an error on failure.
+pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs(
+    email: &str,
+    decomposed_regexes: Vec<DecomposedRegex>,
+    external_inputs: Vec<ExternalInput>,
+    params: CircuitInputWithDecomposedRegexesAndExternalInputsParams,
+) -> Result<Value> {
+    // Parse the raw email to extract canonicalized body and header, and other components
+    let parsed_email = ParsedEmail::new_from_raw_email(email).await?;
+
+    // Clone the fields that are used by value before the move occurs
+    let public_key = parsed_email.public_key.clone();
+    let signature = parsed_email.signature.clone();
+
+    // Create a CircuitParams struct from the parsed email
+    let circuit_params = CircuitParams {
+        body: parsed_email.canonicalized_body.as_bytes().to_vec(),
+        header: parsed_email.canonicalized_header.as_bytes().to_vec(),
+        body_hash_idx: parsed_email.get_body_hash_idxes()?.0,
+        rsa_signature: vec_u8_to_bigint(signature),
+        rsa_public_key: vec_u8_to_bigint(public_key),
+    };
+
+    // Create a CircuitOptions struct from the optional parameters
+    let circuit_options = CircuitOptions {
+        sha_precompute_selector: params.sha_precompute_selector,
+        max_header_length: Some(params.max_header_length),
+        max_body_length: Some(params.max_body_length),
+        ignore_body_hash_check: Some(params.ignore_body_hash_check),
+    };
+
+    // Create circuit input parameters from the CircuitParams and CircuitOptions structs
+    let circuit_input_params = CircuitInputParams::new(circuit_params, circuit_options);
+
+    // Generate the circuit inputs from the parameters
+    let email_circuit_inputs = generate_circuit_inputs(circuit_input_params.clone())?;
+
+    // Create a JSON object to hold the circuit inputs
+    let mut circuit_inputs = json!({
+        "emailHeader": email_circuit_inputs.header_padded,
+        "emailHeaderLength": email_circuit_inputs.header_len_padded_bytes,
+        "pubkey": email_circuit_inputs.pubkey,
+        "signature": email_circuit_inputs.signature,
+    });
+
+    // Include body-related inputs if the body hash check is not ignored
+    if !params.ignore_body_hash_check {
+        circuit_inputs["bodyHashIndex"] = email_circuit_inputs.body_hash_idx.into();
+        circuit_inputs["precomputedSHA"] = email_circuit_inputs.precomputed_sha.into();
+        circuit_inputs["emailBody"] = email_circuit_inputs.body_padded.clone().into();
+        circuit_inputs["emailBodyLength"] = email_circuit_inputs.body_len_padded_bytes.into();
+    }
+
+    // Clean the body by removing quoted-printable soft breaks if necessary
+    let cleaned_body = email_circuit_inputs
+        .body_padded
+        .clone()
+        .map(remove_quoted_printable_soft_breaks);
+
+    // Add the cleaned body to the circuit inputs if soft line breaks are to be removed
+    if params.remove_soft_lines_breaks {
+        circuit_inputs["decodedEmailBodyIn"] = cleaned_body.clone().into();
+    }
+
+    // Process each decomposed regex and add the resulting indices to the circuit inputs
+    for decomposed_regex in decomposed_regexes {
+        let mut decomposed_regex_config = DecomposedRegexConfig {
+            parts: VecDeque::new().into(),
+        };
+        for part in decomposed_regex.parts {
+            decomposed_regex_config.parts.push(part);
+        }
+
+        // Determine the input string based on the regex location
+        let input = if decomposed_regex.location == "header" {
+            &String::from_utf8_lossy(&email_circuit_inputs.header_padded.clone()).into_owned()
+        } else if decomposed_regex.location == "body" && params.remove_soft_lines_breaks {
+            &cleaned_body
+                .as_ref()
+                .map(|v| String::from_utf8_lossy(v).into_owned())
+                .unwrap_or_else(|| String::new())
+        } else {
+            &email_circuit_inputs
+                .body_padded
+                .as_ref()
+                .map(|v| String::from_utf8_lossy(v).into_owned())
+                .unwrap_or_else(|| String::new())
+        };
+
+        // Extract substring indices using the decomposed regex configuration
+        let idxes: Vec<(usize, usize)> =
+            extract_substr_idxes(input, &decomposed_regex_config, false)?;
+
+        // Add the first index to the circuit inputs
+        circuit_inputs[format!("{}RegexIdx", decomposed_regex.name)] = idxes[0].0.into();
+    }
+
+    // Process each external input and add it to the circuit inputs
+    for external_input in external_inputs {
+        let mut value =
+            string_to_circom_bigint_bytes(&external_input.value.as_deref().unwrap_or(""))?;
+        let signal_length = compute_signal_length(external_input.max_length);
+
+        // Pad the value to the signal length
+        if value.len() < signal_length {
+            value.extend(
+                vec![0; signal_length - value.len()]
+                    .into_iter()
+                    .map(|num| num.to_string()),
+            );
+        }
+
+        // Add the external input to the circuit inputs
+        circuit_inputs[external_input.name] = value.into();
+    }
+
+    if params.prover_eth_address.is_some() {
+        circuit_inputs["proverETHAddress"] =
+            hex_to_u256(params.prover_eth_address.as_deref().unwrap_or(""))?
+                .to_string()
+                .into();
+    } else {
+        circuit_inputs["proverETHAddress"] = "0".into();
+    }
+
+    // Return the circuit inputs as a JSON object
+    Ok(circuit_inputs)
+}
+
+/// Computes the signal length required for a given maximum length.
+///
+/// This function calculates the number of 31-byte segments needed to accommodate
+/// the given `max_length`. If there is a remainder when dividing by 31, an additional
+/// segment is added to ensure the entire length is covered.
+///
+/// # Arguments
+///
+/// * `max_length` - The maximum length of the input for which the signal length is computed.
+///
+/// # Returns
+///
+/// The computed signal length as a `usize`.
+pub fn compute_signal_length(max_length: usize) -> usize {
+    (max_length / 31) + if max_length % 31 != 0 { 1 } else { 0 }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[tokio::test]
+    async fn test_generate_regex_inputs() -> Result<()> {
+        // Get the test file path relative to the project root
+        let test_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("test.eml");
+
+        let email = std::fs::read_to_string(test_file)?;
+
+        let mut decomposed_regexes = Vec::new();
+        let part_1 = RegexPartConfig {
+            is_public: false,
+            regex_def: "Hi".to_string(),
+        };
+        let part_2 = RegexPartConfig {
+            is_public: true,
+            regex_def: "!".to_string(),
+        };
+
+        decomposed_regexes.push(DecomposedRegex {
+            parts: vec![part_1, part_2],
+            name: "hi".to_string(),
+            max_length: 64,
+            location: "body".to_string(),
+        });
+
+        let external_inputs = vec![];
+
+        let input = generate_circuit_inputs_with_decomposed_regexes_and_external_inputs(
+            &email,
+            decomposed_regexes,
+            external_inputs,
+            CircuitInputWithDecomposedRegexesAndExternalInputsParams {
+                max_body_length: 2816,
+                max_header_length: 1024,
+                ignore_body_hash_check: false,
+                remove_soft_lines_breaks: true,
+                sha_precompute_selector: None,
+                prover_eth_address: Some("0x9401296121FC9B78F84fc856B1F8dC88f4415B2e".to_string()),
+            },
+        )
+        .await?;
+
+        // Save the input to a file in the test output directory
+        let output_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("outputs")
+            .join("input.json");
+
+        // Create the output directory if it doesn't exist
+        if let Some(parent) = output_file.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        // Save the input to a file
+        let input_str = serde_json::to_string_pretty(&input)?;
+        std::fs::write(output_file, input_str)?;
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_generate_regex_inputs_with_external_inputs() -> Result<()> {
+        // Get the test file path relative to the project root
+        let test_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("test.eml");
+
+        let email = std::fs::read_to_string(test_file)?;
+
+        let mut decomposed_regexes = Vec::new();
+        let part_1 = RegexPartConfig {
+            is_public: false,
+            regex_def: "Hi".to_string(),
+        };
+        let part_2 = RegexPartConfig {
+            is_public: true,
+            regex_def: "!".to_string(),
+        };
+
+        decomposed_regexes.push(DecomposedRegex {
+            parts: vec![part_1, part_2],
+            name: "hi".to_string(),
+            max_length: 64,
+            location: "body".to_string(),
+        });
+
+        let external_inputs = vec![ExternalInput {
+            name: "address".to_string(),
+            value: Some("testerman@zkemail.com".to_string()),
+            max_length: 64,
+        }];
+
+        let input = generate_circuit_inputs_with_decomposed_regexes_and_external_inputs(
+            &email,
+            decomposed_regexes,
+            external_inputs,
+            CircuitInputWithDecomposedRegexesAndExternalInputsParams {
+                max_body_length: 2816,
+                max_header_length: 1024,
+                ignore_body_hash_check: false,
+                remove_soft_lines_breaks: true,
+                sha_precompute_selector: None,
+            },
+        )
+        .await?;
+
+        // Save the input to a file in the test output directory
+        let output_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("outputs")
+            .join("input.json");
+
+        // Create the output directory if it doesn't exist
+        if let Some(parent) = output_file.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        // Save the input to a file
+        let input_str = serde_json::to_string_pretty(&input)?;
+        std::fs::write(output_file, input_str)?;
+
+        Ok(())
+    }
 }

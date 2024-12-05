@@ -302,7 +302,8 @@ pub fn u256_to_hex(x: &U256) -> String {
 pub fn hex_to_u256(hex: &str) -> Result<U256, hex::FromHexError> {
     let bytes: Vec<u8> = hex::decode(&hex[2..])?;
     let mut array = [0u8; 32];
-    array.copy_from_slice(&bytes);
+    // Copy the bytes into the end of the array, padding with zeros at the start
+    array[(32 - bytes.len())..].copy_from_slice(&bytes);
     Ok(U256::from_big_endian(&array))
 }
 
@@ -444,4 +445,39 @@ pub fn uint_to_decimal_string(uint: u128, decimal: usize) -> String {
     let compact_result: String = result.into_iter().take(actual_result_len).collect();
 
     compact_result
+}
+
+/// Converts a string to a vector of strings representing Circom-compatible big integers.
+///
+/// This function takes an input string, converts it to UTF-8 bytes, and then processes
+/// these bytes into field elements. Each field element is then converted into a big integer
+/// string representation suitable for use in Circom circuits.
+///
+/// # Arguments
+///
+/// * `input` - A string slice to be converted.
+///
+/// # Returns
+///
+/// A `Result` containing a vector of strings, each representing a big integer, or an error on failure.
+pub fn string_to_circom_bigint_bytes(input: &str) -> Result<Vec<String>> {
+    // Convert the input string to UTF-8 bytes
+    let utf8_bytes = input.as_bytes();
+
+    // Convert the bytes to field elements
+    let frs = bytes_to_fields(utf8_bytes);
+
+    // Convert each field element to a big integer string
+    let num_strings: Vec<String> = frs
+        .iter()
+        .map(|fr| {
+            // Convert the field element to a 32-byte array
+            let bytes = fr_to_bytes32(fr).expect("Failed to convert Fr to bytes");
+            // Convert the byte array to a big integer and then to a string
+            BigInt::from_bytes_be(num_bigint::Sign::Plus, &bytes).to_string()
+        })
+        .collect();
+
+    // Return the vector of big integer strings
+    Ok(num_strings)
 }
