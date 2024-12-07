@@ -195,11 +195,16 @@ fn generate_circuit_inputs(params: CircuitInputParams) -> Result<CircuitInput> {
     if !params.ignore_body_hash_check {
         // Calculate the length needed for SHA-256 padding of the body
         let body_sha_length = ((params.body.len() + 63 + 65) / 64) * 64;
+        println!("Body SHA length: {}", body_sha_length);
+        println!("Max body length: {}", params.max_body_length);
+        println!("Body length: {}", params.body.len());
         // Pad the body to the maximum length or the calculated SHA-256 padding length
         let (body_padded, body_padded_len) = sha256_pad(
             params.body,
             cmp::max(params.max_body_length, body_sha_length),
         );
+
+        println!("Body padded length: {}", body_padded_len);
 
         // Ensure that the error type returned by `generate_partial_sha` is sized
         // by converting it into an `anyhow::Error` if it's not already.
@@ -317,11 +322,15 @@ pub async fn generate_email_circuit_input(
         let command = parsed_email.get_command(circuit_input_params.ignore_body_hash_check)?;
 
         // Body is padded and cleaned, so use it for search
-        let search_body = padded_cleaned_body.as_ref();
-
-        // Find indices for the code and command in the body
-        code_idx = find_index_in_body(search_body, &code);
-        command_idx = find_index_in_body(search_body, &command);
+        if let Some((search_body, _)) = padded_cleaned_body.as_ref() {
+            // Find indices for the code and command in the body
+            code_idx = find_index_in_body(Some(search_body), &code);
+            command_idx = find_index_in_body(Some(search_body), &command);
+        } else {
+            // Handle the case where padded_cleaned_body is None
+            code_idx = 0; // or some other default value
+            command_idx = 0; // or some other default value
+        }
     }
 
     // Construct the email circuit input from the generated data
@@ -341,7 +350,7 @@ pub async fn generate_email_circuit_input(
         padded_body_len: email_circuit_inputs.body_len_padded_bytes,
         precomputed_sha: email_circuit_inputs.precomputed_sha,
         command_idx,
-        padded_cleaned_body,
+        padded_cleaned_body: padded_cleaned_body.map(|(cleaned_body, _)| cleaned_body),
     };
 
     // Serialize the email circuit input to JSON and return
@@ -459,7 +468,9 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
 
     // Add the cleaned body to the circuit inputs if soft line breaks are to be removed
     if params.remove_soft_lines_breaks {
-        circuit_inputs["decodedEmailBodyIn"] = cleaned_body.clone().into();
+        if let Some((cleaned_body_vec, _)) = cleaned_body.clone() {
+            circuit_inputs["decodedEmailBodyIn"] = cleaned_body_vec.into();
+        }
     }
 
     // Process each decomposed regex and add the resulting indices to the circuit inputs
@@ -477,7 +488,7 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
         } else if decomposed_regex.location == "body" && params.remove_soft_lines_breaks {
             &cleaned_body
                 .as_ref()
-                .map(|v| String::from_utf8_lossy(v).into_owned())
+                .map(|(v, _)| String::from_utf8_lossy(v).into_owned())
                 .unwrap_or_else(|| String::new())
         } else {
             &email_circuit_inputs
@@ -716,7 +727,7 @@ mod tests {
             decomposed_regexes,
             external_inputs,
             CircuitInputWithDecomposedRegexesAndExternalInputsParams {
-                max_body_length: 2816,
+                max_body_length: 3136,
                 max_header_length: 1024,
                 ignore_body_hash_check: false,
                 remove_soft_lines_breaks: true,

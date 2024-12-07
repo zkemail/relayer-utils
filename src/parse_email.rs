@@ -79,9 +79,9 @@ impl ParsedEmail {
             canonicalized_body: String::from_utf8(canonicalized_body.clone())?, // Convert bytes to string, may return an error if not valid UTF-8.
             signature: signature_bytes.into_iter().collect_vec(), // Collect the signature bytes into a vector.
             public_key,
-            cleaned_body: String::from_utf8(remove_quoted_printable_soft_breaks(
-                canonicalized_body,
-            ))?, // Remove quoted-printable soft breaks from the canonicalized body.
+            cleaned_body: String::from_utf8(
+                remove_quoted_printable_soft_breaks(canonicalized_body).0,
+            )?, // Remove quoted-printable soft breaks from the canonicalized body.
             headers,
         };
 
@@ -280,22 +280,32 @@ impl ParsedEmail {
 /// # Returns
 ///
 /// A `Vec<u8>` with all quoted-printable soft line breaks removed.
-pub(crate) fn remove_quoted_printable_soft_breaks(body: Vec<u8>) -> Vec<u8> {
-    let mut result = Vec::with_capacity(body.len());
-    let mut iter = body.iter().enumerate();
+pub fn remove_quoted_printable_soft_breaks(body: Vec<u8>) -> (Vec<u8>, Vec<usize>) {
+    let original_len = body.len();
+    let mut result = Vec::with_capacity(original_len);
+    let mut index_map = Vec::with_capacity(original_len);
 
+    let mut iter = body.iter().enumerate();
     while let Some((i, &byte)) = iter.next() {
         if byte == b'=' && body.get(i + 1..i + 3) == Some(&[b'\r', b'\n']) {
             // Skip the next two bytes (soft line break)
             iter.nth(1);
         } else {
             result.push(byte);
+            index_map.push(i);
         }
     }
 
-    // Resize the result to match the original body length
-    result.resize(body.len(), 0);
-    result
+    // Pad `result` to the original length with zeros
+    result.resize(original_len, 0);
+
+    // Pad `index_map` to the same length.
+    // Since these extra bytes don't map to anything in the original body,
+    // use a placeholder like usize::MAX.
+    let padding_needed = original_len - index_map.len();
+    index_map.extend(std::iter::repeat(usize::MAX).take(padding_needed));
+
+    (result, index_map)
 }
 
 /// Finds the index of the first occurrence of a pattern in the given body.
