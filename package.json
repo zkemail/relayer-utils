@@ -1,5 +1,5 @@
 {
-  "name": "@dimidumo/relayer-utils",
+  "name": "@zk-email/relayer-utils",
   "module": "index.ts",
   "scripts": {
     "publish-npm": "cd pkg && npm publish --access public && cd ..",
@@ -8,7 +8,7 @@
     "wasm:postbuild": "node build.js",
     "build": "npm run wasm:build && npm run wasm:postbuild"
   },
-  "version": "0.4.47",
+  "version": "0.4.50",
   "devDependencies": {
     "@types/bun": "latest",
     "prettier": "^3.3.3"
