@@ -2,7 +2,7 @@
 
 #[cfg(target_arch = "wasm32")]
 use crate::EmailHeaders;
-use crate::{field_to_hex, hex_to_field};
+use crate::{field_to_hex, find_index_in_body, hex_to_field, remove_quoted_printable_soft_breaks};
 use anyhow::Result;
 use ethers::types::Bytes;
 use halo2curves::ff::Field;
@@ -476,34 +476,10 @@ pub fn generate_partial_sha(
     selector_regex: Option<String>,
     max_remaining_body_length: usize,
 ) -> PartialShaResult {
-    let mut selector_index = 0;
+    let cleaned_body = remove_quoted_printable_soft_breaks(body.clone());
 
-    // Check if a selector is provided
-    if let Some(selector) = selector_regex {
-        // Create a regex pattern from the selector
-        let pattern = regex::Regex::new(&selector).unwrap();
-        let body_str = {
-            // Undo SHA padding
-            let mut trimmed_body = body.clone();
-            while !(trimmed_body.last() == Some(&10)
-                && trimmed_body.get(trimmed_body.len() - 2) == Some(&13))
-            {
-                trimmed_body.pop();
-            }
-
-            String::from_utf8(trimmed_body).unwrap()
-        };
-
-        // Find the index of the selector in the body
-        if let Some(matched) = pattern.find(&body_str) {
-            selector_index = matched.start();
-        } else {
-            return Err(Box::new(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Selector {} not found in the body", selector),
-            )));
-        }
-    };
+    let selector_index =
+        find_index_in_body(Some(&cleaned_body), selector_regex.as_deref().unwrap_or(""));
 
     // Calculate the cutoff index for SHA-256 block size (64 bytes)
     let sha_cutoff_index = (selector_index / 64) * 64;
@@ -538,6 +514,8 @@ pub fn generate_partial_sha(
 
     // Compute the SHA-256 hash of the pre-selector part of the message
     let precomputed_sha = partial_sha(precompute_text, sha_cutoff_index);
+
+    println!("body: {:?}", body_remaining);
     Ok((precomputed_sha, body_remaining, body_remaining_length))
 }
 
