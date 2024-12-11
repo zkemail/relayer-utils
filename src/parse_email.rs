@@ -268,44 +268,65 @@ impl ParsedEmail {
     }
 }
 
-/// Removes quoted-printable soft line breaks from an email body.
+/// Removes Quoted-Printable (QP) soft line breaks (`=\r\n`) from the given byte vector while
+/// maintaining a mapping from cleaned indices back to the original positions.
 ///
-/// Quoted-printable encoding uses `=` followed by `\r\n` to indicate a soft line break.
-/// This function removes such sequences from the input `Vec<u8>`.
+/// Quoted-printable encoding may split long lines with `=\r\n` sequences. This function removes
+/// these soft line breaks, producing a "cleaned" output array. It also creates an index map so
+/// that for each position in the cleaned output, you can find the corresponding original index.
+///
+/// Any positions in the cleaned output that were added as padding (to match the original length)
+/// will have their index map entry set to `usize::MAX`, indicating no corresponding original index.
 ///
 /// # Arguments
 ///
-/// * `body` - A `Vec<u8>` representing the email body to be cleaned.
+/// * `body` - A `Vec<u8>` containing the QP-encoded content.
 ///
 /// # Returns
 ///
-/// A `Vec<u8>` with all quoted-printable soft line breaks removed.
+/// A tuple of:
+/// - `Vec<u8>`: The cleaned content, with all QP soft line breaks removed and padded with zeros
+///              to match the original length.
+/// - `Vec<usize>`: A mapping from cleaned indices to original indices. For cleaned indices that
+///                 correspond to actual content, `index_map[i]` gives the original position of
+///                 that byte in `body`. For padded bytes, the value is `usize::MAX`.
+///
+/// # Example
+///
+/// ```
+/// let body = b"Hello=\r\nWorld".to_vec();
+/// // body: [72,101,108,108,111,61,13,10,87,111,114,108,100]
+/// let (clean_content, index_map) = remove_quoted_printable_soft_breaks(body);
+///
+/// // clean_content might look like [72,101,108,108,111,87,111,114,108,100,0,0,0]
+/// // index_map might map:
+/// //  0->0, 1->1, 2->2, 3->3, 4->4, 5->8, 6->9, 7->10, 8->11, 9->12, and the rest are usize::MAX.
+/// ```
 pub fn remove_quoted_printable_soft_breaks(body: Vec<u8>) -> (Vec<u8>, Vec<usize>) {
     let original_len = body.len();
-    let mut result = Vec::with_capacity(original_len);
+    let mut cleaned = Vec::with_capacity(original_len);
     let mut index_map = Vec::with_capacity(original_len);
 
     let mut iter = body.iter().enumerate();
     while let Some((i, &byte)) = iter.next() {
+        // Check if this is the start of a soft line break sequence `=\r\n`
         if byte == b'=' && body.get(i + 1..i + 3) == Some(&[b'\r', b'\n']) {
-            // Skip the next two bytes (soft line break)
+            // Skip the next two bytes for the soft line break
             iter.nth(1);
         } else {
-            result.push(byte);
+            cleaned.push(byte);
             index_map.push(i);
         }
     }
 
-    // Pad `result` to the original length with zeros
-    result.resize(original_len, 0);
+    // Pad the cleaned result with zeros to match the original length
+    cleaned.resize(original_len, 0);
 
-    // Pad `index_map` to the same length.
-    // Since these extra bytes don't map to anything in the original body,
-    // use a placeholder like usize::MAX.
+    // Pad index_map with usize::MAX for these padded positions
     let padding_needed = original_len - index_map.len();
     index_map.extend(std::iter::repeat(usize::MAX).take(padding_needed));
 
-    (result, index_map)
+    (cleaned, index_map)
 }
 
 /// Finds the index of the first occurrence of a pattern in the given body.

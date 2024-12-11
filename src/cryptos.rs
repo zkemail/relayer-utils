@@ -3,7 +3,7 @@
 #[cfg(target_arch = "wasm32")]
 use crate::EmailHeaders;
 use crate::{field_to_hex, find_index_in_body, hex_to_field, remove_quoted_printable_soft_breaks};
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use ethers::types::Bytes;
 use halo2curves::ff::Field;
 use poseidon_rs::{poseidon_bytes, poseidon_fields, Fr, PoseidonError};
@@ -457,27 +457,6 @@ pub fn partial_sha(msg: &[u8], msg_len: usize) -> Vec<u8> {
     result.to_vec()
 }
 
-/// Finds the original indices in `body` that correspond to `pattern` in the `cleaned_body`.
-/// Returns `Some((original_start, original_end))` if found, or `None` if the pattern isn't present.
-fn find_original_indices_for_pattern(
-    body: &[u8],
-    cleaned_body: &[u8],
-    index_map: &[usize],
-    pattern: &[u8],
-) -> Option<(usize, usize)> {
-    // Search the pattern in cleaned_body
-    if let Some(cleaned_start_index) = cleaned_body
-        .windows(pattern.len())
-        .position(|window| window == pattern)
-    {
-        let original_start = index_map[cleaned_start_index];
-        let original_end = index_map[cleaned_start_index + pattern.len() - 1];
-        Some((original_start, original_end))
-    } else {
-        None
-    }
-}
-
 /// Generates a partial SHA-256 hash of a message up to the point of a selector string, if provided.
 ///
 /// # Arguments
@@ -497,30 +476,41 @@ pub fn generate_partial_sha(
     selector_regex: Option<String>,
     max_remaining_body_length: usize,
 ) -> PartialShaResult {
-    let (cleaned_body, index_map) = remove_quoted_printable_soft_breaks(body.clone());
+    let mut selector_index = 0;
 
-    let selector_bytes = selector_regex.as_deref().map(|s| s.as_bytes());
-    let (selector_index, _) = find_original_indices_for_pattern(
-        &body,
-        &cleaned_body,
-        &index_map,
-        selector_bytes.expect("Selector bytes not found"),
-    )
-    .ok_or_else(|| {
-        Box::new(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "Selector not found in the body",
-        ))
-    })?;
+    // Check if a selector is provided
+    if let Some(selector) = selector_regex {
+        // Create a regex pattern from the selector
+        let pattern = regex::Regex::new(&selector).unwrap();
+        let body_str = {
+            // Undo SHA padding
+            let mut trimmed_body = body.clone();
+            while !(trimmed_body.last() == Some(&10)
+                && trimmed_body.get(trimmed_body.len() - 2) == Some(&13))
+            {
+                trimmed_body.pop();
+            }
+
+            String::from_utf8(trimmed_body).unwrap()
+        };
+
+        // Find the index of the selector in the body
+        if let Some(matched) = pattern.find(&body_str) {
+            selector_index = matched.start();
+        } else {
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Selector {} not found in the body", selector),
+            )));
+        }
+    };
 
     // Calculate the cutoff index for SHA-256 block size (64 bytes)
     let sha_cutoff_index = (selector_index / 64) * 64;
     let precompute_text = &body[..sha_cutoff_index];
     let mut body_remaining = body[sha_cutoff_index..].to_vec();
 
-    let body_remaining_length = body.len() - precompute_text.len();
-
-    println!("body_remaining_length: {}", body_remaining_length);
+    let body_remaining_length = body_length - precompute_text.len();
 
     // Check if the remaining body length exceeds the maximum allowed length
     if body_remaining_length > max_remaining_body_length {
@@ -548,8 +538,6 @@ pub fn generate_partial_sha(
 
     // Compute the SHA-256 hash of the pre-selector part of the message
     let precomputed_sha = partial_sha(precompute_text, sha_cutoff_index);
-
-    println!("body: {:?}", body_remaining);
     Ok((precomputed_sha, body_remaining, body_remaining_length))
 }
 
