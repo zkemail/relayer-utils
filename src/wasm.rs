@@ -13,6 +13,8 @@ use crate::{
     AccountSalt, CircuitInputWithDecomposedRegexesAndExternalInputsParams, DecomposedRegex,
     ExternalInput, PaddedEmailAddr, ParsedEmail,
 };
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_futures::future_to_promise;
 
 #[wasm_bindgen]
 #[allow(non_snake_case)]
@@ -263,4 +265,49 @@ pub async fn sha256Pad(data: JsValue, max_sha_bytes: usize) -> Promise {
             )))
         }
     }
+}
+
+#[wasm_bindgen]
+#[allow(non_snake_case)]
+#[cfg(target_arch = "wasm32")]
+/// Computes the Poseidon hash of a public key.
+///
+/// # Arguments
+///
+/// * `public_key_n` - A `Uint8Array` containing the public key in little endian format.
+///
+/// # Returns
+///
+/// A `Promise` that resolves with the hexadecimal string representation of the hash,
+/// or rejects with an error message.
+pub async fn publicKeyHash(public_key_n: JsValue) -> Promise {
+    use crate::{field_to_hex, public_key_hash};
+    console_error_panic_hook::set_once();
+
+    // We'll wrap the logic in a future so we can use `Promise` and `await`.
+    let future = async move {
+        // Convert JsValue (Uint8Array) to Vec<u8>
+        let mut key_bytes: Vec<u8> = from_value(public_key_n)
+            .map_err(|e| JsValue::from_str(&format!("Failed to convert input: {}", e)))?;
+
+        // Reverse the bytes for little-endian format
+        key_bytes.reverse();
+
+        // Compute the hash
+        let hash = public_key_hash(&key_bytes)
+            .map_err(|e| JsValue::from_str(&format!("Failed to compute hash: {}", e)))?;
+
+        // Convert hash field to hex string
+        let hex_hash = field_to_hex(&hash);
+        to_value(&hex_hash)
+            .map_err(|e| JsValue::from_str(&format!("Failed to serialize result: {}", e)))
+    };
+
+    // Convert the future into a JS Promise
+    future_to_promise(async move {
+        match future.await {
+            Ok(js_value) => Ok(js_value),
+            Err(e) => Err(e),
+        }
+    })
 }
