@@ -341,7 +341,8 @@ pub async fn generateEmailCircuitInput(
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| async move {
         // Parse account_code
         let account_code = AccountCode::from(
-            hex_to_field(&account_code).map_err(|e| format!("Failed to parse AccountCode"))?,
+            hex_to_field(&account_code)
+                .map_err(|e| format!("Failed to parse AccountCode: {}", e))?,
         );
         // Deserialize params from JsValue
         let params: Option<EmailCircuitParams> = if params.is_null() {
