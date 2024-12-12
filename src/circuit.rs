@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use num_bigint::BigInt;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{cmp, collections::VecDeque};
@@ -176,7 +177,9 @@ fn find_selector_in_clean_content(
     position_map: &[usize],
 ) -> Result<(String, usize)> {
     let clean_string = String::from_utf8_lossy(clean_content);
-    if let Some(selector_index) = clean_string.find(selector) {
+    let re = Regex::new(selector).unwrap();
+    if let Some(m) = re.find(&clean_string) {
+        let selector_index = m.start();
         // Map this cleaned index back to original
         if selector_index < position_map.len() {
             let original_index = position_map[selector_index];
@@ -647,6 +650,7 @@ pub fn compute_signal_length(max_length: usize) -> usize {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
     use std::path::PathBuf;
 

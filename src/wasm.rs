@@ -480,13 +480,15 @@ pub async fn bytesToFields(bytes: JsValue) -> Promise {
 /// # Returns
 ///
 /// A `Promise` that resolves with the email nullifier as a hexadecimal string, or rejects with an error message.
-pub async fn emailNullifier(signautre: Vec<u8>) -> Promise {
+pub async fn emailNullifier(mut signautre: Vec<u8>) -> Promise {
     use js_sys::Promise;
 
     use crate::field_to_hex;
 
     console_error_panic_hook::set_once();
 
+    // Reverse the bytes for little-endian format
+    signautre.reverse();
     match email_nullifier(&signautre) {
         Ok(field) => Promise::resolve(&JsValue::from_str(&field_to_hex(&field))),
         Err(_) => Promise::reject(&JsValue::from_str("Failed to compute email nullifier")),
