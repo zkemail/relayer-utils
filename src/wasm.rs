@@ -1,5 +1,5 @@
 #[cfg(target_arch = "wasm32")]
-use js_sys::Promise;
+use js_sys::{Array, Promise};
 #[cfg(target_arch = "wasm32")]
 use rand::rngs::OsRng;
 #[cfg(target_arch = "wasm32")]
@@ -9,13 +9,18 @@ use wasm_bindgen::prelude::*;
 
 #[cfg(target_arch = "wasm32")]
 use crate::{
-    generate_circuit_inputs_with_decomposed_regexes_and_external_inputs, hex_to_field, AccountCode,
-    AccountSalt, CircuitInputWithDecomposedRegexesAndExternalInputsParams, DecomposedRegex,
+    bytes_to_fields, email_nullifier, extract_rand_from_signature, field_to_hex,
+    generate_circuit_inputs_with_decomposed_regexes_and_external_inputs,
+    generate_email_circuit_input, hex_to_field, AccountCode, AccountSalt,
+    CircuitInputWithDecomposedRegexesAndExternalInputsParams, DecomposedRegex, EmailCircuitParams,
     ExternalInput, PaddedEmailAddr, ParsedEmail,
 };
 #[cfg(target_arch = "wasm32")]
+use itertools::Itertools;
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen_futures::future_to_promise;
-
+#[cfg(target_arch = "wasm32")]
+use zk_regex_apis::extractSubstrIdxes;
 #[wasm_bindgen]
 #[allow(non_snake_case)]
 #[cfg(target_arch = "wasm32")]
@@ -310,4 +315,213 @@ pub async fn publicKeyHash(public_key_n: JsValue) -> Promise {
             Err(e) => Err(e),
         }
     })
+}
+
+#[wasm_bindgen]
+#[allow(non_snake_case)]
+#[cfg(target_arch = "wasm32")]
+/// Generates the circuit inputs for email verification circuits using the given email data, account code, and optional parameters.
+///
+/// # Arguments
+///
+/// * `email` - A `String` representing the raw email data to be verified.
+/// * `account_code` - A `String` representing the account code in hexadecimal format.
+/// * `params` - An object representing the optional parameters for the circuit.
+///
+/// # Returns
+///
+/// A `Promise` that resolves with the serialized `CircuitInputs` or rejects with an error message.
+pub async fn generateEmailCircuitInput(
+    email: String,
+    account_code: String,
+    params: JsValue,
+) -> Promise {
+    console_error_panic_hook::set_once();
+
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| async move {
+        // Parse account_code
+        let account_code = AccountCode::from(
+            hex_to_field(&account_code).map_err(|e| format!("Failed to parse AccountCode"))?,
+        );
+        // Deserialize params from JsValue
+        let params: Option<EmailCircuitParams> = if params.is_null() {
+            None
+        } else {
+            let params = from_value(params).map_err(|e| format!("Invalid params: {}", e))?;
+            Some(params)
+        };
+
+        // Call the core function
+        let circuit_inputs = generate_email_circuit_input(&email, &account_code, params)
+            .await
+            .map_err(|e| format!("Error generating circuit inputs: {}", e))?;
+
+        // Serialize the output to JsValue
+        to_value(&circuit_inputs).map_err(|e| format!("Failed to serialize CircuitInputs: {}", e))
+    }));
+
+    match result {
+        Ok(future) => match future.await {
+            Ok(serialized_inputs) => Promise::resolve(&serialized_inputs),
+            Err(err_msg) => Promise::reject(&JsValue::from_str(&err_msg)),
+        },
+        Err(panic) => {
+            let panic_msg = match panic.downcast::<String>() {
+                Ok(msg) => *msg,
+                Err(panic) => match panic.downcast::<&str>() {
+                    Ok(msg) => msg.to_string(),
+                    Err(_) => "Unknown panic occurred".to_string(),
+                },
+            };
+            Promise::reject(&JsValue::from_str(&format!(
+                "Panic occurred: {}",
+                panic_msg
+            )))
+        }
+    }
+}
+
+#[wasm_bindgen]
+#[allow(non_snake_case)]
+#[cfg(target_arch = "wasm32")]
+/// Extracts the randomness from a given signature in the same manner as circuits.
+///
+/// # Arguments
+///
+/// * `signature` - A `Uint8Array` containing the signature data.
+///
+/// # Returns
+///
+/// A `Promise` that resolves with the extracted randomness as a hexadecimal string, or rejects with an error message.
+pub async fn extractRandFromSignature(signautre: Vec<u8>) -> Promise {
+    console_error_panic_hook::set_once();
+
+    let cm_rand = match extract_rand_from_signature(&signautre) {
+        Ok(field) => field,
+        Err(_) => return Promise::reject(&JsValue::from_str("Failed to extract randomness")),
+    };
+    match to_value(&field_to_hex(&cm_rand)) {
+        Ok(serialized_rand) => Promise::resolve(&serialized_rand),
+        Err(_) => Promise::reject(&JsValue::from_str("Failed to serialize randomness")),
+    }
+}
+
+#[wasm_bindgen]
+#[allow(non_snake_case)]
+#[cfg(target_arch = "wasm32")]
+/// Commits an email address using a given signature as the randomness.
+///
+/// # Arguments
+///
+/// * `email_addr` - A `String` representing the email address to be committed.
+/// * `signature` - A `Uint8Array` containing the signature data to be used as randomness.
+///
+/// # Returns
+///
+/// A `Promise` that resolves with the commitment as a hexadecimal string, or rejects with an error message.
+pub async fn emailAddrCommitWithSignature(email_addr: String, signautre: Vec<u8>) -> Promise {
+    use crate::PaddedEmailAddr;
+
+    console_error_panic_hook::set_once();
+
+    let padded_email_addr = PaddedEmailAddr::from_email_addr(&email_addr);
+    let cm = match padded_email_addr.to_commitment_with_signature(&signautre) {
+        Ok(cm) => cm,
+        Err(_) => return Promise::reject(&JsValue::from_str("Failed to commit email address")),
+    };
+
+    match to_value(&field_to_hex(&cm)) {
+        Ok(cm) => Promise::resolve(&cm),
+        Err(_) => Promise::reject(&JsValue::from_str("Failed to serialize randomness")),
+    }
+}
+
+#[wasm_bindgen]
+#[allow(non_snake_case)]
+#[cfg(target_arch = "wasm32")]
+/// Converts a byte array to a list of field elements.
+///
+/// # Arguments
+///
+/// * `bytes` - A `Uint8Array` containing the byte array to convert.
+///
+/// # Returns
+///
+/// A `Promise` that resolves with a list of field elements as hexadecimal strings, or rejects with an error message.
+pub async fn bytesToFields(bytes: JsValue) -> Promise {
+    use wasm_bindgen::JsValue;
+
+    console_error_panic_hook::set_once();
+
+    let bytes: Vec<u8> = match from_value(bytes) {
+        Ok(bytes) => bytes,
+        Err(_) => return Promise::reject(&JsValue::from_str("Failed to convert input to bytes")),
+    };
+    let fields = bytes_to_fields(&bytes)
+        .into_iter()
+        .map(|field| field_to_hex(&field))
+        .collect_vec();
+    match to_value(&fields) {
+        Ok(serialized_fields) => Promise::resolve(&serialized_fields),
+        Err(_) => Promise::reject(&JsValue::from_str("Failed to serialize fields")),
+    }
+}
+
+#[wasm_bindgen]
+#[allow(non_snake_case)]
+#[cfg(target_arch = "wasm32")]
+/// Computes the nullifier for an email address using a given signature.
+///
+/// # Arguments
+///
+/// * `signature` - A `Uint8Array` containing the signature data to be used for the nullifier.
+///
+/// # Returns
+///
+/// A `Promise` that resolves with the email nullifier as a hexadecimal string, or rejects with an error message.
+pub async fn emailNullifier(signautre: Vec<u8>) -> Promise {
+    use js_sys::Promise;
+
+    use crate::field_to_hex;
+
+    console_error_panic_hook::set_once();
+
+    match email_nullifier(&signautre) {
+        Ok(field) => Promise::resolve(&JsValue::from_str(&field_to_hex(&field))),
+        Err(_) => Promise::reject(&JsValue::from_str("Failed to compute email nullifier")),
+    }
+}
+
+#[wasm_bindgen]
+#[allow(non_snake_case)]
+#[cfg(target_arch = "wasm32")]
+/// Extracts the indices of the invitation code in the given input string.
+///
+/// # Arguments
+///
+/// * `inputStr` - A `String` representing the input string to extract the invitation code indices from.
+///
+/// # Returns
+///
+/// A `Promise` that resolves with an array of arrays containing the start and end indices of the invitation code substrings,
+pub fn extractInvitationCodeIdxes(inputStr: &str) -> Result<Array, JsValue> {
+    let regex_config = include_str!("../regexes/invitation_code.json");
+    extractSubstrIdxes(inputStr, JsValue::from_str(regex_config), false)
+}
+
+#[wasm_bindgen]
+#[allow(non_snake_case)]
+#[cfg(target_arch = "wasm32")]
+/// Extracts the indices of the invitation code with prefix in the given input string.
+///
+/// # Arguments
+///
+/// * `inputStr` - A `String` representing the input string to extract the invitation code indices from.
+///
+/// # Returns
+///
+/// A `Promise` that resolves with an array of arrays containing the start and end indices of the invitation code substrings,
+pub fn extractInvitationCodeWithPrefixIdxes(inputStr: &str) -> Result<Array, JsValue> {
+    let regex_config = include_str!("../regexes/invitation_code_with_prefix.json");
+    extractSubstrIdxes(inputStr, JsValue::from_str(regex_config), false)
 }
