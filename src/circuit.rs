@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use num_bigint::BigInt;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{cmp, collections::VecDeque};
@@ -36,6 +37,7 @@ struct EmailCircuitInput {
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct EmailCircuitParams {
     pub ignore_body_hash_check: Option<bool>, // Flag to ignore the body hash check
     pub max_header_length: Option<usize>,     // The maximum length of the email header
@@ -176,7 +178,9 @@ fn find_selector_in_clean_content(
     position_map: &[usize],
 ) -> Result<(String, usize)> {
     let clean_string = String::from_utf8_lossy(clean_content);
-    if let Some(selector_index) = clean_string.find(selector) {
+    let re = Regex::new(selector).unwrap();
+    if let Some(m) = re.find(&clean_string) {
+        let selector_index = m.start();
         // Map this cleaned index back to original
         if selector_index < position_map.len() {
             let original_index = position_map[selector_index];
@@ -574,14 +578,14 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
 
         // Determine the input string based on the regex location
         let input = if decomposed_regex.location == "header" {
-            &String::from_utf8_lossy(&email_circuit_inputs.header_padded.clone()).into_owned()
+            String::from_utf8_lossy(&email_circuit_inputs.header_padded.clone()).into_owned()
         } else if decomposed_regex.location == "body" && params.remove_soft_lines_breaks {
-            &cleaned_body
+            cleaned_body
                 .as_ref()
                 .map(|(v, _)| String::from_utf8_lossy(v).into_owned())
                 .unwrap_or_else(|| String::new())
         } else {
-            &email_circuit_inputs
+            email_circuit_inputs
                 .body_padded
                 .as_ref()
                 .map(|v| String::from_utf8_lossy(v).into_owned())
@@ -590,7 +594,7 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
 
         // Extract substring indices using the decomposed regex configuration
         let idxes: Vec<(usize, usize)> =
-            extract_substr_idxes(input, &decomposed_regex_config, false)?;
+            extract_substr_idxes(&input, &decomposed_regex_config, false)?;
 
         // Add the first index to the circuit inputs
         circuit_inputs[format!("{}RegexIdx", decomposed_regex.name)] = idxes[0].0.into();
@@ -652,6 +656,7 @@ pub fn compute_signal_length(max_length: usize) -> usize {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
     use std::path::PathBuf;
 
