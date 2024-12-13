@@ -4798,8 +4798,8 @@ dependencies = [
 
 [[package]]
 name = "zk-regex-apis"
-version = "2.3.0"
-source = "git+https://github.com/zkemail/zk-regex.git#f5f70b96c215659ebf38d4ed0ae9082b085842a5"
+version = "2.3.1"
+source = "git+https://github.com/zkemail/zk-regex.git?branch=dimidumo%2Fzk-802-consistent-casing-everywhere#5b357f2c7aa4643964534d88ebe5db3512048a71"
 dependencies = [
  "fancy-regex",
  "itertools 0.13.0",
