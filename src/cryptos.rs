@@ -2,8 +2,8 @@
 
 #[cfg(target_arch = "wasm32")]
 use crate::EmailHeaders;
-use crate::{field_to_hex, find_index_in_body, hex_to_field, remove_quoted_printable_soft_breaks};
-use anyhow::{anyhow, Result};
+use crate::{field_to_hex, hex_to_field};
+use anyhow::Result;
 use ethers::types::Bytes;
 use halo2curves::ff::Field;
 use poseidon_rs::{poseidon_bytes, poseidon_fields, Fr, PoseidonError};
