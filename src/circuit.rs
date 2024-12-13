@@ -37,6 +37,7 @@ struct EmailCircuitInput {
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct EmailCircuitParams {
     pub ignore_body_hash_check: Option<bool>, // Flag to ignore the body hash check
     pub max_header_length: Option<usize>,     // The maximum length of the email header
