@@ -290,18 +290,6 @@ impl ParsedEmail {
 /// - `Vec<usize>`: A mapping from cleaned indices to original indices. For cleaned indices that
 ///                 correspond to actual content, `index_map[i]` gives the original position of
 ///                 that byte in `body`. For padded bytes, the value is `usize::MAX`.
-///
-/// # Example
-///
-/// ```
-/// let body = b"Hello=\r\nWorld".to_vec();
-/// // body: [72,101,108,108,111,61,13,10,87,111,114,108,100]
-/// let (clean_content, index_map) = remove_quoted_printable_soft_breaks(body);
-///
-/// // clean_content might look like [72,101,108,108,111,87,111,114,108,100,0,0,0]
-/// // index_map might map:
-/// //  0->0, 1->1, 2->2, 3->3, 4->4, 5->8, 6->9, 7->10, 8->11, 9->12, and the rest are usize::MAX.
-/// ```
 pub fn remove_quoted_printable_soft_breaks(body: Vec<u8>) -> (Vec<u8>, Vec<usize>) {
     let original_len = body.len();
     let mut cleaned = Vec::with_capacity(original_len);

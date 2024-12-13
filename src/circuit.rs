@@ -594,6 +594,11 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
 
         // Add the first index to the circuit inputs
         circuit_inputs[format!("{}RegexIdx", decomposed_regex.name)] = idxes[0].0.into();
+
+        for (i, idx) in idxes.iter().enumerate().skip(1) {
+            // Add the remaining indices to the circuit inputs
+            circuit_inputs[format!("{}RegexIdx{}", decomposed_regex.name, i)] = idx.0.into();
+        }
     }
 
     // Process each external input and add it to the circuit inputs
