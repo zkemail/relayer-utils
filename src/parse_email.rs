@@ -23,6 +23,7 @@ use zk_regex_apis::extract_substrs::{
 
 /// `ParsedEmail` holds the canonicalized parts of an email along with its signature and public key.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ParsedEmail {
     /// The canonicalized email header.
     pub canonicalized_header: String,

@@ -12,12 +12,12 @@ describe("generateCircuitInputsWithDecomposedRegexesAndExternalInputs test suite
       {
         parts: [
           {
-            is_public: true,
-            regex_def: "Hi",
+            isPublic: true,
+            regexDef: "Hi",
           },
           {
-            is_public: true,
-            regex_def: "!",
+            isPublic: true,
+            regexDef: "!",
           },
         ],
         name: "hi",
@@ -49,12 +49,12 @@ describe("generateCircuitInputsWithDecomposedRegexesAndExternalInputs test suite
       {
         parts: [
           {
-            is_public: true,
-            regex_def: "Hi",
+            isPublic: true,
+            regexDef: "Hi",
           },
           {
-            is_public: true,
-            regex_def: "!",
+            isPublic: true,
+            regexDef: "!",
           },
         ],
         name: "hi",
@@ -67,9 +67,9 @@ describe("generateCircuitInputsWithDecomposedRegexesAndExternalInputs test suite
       {
         name: "address",
         maxLength: 64,
-        value: "tester@zkemail.com"
-      }
-    ]
+        value: "tester@zkemail.com",
+      },
+    ];
 
     const params = {
       maxHeaderLength: 2816,
