@@ -13,7 +13,7 @@ use crate::{
     generate_circuit_inputs_with_decomposed_regexes_and_external_inputs,
     generate_email_circuit_input, hex_to_field, AccountCode, AccountSalt,
     CircuitInputWithDecomposedRegexesAndExternalInputsParams, DecomposedRegex, EmailCircuitParams,
-    ExternalInput, PaddedEmailAddr, ParsedEmail,
+    ExternalInput, PaddedEmailAddr, ParsedEmail, validate_email_input, WasmBindingError,
 };
 #[cfg(target_arch = "wasm32")]
 use itertools::Itertools;
@@ -37,18 +37,25 @@ use zk_regex_apis::extractSubstrIdxes;
 ///
 /// A `Promise` that resolves with the serialized `ParsedEmail` or rejects with an error message.
 pub async fn parseEmail(raw_email: String) -> Promise {
-    match ParsedEmail::new_from_raw_email(&raw_email).await {
-        Ok(parsed_email) => match to_value(&parsed_email) {
-            Ok(serialized_email) => Promise::resolve(&serialized_email),
-            Err(err) => Promise::reject(&JsValue::from_str(&format!(
-                "Failed to serialize ParsedEmail: {}",
-                err
-            ))),
+    match validate_email_input(&raw_email) {
+        Ok(_) => {
+            match ParsedEmail::new_from_raw_email(&raw_email).await {
+                Ok(parsed_email) => {
+                    match to_value(&parsed_email) {
+                        Ok(serialized_email) => Promise::resolve(&serialized_email),
+                        Err(e) => Promise::reject(&JsValue::from_str(&WasmBindingError::SerializationError {
+                            context: "parsed_email".to_string(),
+                            error: e.to_string(),
+                        }.to_string())),
+                    }
+                },
+                Err(err) => Promise::reject(&JsValue::from_str(&WasmBindingError::ParseError {
+                    context: "email".to_string(),
+                    error: err.to_string(),
+                }.to_string())),
+            }
         },
-        Err(err) => Promise::reject(&JsValue::from_str(&format!(
-            "Failed to parse email: {}",
-            err
-        ))),
+        Err(e) => Promise::reject(&JsValue::from_str(&e.to_string())),
     }
 }
 
@@ -128,58 +135,69 @@ pub async fn padEmailAddr(email_addr: String) -> Promise {
 #[allow(non_snake_case)]
 #[cfg(target_arch = "wasm32")]
 pub async fn generateCircuitInputsWithDecomposedRegexesAndExternalInputs(
-    email_addr: String,
+    email: String,
     decomposed_regexes: JsValue,
     external_inputs: JsValue,
     params: JsValue,
 ) -> Promise {
-    console_error_panic_hook::set_once();
+    // Validate email
+    match validate_email_input(&email) {
+        Ok(_) => {
+            // Deserialize inputs with detailed error messages
+            match from_value::<Vec<DecomposedRegex>>(decomposed_regexes) {
+                Ok(decomposed_regexes) => {
+                    match from_value::<Vec<ExternalInput>>(external_inputs) {
+                        Ok(external_inputs) => {
+                            let params = if params.is_null() {
+                                return Promise::reject(&JsValue::from_str(&WasmBindingError::ValidationError {
+                                    field: "params".to_string(),
+                                    message: "Circuit params are required".to_string(),
+                                }.to_string()));
+                            } else {
+                                match from_value::<CircuitInputWithDecomposedRegexesAndExternalInputsParams>(params) {
+                                    Ok(p) => p,
+                                    Err(e) => return Promise::reject(&JsValue::from_str(&WasmBindingError::ValidationError {
+                                        field: "params".to_string(),
+                                        message: format!("Invalid format: {}", e),
+                                    }.to_string())),
+                                }
+                            };
 
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| async move {
-        // Deserialize decomposed_regexes
-        let decomposed_regexes: Vec<DecomposedRegex> = from_value(decomposed_regexes)
-            .map_err(|e| format!("Invalid decomposed_regexes input: {}", e))?;
-
-        // Deserialize external_inputs
-        let external_inputs: Vec<ExternalInput> = from_value(external_inputs)
-            .map_err(|e| format!("Invalid external_inputs input: {}", e))?;
-
-        // Deserialize params
-        let params: CircuitInputWithDecomposedRegexesAndExternalInputsParams =
-            from_value(params).map_err(|e| format!("Invalid params input: {}", e))?;
-
-        // Call the async function and await the result
-        let circuit_inputs = generate_circuit_inputs_with_decomposed_regexes_and_external_inputs(
-            &email_addr,
-            decomposed_regexes,
-            external_inputs,
-            params,
-        )
-        .await
-        .map_err(|err| format!("Failed to generate CircuitInputs: {}", err))?;
-
-        // Serialize the output to JsValue
-        to_value(&circuit_inputs).map_err(|_| String::from("Failed to serialize CircuitInputs"))
-    }));
-
-    match result {
-        Ok(future) => match future.await {
-            Ok(serialized_inputs) => Promise::resolve(&serialized_inputs),
-            Err(err_msg) => Promise::reject(&JsValue::from_str(&err_msg)),
-        },
-        Err(panic) => {
-            let panic_msg = match panic.downcast::<String>() {
-                Ok(msg) => *msg,
-                Err(panic) => match panic.downcast::<&str>() {
-                    Ok(msg) => msg.to_string(),
-                    Err(_) => "Unknown panic occurred".to_string(),
+                            // Generate circuit inputs with error context
+                            match generate_circuit_inputs_with_decomposed_regexes_and_external_inputs(
+                                &email,
+                                decomposed_regexes,
+                                external_inputs,
+                                params,
+                            ).await {
+                                Ok(inputs) => {
+                                    match to_value(&inputs) {
+                                        Ok(v) => Promise::resolve(&v),
+                                        Err(e) => Promise::reject(&JsValue::from_str(&WasmBindingError::SerializationError {
+                                            context: "circuit_inputs".to_string(),
+                                            error: e.to_string(),
+                                        }.to_string())),
+                                    }
+                                },
+                                Err(e) => Promise::reject(&JsValue::from_str(&WasmBindingError::CircuitError {
+                                    stage: "input_generation".to_string(),
+                                    error: e.to_string(),
+                                }.to_string())),
+                            }
+                        },
+                        Err(e) => Promise::reject(&JsValue::from_str(&WasmBindingError::ValidationError {
+                            field: "external_inputs".to_string(),
+                            message: format!("Invalid format: {}", e),
+                        }.to_string())),
+                    }
                 },
-            };
-            Promise::reject(&JsValue::from_str(&format!(
-                "Panic occurred: {}",
-                panic_msg
-            )))
-        }
+                Err(e) => Promise::reject(&JsValue::from_str(&WasmBindingError::ValidationError {
+                    field: "decomposed_regexes".to_string(),
+                    message: format!("Invalid format: {}", e),
+                }.to_string())),
+            }
+        },
+        Err(e) => Promise::reject(&JsValue::from_str(&e.to_string())),
     }
 }
 
