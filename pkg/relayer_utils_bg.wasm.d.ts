@@ -1,0 +1,38 @@
+/* tslint:disable */
+/* eslint-disable */
+export const memory: WebAssembly.Memory;
+export function parseEmail(a: number, b: number): number;
+export function generateAccountCode(): number;
+export function generateAccountSalt(a: number, b: number, c: number, d: number): number;
+export function padEmailAddr(a: number, b: number): number;
+export function generateCircuitInputsWithDecomposedRegexesAndExternalInputs(a: number, b: number, c: number, d: number, e: number): number;
+export function sha256Pad(a: number, b: number): number;
+export function publicKeyHash(a: number): number;
+export function generateEmailCircuitInput(a: number, b: number, c: number, d: number, e: number): number;
+export function extractRandFromSignature(a: number, b: number): number;
+export function emailAddrCommitWithSignature(a: number, b: number, c: number, d: number): number;
+export function bytesToFields(a: number): number;
+export function emailNullifier(a: number, b: number): number;
+export function extractInvitationCodeIdxes(a: number, b: number, c: number): void;
+export function extractInvitationCodeWithPrefixIdxes(a: number, b: number, c: number): void;
+export function padString(a: number, b: number, c: number): number;
+export function extractSubstrIdxes(a: number, b: number, c: number, d: number, e: number): void;
+export function extractSubstr(a: number, b: number, c: number, d: number, e: number): void;
+export function extractEmailAddrIdxes(a: number, b: number, c: number): void;
+export function extractEmailDomainIdxes(a: number, b: number, c: number): void;
+export function extractFromAllIdxes(a: number, b: number, c: number): void;
+export function extractFromAddrIdxes(a: number, b: number, c: number): void;
+export function extractToAllIdxes(a: number, b: number, c: number): void;
+export function extractToAddrIdxes(a: number, b: number, c: number): void;
+export function extractSubjectAllIdxes(a: number, b: number, c: number): void;
+export function extractBodyHashIdxes(a: number, b: number, c: number): void;
+export function extractTimestampIdxes(a: number, b: number, c: number): void;
+export function extractMessageIdIdxes(a: number, b: number, c: number): void;
+export function __wbindgen_malloc(a: number, b: number): number;
+export function __wbindgen_realloc(a: number, b: number, c: number, d: number): number;
+export const __wbindgen_export_2: WebAssembly.Table;
+export function _dyn_core__ops__function__FnMut__A____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h8c750e2234703527(a: number, b: number, c: number): void;
+export function __wbindgen_add_to_stack_pointer(a: number): number;
+export function __wbindgen_free(a: number, b: number, c: number): void;
+export function __wbindgen_exn_store(a: number): void;
+export function wasm_bindgen__convert__closures__invoke2_mut__h1a0c278cebc38c76(a: number, b: number, c: number, d: number): void;

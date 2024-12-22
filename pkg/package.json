@@ -1,0 +1,23 @@
+
+  {
+    "name": "@zk-email/relayer-utils",
+    "type": "module",
+    "collaborators": [
+      "Sora Suegami",
+      "Aditya Bisht"
+    ],
+    "version": "0.4.60",
+    "license": "MIT",
+    "files": [
+      "relayer_utils_bg.wasm",
+      "relayer_utils.js",
+      "relayer_utils_bg.js",
+      "relayer_utils.d.ts"
+    ],
+    "main": "relayer_utils.js",
+    "types": "relayer_utils.d.ts",
+    "sideEffects": [
+      "./relayer_utils.js",
+      "./snippets/*"
+    ]
+  }
