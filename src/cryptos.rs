@@ -481,7 +481,7 @@ pub fn generate_partial_sha(
     // Check if a selector is provided
     if let Some(selector) = selector_regex {
         // Create a regex pattern from the selector
-        let pattern = regex::Regex::new(&selector).unwrap();
+        let pattern: regex::Regex = regex::Regex::new(&selector).unwrap();
         let body_str = {
             // Undo SHA padding
             let mut trimmed_body = body.clone();
@@ -654,8 +654,6 @@ pub async fn fetch_public_key(email_headers: EmailHeaders) -> Result<Vec<u8>> {
                 .to_string();
         }
     }
-
-    println!("Selector: {}, Domain: {}", selector, domain);
 
     // Fetch the DNS TXT record for the domain key
     let response = reqwest::get(format!(

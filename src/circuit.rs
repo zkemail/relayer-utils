@@ -221,7 +221,6 @@ fn get_adjusted_selector(
     position_map: &[usize],
 ) -> Result<String> {
     let original_str = String::from_utf8_lossy(original_body);
-
     // First, try finding the selector in the original body as-is
     if original_str.contains(selector) {
         return Ok(selector.to_string());
@@ -236,9 +235,8 @@ fn get_adjusted_selector(
     // Ensure we don't go out of bounds:
     let end_index = std::cmp::min(original_body.len(), original_index + selector.len() + 3);
     let adjusted_slice = &original_body[original_index..end_index];
-
     // Convert back to a string. If invalid UTF-8, use lossy conversion.
-    let adjusted_str = String::from_utf8_lossy(adjusted_slice);
+    let adjusted_str = regex::escape(&String::from_utf8_lossy(adjusted_slice));
     Ok(adjusted_str.to_string())
 }
 
