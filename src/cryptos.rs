@@ -495,7 +495,7 @@ pub fn generate_partial_sha(
         };
 
         // Find the index of the selector in the body
-        if let Some(matched) = pattern.find(&body_str) {
+        if let Some(matched) = pattern.find_iter(&body_str).last() {
             selector_index = matched.start();
         } else {
             return Err(Box::new(std::io::Error::new(

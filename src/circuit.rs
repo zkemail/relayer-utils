@@ -179,7 +179,7 @@ fn find_selector_in_clean_content(
 ) -> Result<(String, usize)> {
     let clean_string = String::from_utf8_lossy(clean_content);
     let re = Regex::new(selector).unwrap();
-    if let Some(m) = re.find(&clean_string) {
+    if let Some(m) = re.find_iter(&clean_string).last() {
         let selector_index = m.start();
         // Map this cleaned index back to original
         if selector_index < position_map.len() {

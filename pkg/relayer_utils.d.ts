@@ -13,8 +13,6 @@
  * # Returns
  *
  * A `Promise` that resolves with the serialized `ParsedEmail` or rejects with an error message.
- * @param {string} raw_email
- * @returns {Promise<Promise<any>>}
  */
 export function parseEmail(raw_email: string): Promise<Promise<any>>;
 /**
@@ -25,7 +23,6 @@ export function parseEmail(raw_email: string): Promise<Promise<any>>;
  * # Returns
  *
  * A `Promise` that resolves with the serialized `AccountCode` or rejects with an error message.
- * @returns {Promise<Promise<any>>}
  */
 export function generateAccountCode(): Promise<Promise<any>>;
 /**
@@ -42,9 +39,6 @@ export function generateAccountCode(): Promise<Promise<any>>;
  * # Returns
  *
  * A `Promise` that resolves with the serialized `AccountSalt` or rejects with an error message.
- * @param {string} email_addr
- * @param {string} account_code
- * @returns {Promise<Promise<any>>}
  */
 export function generateAccountSalt(email_addr: string, account_code: string): Promise<Promise<any>>;
 /**
@@ -60,17 +54,8 @@ export function generateAccountSalt(email_addr: string, account_code: string): P
  * # Returns
  *
  * A `Promise` that resolves with the serialized padded email address or rejects with an error message.
- * @param {string} email_addr
- * @returns {Promise<Promise<any>>}
  */
 export function padEmailAddr(email_addr: string): Promise<Promise<any>>;
-/**
- * @param {string} email_addr
- * @param {any} decomposed_regexes
- * @param {any} external_inputs
- * @param {any} params
- * @returns {Promise<Promise<any>>}
- */
 export function generateCircuitInputsWithDecomposedRegexesAndExternalInputs(email_addr: string, decomposed_regexes: any, external_inputs: any, params: any): Promise<Promise<any>>;
 /**
  * Pads data for SHA-256 and extends it to a specified maximum length.
@@ -88,9 +73,6 @@ export function generateCircuitInputsWithDecomposedRegexesAndExternalInputs(emai
  *
  * A `Promise` that resolves with an object containing the padded data and message length,
  * or rejects with an error message.
- * @param {any} data
- * @param {number} max_sha_bytes
- * @returns {Promise<Promise<any>>}
  */
 export function sha256Pad(data: any, max_sha_bytes: number): Promise<Promise<any>>;
 /**
@@ -104,8 +86,6 @@ export function sha256Pad(data: any, max_sha_bytes: number): Promise<Promise<any
  *
  * A `Promise` that resolves with the hexadecimal string representation of the hash,
  * or rejects with an error message.
- * @param {any} public_key_n
- * @returns {Promise<Promise<any>>}
  */
 export function publicKeyHash(public_key_n: any): Promise<Promise<any>>;
 /**
@@ -120,10 +100,6 @@ export function publicKeyHash(public_key_n: any): Promise<Promise<any>>;
  * # Returns
  *
  * A `Promise` that resolves with the serialized `CircuitInputs` or rejects with an error message.
- * @param {string} email
- * @param {string} account_code
- * @param {any} params
- * @returns {Promise<Promise<any>>}
  */
 export function generateEmailCircuitInput(email: string, account_code: string, params: any): Promise<Promise<any>>;
 /**
@@ -136,8 +112,6 @@ export function generateEmailCircuitInput(email: string, account_code: string, p
  * # Returns
  *
  * A `Promise` that resolves with the extracted randomness as a hexadecimal string, or rejects with an error message.
- * @param {Uint8Array} signautre
- * @returns {Promise<Promise<any>>}
  */
 export function extractRandFromSignature(signautre: Uint8Array): Promise<Promise<any>>;
 /**
@@ -151,9 +125,6 @@ export function extractRandFromSignature(signautre: Uint8Array): Promise<Promise
  * # Returns
  *
  * A `Promise` that resolves with the commitment as a hexadecimal string, or rejects with an error message.
- * @param {string} email_addr
- * @param {Uint8Array} signautre
- * @returns {Promise<Promise<any>>}
  */
 export function emailAddrCommitWithSignature(email_addr: string, signautre: Uint8Array): Promise<Promise<any>>;
 /**
@@ -166,8 +137,6 @@ export function emailAddrCommitWithSignature(email_addr: string, signautre: Uint
  * # Returns
  *
  * A `Promise` that resolves with a list of field elements as hexadecimal strings, or rejects with an error message.
- * @param {any} bytes
- * @returns {Promise<Promise<any>>}
  */
 export function bytesToFields(bytes: any): Promise<Promise<any>>;
 /**
@@ -180,8 +149,6 @@ export function bytesToFields(bytes: any): Promise<Promise<any>>;
  * # Returns
  *
  * A `Promise` that resolves with the email nullifier as a hexadecimal string, or rejects with an error message.
- * @param {Uint8Array} signautre
- * @returns {Promise<Promise<any>>}
  */
 export function emailNullifier(signautre: Uint8Array): Promise<Promise<any>>;
 /**
@@ -194,8 +161,6 @@ export function emailNullifier(signautre: Uint8Array): Promise<Promise<any>>;
  * # Returns
  *
  * A `Promise` that resolves with an array of arrays containing the start and end indices of the invitation code substrings,
- * @param {string} inputStr
- * @returns {Array<any>}
  */
 export function extractInvitationCodeIdxes(inputStr: string): Array<any>;
 /**
@@ -208,79 +173,20 @@ export function extractInvitationCodeIdxes(inputStr: string): Array<any>;
  * # Returns
  *
  * A `Promise` that resolves with an array of arrays containing the start and end indices of the invitation code substrings,
- * @param {string} inputStr
- * @returns {Array<any>}
  */
 export function extractInvitationCodeWithPrefixIdxes(inputStr: string): Array<any>;
-/**
- * @param {string} str
- * @param {number} paddedBytesSize
- * @returns {Array<any>}
- */
 export function padString(str: string, paddedBytesSize: number): Array<any>;
-/**
- * @param {string} inputStr
- * @param {any} regexConfig
- * @param {boolean} reveal_private
- * @returns {Array<any>}
- */
 export function extractSubstrIdxes(inputStr: string, regexConfig: any, reveal_private: boolean): Array<any>;
-/**
- * @param {string} inputStr
- * @param {any} regexConfig
- * @param {boolean} reveal_private
- * @returns {Array<any>}
- */
 export function extractSubstr(inputStr: string, regexConfig: any, reveal_private: boolean): Array<any>;
-/**
- * @param {string} inputStr
- * @returns {Array<any>}
- */
 export function extractEmailAddrIdxes(inputStr: string): Array<any>;
-/**
- * @param {string} inputStr
- * @returns {Array<any>}
- */
 export function extractEmailDomainIdxes(inputStr: string): Array<any>;
-/**
- * @param {string} inputStr
- * @returns {Array<any>}
- */
 export function extractFromAllIdxes(inputStr: string): Array<any>;
-/**
- * @param {string} inputStr
- * @returns {Array<any>}
- */
 export function extractFromAddrIdxes(inputStr: string): Array<any>;
-/**
- * @param {string} inputStr
- * @returns {Array<any>}
- */
 export function extractToAllIdxes(inputStr: string): Array<any>;
-/**
- * @param {string} inputStr
- * @returns {Array<any>}
- */
 export function extractToAddrIdxes(inputStr: string): Array<any>;
-/**
- * @param {string} inputStr
- * @returns {Array<any>}
- */
 export function extractSubjectAllIdxes(inputStr: string): Array<any>;
-/**
- * @param {string} inputStr
- * @returns {Array<any>}
- */
 export function extractBodyHashIdxes(inputStr: string): Array<any>;
-/**
- * @param {string} inputStr
- * @returns {Array<any>}
- */
 export function extractTimestampIdxes(inputStr: string): Array<any>;
-/**
- * @param {string} inputStr
- * @returns {Array<any>}
- */
 export function extractMessageIdIdxes(inputStr: string): Array<any>;
 /**
  * Initializes wasm module, call this once before using functions of the package.

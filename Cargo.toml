@@ -14,7 +14,7 @@ itertools = "0.10.3"
 serde_json = "1.0.95"
 serde = { version = "1.0.159", features = ["derive"] }
 # zk-regex-apis = { version = "2.1.1", git = "https://github.com/zkemail/zk-regex.git" }
-zk-regex-apis = { git = "https://github.com/zkemail/zk-regex.git", branch = "dimidumo/zk-802-consistent-casing-everywhere" }
+zk-regex-apis = { git = "https://github.com/zkemail/zk-regex.git", branch = "feat/fix-api-last-match" }
 hex = "0.4.3"
 anyhow = "1.0.75"
 poseidon-rs = { git = "https://github.com/zkemail/poseidon-rs.git", version = "1.0.0" }
