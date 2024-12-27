@@ -176,18 +176,24 @@ fn find_selector_in_clean_content(
     clean_content: &[u8],
     selector: &str,
     position_map: &[usize],
-) -> Result<(String, usize)> {
+) -> Result<(String, usize, usize)> {
     let clean_string = String::from_utf8_lossy(clean_content);
     let re = Regex::new(selector).unwrap();
     if let Some(m) = re.find(&clean_string) {
-        let selector_index = m.start();
+        let selector_start_index = m.start();
+        let selector_end_index = m.end();
         // Map this cleaned index back to original
-        if selector_index < position_map.len() {
-            let original_index = position_map[selector_index];
-            if original_index == usize::MAX {
+        if selector_start_index < position_map.len() && selector_end_index < position_map.len() {
+            let original_start_index = position_map[selector_start_index];
+            let original_end_index = position_map[selector_end_index];
+            if original_start_index == usize::MAX || original_end_index == usize::MAX {
                 return Err(anyhow!("Failed to map selector position to original body"));
             }
-            Ok((selector.to_string(), original_index))
+            Ok((
+                selector.to_string(),
+                original_start_index,
+                original_end_index,
+            ))
         } else {
             Err(anyhow!("Selector index out of range in position map"))
         }
@@ -228,17 +234,14 @@ fn get_adjusted_selector(
     }
 
     // If not found, we must find it in the cleaned content and map back to original
-    let (_, original_index) =
+    let (_, original_start_index, original_end_index) =
         find_selector_in_clean_content(clean_content, selector, position_map)?;
 
-    // Retrieve the substring from the original body that corresponds to the found selector plus 3 chars
-    // Note: This +3 accounts for the possible "=\r\n" that may have been present.
-    // Ensure we don't go out of bounds:
-    let end_index = std::cmp::min(original_body.len(), original_index + selector.len() + 3);
-    let adjusted_slice = &original_body[original_index..end_index];
+    // Retrieve the substring from the original body that corresponds to the found selector
+    let adjusted_slice = &original_body[original_start_index..original_end_index];
 
     // Convert back to a string. If invalid UTF-8, use lossy conversion.
-    let adjusted_str = String::from_utf8_lossy(adjusted_slice);
+    let adjusted_str = regex::escape(&String::from_utf8_lossy(adjusted_slice));
     Ok(adjusted_str.to_string())
 }
 
