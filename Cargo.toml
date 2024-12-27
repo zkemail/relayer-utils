@@ -1,6 +1,6 @@
 [package]
 name = "relayer-utils"
-version = "0.4.2"
+version = "0.4.60"
 authors = ["Sora Suegami", "Aditya Bisht"]
 license = "MIT"
 edition = "2018"
@@ -17,8 +17,8 @@ serde = { version = "1.0.159", features = ["derive"] }
 zk-regex-apis = { git = "https://github.com/zkemail/zk-regex.git", branch = "dimidumo/zk-802-consistent-casing-everywhere" }
 hex = "0.4.3"
 anyhow = "1.0.75"
+halo2curves = { git = "https://github.com/privacy-scaling-explorations/halo2curves.git", rev = "8771fe5a5d54fc03e74dbc8915db5dad3ab46a83", default-features = false }
 poseidon-rs = { git = "https://github.com/zkemail/poseidon-rs.git", version = "1.0.0" }
-halo2curves = { version = "0.7.0", git = "https://github.com/privacy-scaling-explorations/halo2curves.git" }
 rand_core = { version = "0.6", default-features = false }
 num-bigint = "0.4.4"
 rsa = { version = "0.9.6", features = ["serde"] }
