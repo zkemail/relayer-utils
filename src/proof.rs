@@ -13,6 +13,7 @@ pub struct ProverRes {
     /// The proof in JSON format.
     proof: ProofJson,
     /// The public signals associated with the proof.
+    #[serde(alias = "publicOutputs")]
     pub_signals: Vec<String>,
 }
 
