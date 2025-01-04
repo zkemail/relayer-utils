@@ -118,7 +118,7 @@ pub async fn generate_proof_gpu(
 
     // Send POST request to the prover
     let res = client
-        .post(format!("{}/prove/{}", address, proof_id))
+        .post(address)
         .header("x-api-key", api_key)
         .header("Content-Type", "application/json")
         .json(&serde_json::json!({
