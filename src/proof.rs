@@ -116,6 +116,9 @@ pub async fn generate_proof_gpu(
 ) -> Result<(Bytes, Vec<U256>)> {
     let client = reqwest::Client::new();
 
+    // Parse input string as JSON value
+    let input_json: serde_json::Value = serde_json::from_str(input)?;
+
     // Send POST request to the prover
     let res = client
         .post(address)
@@ -126,7 +129,7 @@ pub async fn generate_proof_gpu(
             "proofId": proof_id,
             "zkeyDownloadUrl": zkey_download_url,
             "circuitCppDownloadUrl": circuit_cpp_download_url,
-            "input": input
+            "input": input_json
         }))
         .send()
         .await?
