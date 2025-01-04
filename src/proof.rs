@@ -104,3 +104,46 @@ pub async fn generate_proof(
 
     Ok((proof, pub_signals))
 }
+
+pub async fn generate_proof_gpu(
+    input: &str,
+    blueprint_id: &str,
+    proof_id: &str,
+    zkey_download_url: &str,
+    circuit_cpp_download_url: &str,
+    api_key: &str,
+    address: &str,
+) -> Result<(Bytes, Vec<U256>)> {
+    let client = reqwest::Client::new();
+
+    // Send POST request to the prover
+    let res = client
+        .post(format!("{}/prove/{}", address, proof_id))
+        .header("x-api-key", api_key)
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({
+            "blueprintId": blueprint_id,
+            "proofId": proof_id,
+            "zkeyDownloadUrl": zkey_download_url,
+            "circuitCppDownloadUrl": circuit_cpp_download_url,
+            "input": input
+        }))
+        .send()
+        .await?
+        .error_for_status()?;
+
+    // Parse the response JSON
+    let res_json = res.json::<ProverRes>().await?;
+
+    // Convert the proof to Ethereum-compatible bytes
+    let proof = res_json.proof.to_eth_bytes()?;
+
+    // Convert public signals to U256
+    let pub_signals = res_json
+        .pub_signals
+        .into_iter()
+        .map(|str| U256::from_dec_str(&str).expect("pub signal should be u256"))
+        .collect();
+
+    Ok((proof, pub_signals))
+}
