@@ -113,7 +113,7 @@ pub async fn generate_proof_gpu(
     zkey_download_url: &str,
     circuit_cpp_download_url: &str,
     api_key: &str,
-    address: &str,
+    prover_url: &str,
 ) -> Result<(Bytes, Vec<U256>)> {
     let client = reqwest::Client::new();
 
@@ -122,7 +122,7 @@ pub async fn generate_proof_gpu(
 
     // Send POST request to the prover
     let res = client
-        .post(address)
+        .post(prover_url)
         .header("x-api-key", api_key)
         .header("Content-Type", "application/json")
         .json(&serde_json::json!({
