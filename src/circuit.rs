@@ -3,7 +3,10 @@ use num_bigint::BigInt;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::{cmp, collections::VecDeque};
+use std::{
+    cmp,
+    collections::{HashMap, VecDeque},
+};
 use zk_regex_apis::extract_substrs::{
     extract_substr_idxes, DecomposedRegexConfig, RegexPartConfig,
 };
@@ -163,46 +166,62 @@ impl CircuitInputParams {
 /// # Arguments
 /// * `clean_content` - The cleaned content as a slice of bytes (no QP soft line breaks).
 /// * `selector` - The string to find in the cleaned content.
-/// * `position_map` - A slice mapping cleaned indices to original indices.
-///                    For each i, `position_map[i]` is the index in `original_body` where that cleaned byte originated.
-///                    If `position_map[i]` is `usize::MAX`, that cleaned position has no corresponding original position.
+/// * `position_map` - A HashMap mapping cleaned indices to original indices.
+///                   For each position in the cleaned content, maps to its corresponding
+///                   position in the original content.
 ///
 /// # Returns
-/// A tuple containing `(selector, original_index)`.
+/// A tuple containing `(selector, original_start_index, original_end_index)`.
 ///
 /// # Errors
-/// Returns an error if the selector is not found in the cleaned content or if the position mapping fails.
+/// Returns an error if:
+/// - The selector is not found in the cleaned content
+/// - The position mapping fails
+/// - The selector spans across unmapped positions
 fn find_selector_in_clean_content(
     clean_content: &[u8],
     selector: &str,
-    position_map: &[usize],
+    position_map: HashMap<usize, usize>,
 ) -> Result<(String, usize, usize)> {
+    // Convert clean content to string for searching
     let clean_string = String::from_utf8_lossy(clean_content);
-    let re = Regex::new(selector).unwrap();
-    if let Some(m) = re.find(&clean_string) {
-        let selector_start_index = m.start();
-        let selector_end_index = m.end();
-        // Map this cleaned index back to original
-        if selector_start_index < position_map.len() && selector_end_index < position_map.len() {
-            let original_start_index = position_map[selector_start_index];
-            let original_end_index = position_map[selector_end_index];
-            if original_start_index == usize::MAX || original_end_index == usize::MAX {
-                return Err(anyhow!("Failed to map selector position to original body"));
-            }
-            Ok((
-                selector.to_string(),
-                original_start_index,
-                original_end_index,
-            ))
-        } else {
-            Err(anyhow!("Selector index out of range in position map"))
-        }
-    } else {
-        Err(anyhow!(
+
+    // Use regex to find the selector
+    let re = Regex::new(&regex::escape(selector))?;
+
+    // Find the first match
+    let m = re.find(&clean_string).ok_or_else(|| {
+        anyhow!(
             "SHA precompute selector \"{}\" not found in cleaned body",
             selector
-        ))
+        )
+    })?;
+
+    let selector_start_index = m.start();
+    let selector_end_index = m.end();
+
+    // Get the original start position
+    let original_start_index = position_map
+        .get(&selector_start_index)
+        .ok_or_else(|| anyhow!("Failed to map selector start position to original body"))?;
+
+    // Get the original end position
+    let original_end_index = position_map
+        .get(&selector_end_index)
+        .ok_or_else(|| anyhow!("Failed to map selector end position to original body"))?;
+
+    // Verify all positions in between are mapped
+    for i in selector_start_index..selector_end_index {
+        if !position_map.contains_key(&i) {
+            return Err(anyhow!("Selector spans across unmapped positions"));
+        }
     }
+
+    Ok((
+        selector.to_string(),
+        *original_start_index,
+        *original_end_index,
+    ))
 }
 
 /// Gets the adjusted selector string that accounts for potential soft line breaks in QP encoding.
@@ -224,7 +243,7 @@ fn get_adjusted_selector(
     original_body: &[u8],
     selector: &str,
     clean_content: &[u8],
-    position_map: &[usize],
+    position_map: HashMap<usize, usize>,
 ) -> Result<String> {
     let original_str = String::from_utf8_lossy(original_body);
 
@@ -299,7 +318,7 @@ fn generate_circuit_inputs(params: CircuitInputParams) -> Result<CircuitInput> {
                 &params.body,
                 &adjusted_selector.as_ref().unwrap(),
                 &cleaned_body,
-                &position_map,
+                position_map,
             )?);
         }
 

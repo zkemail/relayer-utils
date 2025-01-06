@@ -253,14 +253,10 @@ impl ParsedEmail {
 }
 
 /// Removes Quoted-Printable (QP) soft line breaks (`=\r\n`) from the given byte vector while
-/// maintaining a mapping from cleaned indices back to the original positions.
+/// maintaining a mapping from cleaned indices to original positions.
 ///
-/// Quoted-printable encoding may split long lines with `=\r\n` sequences. This function removes
-/// these soft line breaks, producing a "cleaned" output array. It also creates an index map so
-/// that for each position in the cleaned output, you can find the corresponding original index.
-///
-/// Any positions in the cleaned output that were added as padding (to match the original length)
-/// will have their index map entry set to `usize::MAX`, indicating no corresponding original index.
+/// Soft line breaks in QP encoding are sequences of "=\r\n" (hex: 3D0D0A) that are used to split long lines.
+/// These breaks should be removed when decoding the content while preserving the original content.
 ///
 /// # Arguments
 ///
@@ -271,34 +267,35 @@ impl ParsedEmail {
 /// A tuple of:
 /// - `Vec<u8>`: The cleaned content, with all QP soft line breaks removed and padded with zeros
 ///              to match the original length.
-/// - `Vec<usize>`: A mapping from cleaned indices to original indices. For cleaned indices that
-///                 correspond to actual content, `index_map[i]` gives the original position of
-///                 that byte in `body`. For padded bytes, the value is `usize::MAX`.
-pub fn remove_quoted_printable_soft_breaks(body: Vec<u8>) -> (Vec<u8>, Vec<usize>) {
+/// - `HashMap<usize, usize>`: A mapping from cleaned indices to original indices. For each position
+///                           in the cleaned content, maps to its corresponding position in the original content.
+pub fn remove_quoted_printable_soft_breaks(body: Vec<u8>) -> (Vec<u8>, HashMap<usize, usize>) {
     let original_len = body.len();
     let mut cleaned = Vec::with_capacity(original_len);
-    let mut index_map = Vec::with_capacity(original_len);
-
-    let mut iter = body.iter().enumerate();
-    while let Some((i, &byte)) = iter.next() {
-        // Check if this is the start of a soft line break sequence `=\r\n`
-        if byte == b'=' && body.get(i + 1..i + 3) == Some(&[b'\r', b'\n']) {
-            // Skip the next two bytes for the soft line break
-            iter.nth(1);
+    let mut position_map = HashMap::new();
+    
+    let mut i = 0;
+    let mut clean_pos = 0;
+    
+    while i < body.len() {
+        if i + 2 < body.len() 
+            && body[i] == b'=' // '=' character
+            && body[i + 1] == b'\r' // '\r' character
+            && body[i + 2] == b'\n' // '\n' character
+        {
+            i += 3; // Move past the soft line break
         } else {
-            cleaned.push(byte);
-            index_map.push(i);
+            position_map.insert(clean_pos, i);
+            cleaned.push(body[i]);
+            clean_pos += 1;
+            i += 1;
         }
     }
 
     // Pad the cleaned result with zeros to match the original length
     cleaned.resize(original_len, 0);
 
-    // Pad index_map with usize::MAX for these padded positions
-    let padding_needed = original_len - index_map.len();
-    index_map.extend(std::iter::repeat(usize::MAX).take(padding_needed));
-
-    (cleaned, index_map)
+    (cleaned, position_map)
 }
 
 /// Finds the index of the first occurrence of a pattern in the given body.
