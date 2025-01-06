@@ -13,6 +13,7 @@ pub struct ProverRes {
     /// The proof in JSON format.
     proof: ProofJson,
     /// The public signals associated with the proof.
+    #[serde(alias = "publicOutputs")]
     pub_signals: Vec<String>,
 }
 
@@ -85,6 +86,52 @@ pub async fn generate_proof(
     let res = client
         .post(format!("{}/prove/{}", address, request))
         .json(&serde_json::json!({ "input": input }))
+        .send()
+        .await?
+        .error_for_status()?;
+
+    // Parse the response JSON
+    let res_json = res.json::<ProverRes>().await?;
+
+    // Convert the proof to Ethereum-compatible bytes
+    let proof = res_json.proof.to_eth_bytes()?;
+
+    // Convert public signals to U256
+    let pub_signals = res_json
+        .pub_signals
+        .into_iter()
+        .map(|str| U256::from_dec_str(&str).expect("pub signal should be u256"))
+        .collect();
+
+    Ok((proof, pub_signals))
+}
+
+pub async fn generate_proof_gpu(
+    input: &str,
+    blueprint_id: &str,
+    proof_id: &str,
+    zkey_download_url: &str,
+    circuit_cpp_download_url: &str,
+    api_key: &str,
+    prover_url: &str,
+) -> Result<(Bytes, Vec<U256>)> {
+    let client = reqwest::Client::new();
+
+    // Parse input string as JSON value
+    let input_json: serde_json::Value = serde_json::from_str(input)?;
+
+    // Send POST request to the prover
+    let res = client
+        .post(prover_url)
+        .header("x-api-key", api_key)
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({
+            "blueprintId": blueprint_id,
+            "proofId": proof_id,
+            "zkeyDownloadUrl": zkey_download_url,
+            "circuitCppDownloadUrl": circuit_cpp_download_url,
+            "input": input_json
+        }))
         .send()
         .await?
         .error_for_status()?;
