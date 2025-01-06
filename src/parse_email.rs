@@ -2,18 +2,12 @@
 
 use std::collections::HashMap;
 
-#[cfg(target_arch = "wasm32")]
 use crate::cryptos::fetch_public_key;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use cfdkim::canonicalize_signed_email;
-#[cfg(not(target_arch = "wasm32"))]
-use cfdkim::resolve_public_key;
 use hex;
 use itertools::Itertools;
 use mailparse::{parse_mail, ParsedMail};
-#[cfg(target_arch = "wasm32")]
-use regex::Regex;
-use rsa::traits::PublicKeyParts;
 use serde::{Deserialize, Serialize};
 use zk_regex_apis::extract_substrs::{
     extract_body_hash_idxes, extract_email_addr_idxes, extract_email_domain_idxes,
@@ -53,21 +47,10 @@ impl ParsedEmail {
     ///
     /// A `Result` which is either a `ParsedEmail` instance or an error if parsing fails.
     pub async fn new_from_raw_email(raw_email: &str) -> Result<Self> {
-        // Initialize a logger for the function scope.
-        let logger = slog::Logger::root(slog::Discard, slog::o!());
-
         // Extract all headers
         let parsed_mail = parse_mail(raw_email.as_bytes())?;
         let headers: EmailHeaders = EmailHeaders::new_from_mail(&parsed_mail);
 
-        // Resolve the public key from the raw email bytes.
-        #[cfg(not(target_arch = "wasm32"))]
-        let public_key = match resolve_public_key(&logger, raw_email.as_bytes()).await? {
-            cfdkim::DkimPublicKey::Rsa(pk) => Ok(pk.n().to_bytes_be()),
-            _ => Err(anyhow!("Unsupported public key type.")),
-        }?;
-
-        #[cfg(target_arch = "wasm32")]
         let public_key = fetch_public_key(headers.clone()).await?;
 
         // Canonicalize the signed email to separate the header, body, and signature.
