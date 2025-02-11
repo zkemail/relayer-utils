@@ -21,6 +21,8 @@ use itertools::Itertools;
 use wasm_bindgen_futures::future_to_promise;
 #[cfg(target_arch = "wasm32")]
 use zk_regex_apis::extractSubstrIdxes;
+#[cfg(target_arch = "wasm32")]
+use zk_regex_compiler::genFromDecomposed;
 #[wasm_bindgen]
 #[allow(non_snake_case)]
 #[cfg(target_arch = "wasm32")]
