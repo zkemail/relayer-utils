@@ -3,18 +3,27 @@
 use crate::EmailHeaders;
 use crate::{field_to_hex, hex_to_field};
 use anyhow::Result;
+use base64::{self, engine::general_purpose, Engine as _};
+use cfdkim::{self, verify_email_with_key, DKIMError, DKIMResult, DkimPublicKey};
+use digest::Digest;
 use ethers::types::Bytes;
 use halo2curves::ff::Field;
+use mailparse::ParsedMail;
 use poseidon_rs::{poseidon_bytes, poseidon_fields, Fr, PoseidonError};
 use rand_core::RngCore;
 use regex::Regex;
 use rsa::pkcs8::DecodePublicKey;
 use rsa::traits::PublicKeyParts;
+use rsa::{pkcs1::DecodeRsaPublicKey, RsaPublicKey};
 use serde::{
     de::{self, Visitor},
     Deserialize, Deserializer, Serialize, Serializer,
 };
 use std::collections::HashMap;
+use sha1::Sha1;
+use sha2::Sha256;
+use slog::{debug, Logger};
+use std::convert::TryInto;
 use std::{
     collections::hash_map::DefaultHasher,
     error::Error,
@@ -785,4 +794,96 @@ pub async fn fetch_public_key(email_headers: EmailHeaders) -> Result<Vec<u8>> {
     } else {
         Err(anyhow::anyhow!("Public key not found"))
     }
+}
+
+/// Fetches the public key from DNS records using the DKIM signature in the email headers,
+/// and verifies the public key.
+///
+/// # Arguments
+///
+/// * `parsed_email` - A `ParsedMail`.
+///
+/// # Returns
+///
+/// A `Result` containing a vector of bytes representing the valid public key, or an error if the key is not found.
+pub async fn fetch_public_key_and_verify(
+    parsed_email: ParsedMail<'_>,
+    email_headers: EmailHeaders,
+) -> Result<Vec<u8>> {
+    let mut selector = String::new();
+    let mut domain = String::new();
+
+    // Extract the selector and domain from the DKIM-Signature header
+    if let Some(headers) = email_headers.get_header("DKIM-Signature") {
+        if let Some(header) = headers.first() {
+            let s_re = Regex::new(r"s=([^;]+);").unwrap();
+            let d_re = Regex::new(r"d=([^;]+);").unwrap();
+
+            selector = s_re
+                .captures(header)
+                .and_then(|cap| cap.get(1))
+                .map_or("", |m| m.as_str())
+                .to_string();
+            domain = d_re
+                .captures(header)
+                .and_then(|cap| cap.get(1))
+                .map_or("", |m| m.as_str())
+                .to_string();
+        }
+    }
+
+    // Fetch the DNS TXT record for the domain key
+    let response = reqwest::get(format!(
+        "https://archive.zk.email/api/key?domain={}&selector={}",
+        domain, selector
+    ))
+    .await?;
+    let data: serde_json::Value = response.json().await?;
+
+    let p_values: Vec<String> = data
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|record| record.get("value"))
+                .filter_map(|value| value.as_str())
+                .flat_map(|data| {
+                    data.split(';')
+                        .filter(|part| part.trim().starts_with("p="))
+                        .map(|part| part.trim()[2..].to_string())
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    for p_value in p_values {
+        let dkim_public_key = create_dkim_public_key(&p_value)?;
+
+        // Try to verify the email with this key
+        let logger = slog::Logger::root(slog::Discard, slog::o!());
+        if let Ok(_) = verify_email_with_key(&logger, &domain, &parsed_email, dkim_public_key) {
+            // If verification succeeds, return the original public key bytes
+            let public_key_bytes = general_purpose::STANDARD.decode(p_value)?;
+            let public_key: rsa::RsaPublicKey =
+                rsa::RsaPublicKey::from_public_key_der(&public_key_bytes)?;
+            let modulus = public_key.n();
+            let modulus_bytes: Vec<u8> = modulus.to_bytes_be();
+            return Ok(modulus_bytes);
+        }
+    }
+
+    Err(anyhow::anyhow!("Public key not found"))
+}
+
+fn create_dkim_public_key(public_key_b64: &str) -> Result<DkimPublicKey, DKIMError> {
+    // Decode the base64 public key
+    let public_key_der = general_purpose::STANDARD
+        .decode(public_key_b64)
+        .map_err(|e| DKIMError::SignatureSyntaxError(e.to_string()))?;
+
+    // Try to parse as PKCS#8 first, fall back to PKCS#1 DER if needed
+    let rsa_public_key = RsaPublicKey::from_public_key_der(&public_key_der)
+        .or_else(|_| RsaPublicKey::from_pkcs1_der(&public_key_der))
+        .map_err(|e| DKIMError::SignatureSyntaxError(e.to_string()))?;
+
+    Ok(DkimPublicKey::Rsa(rsa_public_key))
 }

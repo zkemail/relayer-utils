@@ -1,6 +1,6 @@
 [package]
 name = "relayer-utils"
-version = "0.4.60"
+version = "0.4.62-12"
 authors = ["Sora Suegami", "Aditya Bisht"]
 license = "MIT"
 edition = "2018"
@@ -22,7 +22,7 @@ poseidon-rs = { git = "https://github.com/zkemail/poseidon-rs.git", version = "1
 rand_core = { version = "0.6", default-features = false }
 num-bigint = "0.4.4"
 rsa = { version = "0.9.6", features = ["serde"] }
-cfdkim = { version = "0.3.3", git = "https://github.com/zkemail/cfdkim.git" }
+cfdkim = { version = "0.3.3", git = "https://github.com/zkemail/cfdkim.git", branch = "dimidumo/verify_email_with_key" }
 hmac-sha256 = { git = "https://github.com/zkemail/rust-hmac-sha256.git" }
 ethers = "2.0.14"
 reqwest = "0.11.22"
@@ -44,6 +44,10 @@ serde-wasm-bindgen = "0.6.5"
 rand = "0.8.5"
 base64 = "0.22.1"
 console_error_panic_hook = "0.1.7"
+sha2 = "0.10"
+sha1 = "0.10"
+digest = "0.10"
+ed25519-dalek = "2"
 
 [dev-dependencies]
 tokio = { version = "1.41", features = ["full"] }

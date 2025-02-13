@@ -36,8 +36,13 @@ use zk_regex_apis::extractSubstrIdxes;
 /// # Returns
 ///
 /// A `Promise` that resolves with the serialized `ParsedEmail` or rejects with an error message.
-pub async fn parseEmail(raw_email: String) -> Promise {
-    match ParsedEmail::new_from_raw_email(&raw_email).await {
+pub async fn parseEmail(raw_email: String, public_key: Option<Vec<u8>>) -> Promise {
+    let parsed_email_result = match public_key {
+        Some(pk) => ParsedEmail::new_from_raw_email_with_public_key(&raw_email, pk).await,
+        None => ParsedEmail::new_from_raw_email(&raw_email).await,
+    };
+
+    match parsed_email_result {
         Ok(parsed_email) => match to_value(&parsed_email) {
             Ok(serialized_email) => Promise::resolve(&serialized_email),
             Err(err) => Promise::reject(&JsValue::from_str(&format!(
