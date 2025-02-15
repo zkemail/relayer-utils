@@ -15,6 +15,7 @@ serde_json = "1.0.95"
 serde = { version = "1.0.159", features = ["derive"] }
 # zk-regex-apis = { version = "2.1.1", git = "https://github.com/zkemail/zk-regex.git" }
 zk-regex-apis = { git = "https://github.com/zkemail/zk-regex.git" }
+zk-regex-compiler = { git = "https://github.com/zkemail/zk-regex.git", branch = "dimidumo/zk-1138-zk-regex-dfa-check" }
 hex = "0.4.3"
 anyhow = "1.0.75"
 halo2curves = { git = "https://github.com/privacy-scaling-explorations/halo2curves.git", rev = "8771fe5a5d54fc03e74dbc8915db5dad3ab46a83", default-features = false }
@@ -35,7 +36,7 @@ slog-term = "2.9.0"
 slog-json = "2.6.1"
 lazy_static = "1.4"
 file-rotate = "0.7.5"
-regex = "1.10.6"
+regex = "=1.10.6"
 mailparse = "0.15.0"
 wasm-bindgen = "0.2.95"
 wasm-bindgen-futures = "0.4.45"

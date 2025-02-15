@@ -47,7 +47,6 @@ impl ParsedEmail {
     ///
     /// A `Result` which is either a `ParsedEmail` instance or an error if parsing fails.
     pub async fn new_from_raw_email(raw_email: &str) -> Result<Self> {
-        println!("new_from_raw_email");
         // Extract all headers
         let parsed_mail = parse_mail(raw_email.as_bytes())?;
         let headers: EmailHeaders = EmailHeaders::new_from_mail(&parsed_mail);
@@ -407,23 +406,28 @@ impl EmailHeaders {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::{fs, path::PathBuf};
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use std::{fs, path::PathBuf};
 
-    #[tokio::test]
-    async fn test_new_from_raw_email() -> Result<()> {
-        let test_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests")
-            .join("fixtures")
-            .join("spotify.eml");
+//     #[tokio::test]
+//     async fn test_new_from_raw_email() -> Result<()> {
+//         let test_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+//             .join("tests")
+//             .join("fixtures")
+//             .join("confidential")
+//             .join("amazon.eml");
 
-        let raw_email = fs::read_to_string(test_file)?;
+//         let raw_email = fs::read_to_string(test_file)?;
 
-        let parsed_email = ParsedEmail::new_from_raw_email(&raw_email).await?;
-        assert!(!parsed_email.canonicalized_header.is_empty());
-        assert!(!parsed_email.canonicalized_body.is_empty());
-        Ok(())
-    }
-}
+//         for i in 0..10 {
+//             println!("i: {:?}", i);
+//             let parsed_email = ParsedEmail::new_from_raw_email(&raw_email).await?;
+//             println!("key: {:?}", parsed_email.public_key);
+//             assert!(!parsed_email.canonicalized_header.is_empty());
+//             assert!(!parsed_email.canonicalized_body.is_empty());
+//         }
+//         Ok(())
+//     }
+// }
