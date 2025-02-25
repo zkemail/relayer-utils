@@ -719,26 +719,28 @@ pub async fn fetch_public_key(email_headers: EmailHeaders) -> Result<Vec<u8>> {
         .map_or("", |m| m.as_str())
         .to_string();
 
-
     let mut domain_selector_map = HashMap::<String, String>::new();
 
     // Extract the selector and domain from the DKIM-Signature header
-    if let Some(headers) = email_headers.get_header("Dkim-Signature") {
-        for header in headers {
-            let s_re = Regex::new(r"s=([^;]+);").unwrap();
-            let d_re = Regex::new(r"d=([^;]+);").unwrap();
+    let dkim_headers = email_headers
+        .get_header("DKIM-Signature")
+        .or_else(|| email_headers.get_header("Dkim-Signature"))
+        .ok_or_else(|| anyhow::anyhow!("No DKIM signature found"))?;
 
-            domain_selector_map.insert(
-                d_re.captures(&header)
-                    .and_then(|cap| cap.get(1))
-                    .map_or("", |m| m.as_str())
-                    .to_string(),
-                s_re.captures(&header)
-                    .and_then(|cap| cap.get(1))
-                    .map_or("", |m| m.as_str())
-                    .to_string(),
-            );
-        }
+    for header in dkim_headers {
+        let s_re = Regex::new(r"s=([^;]+);").unwrap();
+        let d_re = Regex::new(r"d=([^;]+);").unwrap();
+
+        domain_selector_map.insert(
+            d_re.captures(&header)
+                .and_then(|cap| cap.get(1))
+                .map_or("", |m| m.as_str())
+                .to_string(),
+            s_re.captures(&header)
+                .and_then(|cap| cap.get(1))
+                .map_or("", |m| m.as_str())
+                .to_string(),
+        );
     }
 
     let selector = domain_selector_map
