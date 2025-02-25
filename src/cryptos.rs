@@ -14,6 +14,7 @@ use serde::{
     de::{self, Visitor},
     Deserialize, Deserializer, Serialize, Serializer,
 };
+use std::collections::HashMap;
 use std::{
     collections::hash_map::DefaultHasher,
     error::Error,
@@ -427,11 +428,11 @@ pub fn sha256_pad(mut data: Vec<u8>, max_sha_bytes: usize) -> (Vec<u8>, usize) {
 
     // Ensure that the data is padded to the maximum length
     assert!(
-        data.len() == max_sha_bytes,
-        "Padding to max length did not complete properly! Your padded message is {} long but max is {}!",
-        data.len(),
-        max_sha_bytes
-    );
+    data.len() == max_sha_bytes,
+    "Padding to max length did not complete properly! Your padded message is {} long but max is {}!",
+    data.len(),
+    max_sha_bytes
+  );
 
     (data, message_len)
 }
@@ -499,7 +500,7 @@ pub fn generate_partial_sha(
                 format!("Selector {} not found in the body", selector),
             )));
         }
-    };
+    }
 
     // Calculate the cutoff index for SHA-256 block size (64 bytes)
     let sha_cutoff_index = (selector_index / 64) * 64;
@@ -552,23 +553,98 @@ pub fn keccak256(data: &[u8]) -> Bytes {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
+    use mailparse::parse_mail;
+
     use crate::field_to_hex;
 
     use super::*;
 
     #[test]
     fn test_public_key_hash() {
-        let mut public_key_n = hex::decode("cfb0520e4ad78c4adb0deb5e605162b6469349fc1fde9269b88d596ed9f3735c00c592317c982320874b987bcc38e8556ac544bdee169b66ae8fe639828ff5afb4f199017e3d8e675a077f21cd9e5c526c1866476e7ba74cd7bb16a1c3d93bc7bb1d576aedb4307c6b948d5b8c29f79307788d7a8ebf84585bf53994827c23a5").unwrap();
+        let mut public_key_n = hex
+      ::decode(
+        "cfb0520e4ad78c4adb0deb5e605162b6469349fc1fde9269b88d596ed9f3735c00c592317c982320874b987bcc38e8556ac544bdee169b66ae8fe639828ff5afb4f199017e3d8e675a077f21cd9e5c526c1866476e7ba74cd7bb16a1c3d93bc7bb1d576aedb4307c6b948d5b8c29f79307788d7a8ebf84585bf53994827c23a5"
+      )
+      .unwrap();
         public_key_n.reverse();
         let hash_field = public_key_hash(&public_key_n).unwrap();
         let expected_hash = format!(
             "0x{}",
             hex::encode([
                 24, 26, 185, 80, 217, 115, 238, 83, 131, 133, 50, 236, 177, 184, 177, 21, 40, 246,
-                234, 122, 176, 142, 40, 104, 251, 50, 24, 70, 64, 82, 249, 83
+                234, 122, 176, 142, 40, 104, 251, 50, 24, 70, 64, 82, 249, 83,
             ])
         );
         assert_eq!(field_to_hex(&hash_field), expected_hash);
+    }
+
+    #[tokio::test]
+    async fn test_fetch_public_key() -> Result<()> {
+        let fixtures_dir = "tests/fixtures";
+        let mut results = Vec::new();
+
+        // Read all .eml files from fixtures directory
+        for entry in fs::read_dir(fixtures_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+
+            if path.extension().and_then(|s| s.to_str()) == Some("eml") {
+                let filename = path.file_name().unwrap().to_string_lossy();
+                let result = (async {
+                    let eml = fs::read_to_string(&path)?;
+                    let parsed_mail = parse_mail(eml.as_bytes())?;
+                    let headers = EmailHeaders::new_from_mail(&parsed_mail);
+                    fetch_public_key(headers).await
+                })
+                .await;
+
+                match &result {
+                    Ok(_) => println!("✓ {} - Success", filename),
+                    Err(e) => println!("✗ {} - Error: {}", filename, e),
+                }
+
+                results.push((filename.to_string(), result));
+            }
+        }
+
+        // Generate report
+        println!("\n=== Public Key Fetch Test Report ===");
+        println!("{:<30} {:<10}", "File", "Status");
+        println!("{}", "-".repeat(42));
+
+        let mut passed = 0;
+        let total = results.len();
+
+        for (filename, result) in results {
+            match result {
+                Ok(_) => {
+                    println!("{:<30} {}", filename, "✓ PASS");
+                    passed += 1;
+                }
+                Err(e) => {
+                    println!("{:<30} {} ({})", filename, "✗ FAIL", e);
+                }
+            }
+        }
+
+        println!("\nSummary:");
+        println!(
+            "Passed: {}/{} ({:.1}%)",
+            passed,
+            total,
+            ((passed as f64) / (total as f64)) * 100.0
+        );
+        println!("Failed: {}/{}", total - passed, total);
+        println!("==============================\n");
+
+        // Test passes if at least one email succeeded
+        assert!(
+            passed > 0,
+            "No email fixtures passed the public key fetch test"
+        );
+        Ok(())
     }
 }
 
@@ -628,32 +704,51 @@ pub fn calculate_account_salt(email_addr: &str, account_code: &str) -> String {
 ///
 /// A `Result` containing a vector of bytes representing the public key, or an error if the key is not found.
 pub async fn fetch_public_key(email_headers: EmailHeaders) -> Result<Vec<u8>> {
-    let mut selector = String::new();
-    let mut domain = String::new();
+    let Some(from) = email_headers.get_header("From") else {
+        return Err(anyhow::anyhow!("From header not found"));
+    };
+    assert!(
+        from.len() == 1,
+        "From header must contain exactly one address"
+    );
+    let from_domain = from[0].as_str();
+    let from_re = Regex::new(r"@([^>]+)").unwrap();
+    let from_domain = from_re
+        .captures(from_domain)
+        .and_then(|cap| cap.get(1))
+        .map_or("", |m| m.as_str())
+        .to_string();
+
+
+    let mut domain_selector_map = HashMap::<String, String>::new();
 
     // Extract the selector and domain from the DKIM-Signature header
-    if let Some(headers) = email_headers.get_header("DKIM-Signature") {
-        if let Some(header) = headers.first() {
+    if let Some(headers) = email_headers.get_header("Dkim-Signature") {
+        for header in headers {
             let s_re = Regex::new(r"s=([^;]+);").unwrap();
             let d_re = Regex::new(r"d=([^;]+);").unwrap();
 
-            selector = s_re
-                .captures(header)
-                .and_then(|cap| cap.get(1))
-                .map_or("", |m| m.as_str())
-                .to_string();
-            domain = d_re
-                .captures(header)
-                .and_then(|cap| cap.get(1))
-                .map_or("", |m| m.as_str())
-                .to_string();
+            domain_selector_map.insert(
+                d_re.captures(&header)
+                    .and_then(|cap| cap.get(1))
+                    .map_or("", |m| m.as_str())
+                    .to_string(),
+                s_re.captures(&header)
+                    .and_then(|cap| cap.get(1))
+                    .map_or("", |m| m.as_str())
+                    .to_string(),
+            );
         }
     }
+
+    let selector = domain_selector_map
+        .get(&from_domain)
+        .ok_or(anyhow::anyhow!("Selector not found"))?;
 
     // Fetch the DNS TXT record for the domain key
     let response = reqwest::get(format!(
         "https://archive.zk.email/api/key?domain={}&selector={}",
-        domain, selector
+        from_domain, selector
     ))
     .await?;
     let data: serde_json::Value = response.json().await?;
