@@ -13,9 +13,8 @@ crate-type = ["rlib", "cdylib"]
 itertools = "0.10.3"
 serde_json = "1.0.95"
 serde = { version = "1.0.159", features = ["derive"] }
-# zk-regex-apis = { version = "2.1.1", git = "https://github.com/zkemail/zk-regex.git" }
 zk-regex-apis = { git = "https://github.com/zkemail/zk-regex.git" }
-zk-regex-compiler = { git = "https://github.com/zkemail/zk-regex.git", branch = "dimidumo/zk-1138-zk-regex-dfa-check" }
+zk-regex-compiler = { git = "https://github.com/zkemail/zk-regex.git" }
 hex = "0.4.3"
 anyhow = "1.0.75"
 halo2curves = { git = "https://github.com/privacy-scaling-explorations/halo2curves.git", rev = "8771fe5a5d54fc03e74dbc8915db5dad3ab46a83", default-features = false }
@@ -23,7 +22,7 @@ poseidon-rs = { git = "https://github.com/zkemail/poseidon-rs.git", version = "1
 rand_core = { version = "0.6", default-features = false }
 num-bigint = "0.4.4"
 rsa = { version = "0.9.6", features = ["serde"] }
-cfdkim = { version = "0.3.3", git = "https://github.com/zkemail/cfdkim.git", branch = "dimidumo/verify_email_with_key" }
+cfdkim = { git = "https://github.com/zkemail/cfdkim.git" }
 hmac-sha256 = { git = "https://github.com/zkemail/rust-hmac-sha256.git" }
 ethers = "2.0.14"
 reqwest = "0.11.22"

@@ -404,7 +404,7 @@ dependencies = [
 [[package]]
 name = "cfdkim"
 version = "0.3.3"
-source = "git+https://github.com/zkemail/cfdkim.git?branch=dimidumo/verify_email_with_key#dacd8f412476a89dca70e5b2f6bed0f46245bd00"
+source = "git+https://github.com/zkemail/cfdkim.git#162e07fbc4ba91e0cdf03b38b4ed83eb883d0306"
 dependencies = [
  "base64 0.21.7",
  "chrono",
@@ -5087,7 +5087,7 @@ dependencies = [
 [[package]]
 name = "zk-regex-compiler"
 version = "2.3.2"
-source = "git+https://github.com/zkemail/zk-regex.git?branch=dimidumo/zk-1138-zk-regex-dfa-check#abe96fe6c48e2f322ad8b5448ac49581665eb92f"
+source = "git+https://github.com/zkemail/zk-regex.git#8ae338cabde7adbe45511b37ca838376da4a48ed"
 dependencies = [
  "ahash",
  "clap",
