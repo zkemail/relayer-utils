@@ -5,4 +5,4 @@ npm-debug.log*
 pkg
 
 tests/outputs
-tests/fixtures/confidential
+tests/fixtures/confidential*

@@ -19,10 +19,10 @@ use serde::{
     de::{self, Visitor},
     Deserialize, Deserializer, Serialize, Serializer,
 };
-use std::collections::HashMap;
 use sha1::Sha1;
 use sha2::Sha256;
 use slog::{debug, Logger};
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::{
     collections::hash_map::DefaultHasher,
@@ -591,7 +591,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_fetch_public_key() -> Result<()> {
-        let fixtures_dir = "tests/fixtures";
+        let fixtures_dir = "tests/fixtures/confidential_outlook";
         let mut results = Vec::new();
 
         // Read all .eml files from fixtures directory
@@ -605,7 +605,8 @@ mod tests {
                     let eml = fs::read_to_string(&path)?;
                     let parsed_mail = parse_mail(eml.as_bytes())?;
                     let headers = EmailHeaders::new_from_mail(&parsed_mail);
-                    fetch_public_key(headers).await
+                    fetch_public_key_and_verify(parsed_mail, headers).await
+                    // fetch_public_keys(headers).await
                 })
                 .await;
 
@@ -712,7 +713,8 @@ pub fn calculate_account_salt(email_addr: &str, account_code: &str) -> String {
 /// # Returns
 ///
 /// A `Result` containing a vector of bytes representing the public key, or an error if the key is not found.
-pub async fn fetch_public_key(email_headers: EmailHeaders) -> Result<Vec<u8>> {
+pub async fn fetch_public_keys(email_headers: EmailHeaders) -> Result<(serde_json::Value, String)> {
+    // pub async fn fetch_public_keys(email_headers: EmailHeaders) -> Result<Vec<u8>> {
     let Some(from) = email_headers.get_header("From") else {
         return Err(anyhow::anyhow!("From header not found"));
     };
@@ -726,7 +728,9 @@ pub async fn fetch_public_key(email_headers: EmailHeaders) -> Result<Vec<u8>> {
         .captures(from_domain)
         .and_then(|cap| cap.get(1))
         .map_or("", |m| m.as_str())
-        .to_string();
+        .into();
+
+    println!("from_domain: _{:?}_", from_domain);
 
     let mut domain_selector_map = HashMap::<String, String>::new();
 
@@ -762,38 +766,41 @@ pub async fn fetch_public_key(email_headers: EmailHeaders) -> Result<Vec<u8>> {
         from_domain, selector
     ))
     .await?;
+
     let data: serde_json::Value = response.json().await?;
 
+    return Ok((data, from_domain));
+
     // Extract the 'p' value from the first record
-    let p_value = data
-        .as_array()
-        .and_then(|arr| arr.first())
-        .and_then(|record| record.get("value"))
-        .and_then(|value| value.as_str())
-        .and_then(|data| {
-            data.split(';')
-                .find(|part| part.trim().starts_with("p="))
-                .map(|part| part.trim()[2..].to_string())
-        });
+    // let p_value = data
+    //     .as_array()
+    //     .and_then(|arr| arr.first())
+    //     .and_then(|record| record.get("value"))
+    //     .and_then(|value| value.as_str())
+    //     .and_then(|data| {
+    //         data.split(';')
+    //             .find(|part| part.trim().starts_with("p="))
+    //             .map(|part| part.trim()[2..].to_string())
+    //     });
 
-    if let Some(public_key_b64) = p_value {
-        // Decode the base64 string to get the public key bytes
-        let public_key_bytes = base64::decode(public_key_b64)?;
+    // if let Some(public_key_b64) = p_value {
+    //     // Decode the base64 string to get the public key bytes
+    //     let public_key_bytes = base64::decode(public_key_b64)?;
 
-        // Load the public key from DER format
-        let public_key: rsa::RsaPublicKey =
-            rsa::RsaPublicKey::from_public_key_der(&public_key_bytes)?;
+    //     // Load the public key from DER format
+    //     let public_key: rsa::RsaPublicKey =
+    //         rsa::RsaPublicKey::from_public_key_der(&public_key_bytes)?;
 
-        // Extract the modulus from the public key
-        let modulus = public_key.n();
+    //     // Extract the modulus from the public key
+    //     let modulus = public_key.n();
 
-        // Convert the modulus to a byte array in big-endian order
-        let modulus_bytes: Vec<u8> = modulus.to_bytes_be();
+    //     // Convert the modulus to a byte array in big-endian order
+    //     let modulus_bytes: Vec<u8> = modulus.to_bytes_be();
 
-        Ok(modulus_bytes)
-    } else {
-        Err(anyhow::anyhow!("Public key not found"))
-    }
+    //     Ok(modulus_bytes)
+    // } else {
+    //     Err(anyhow::anyhow!("Public key not found"))
+    // }
 }
 
 /// Fetches the public key from DNS records using the DKIM signature in the email headers,
@@ -810,35 +817,9 @@ pub async fn fetch_public_key_and_verify(
     parsed_email: ParsedMail<'_>,
     email_headers: EmailHeaders,
 ) -> Result<Vec<u8>> {
-    let mut selector = String::new();
-    let mut domain = String::new();
+    let (data, domain) = fetch_public_keys(email_headers).await?;
 
-    // Extract the selector and domain from the DKIM-Signature header
-    if let Some(headers) = email_headers.get_header("DKIM-Signature") {
-        if let Some(header) = headers.first() {
-            let s_re = Regex::new(r"s=([^;]+);").unwrap();
-            let d_re = Regex::new(r"d=([^;]+);").unwrap();
-
-            selector = s_re
-                .captures(header)
-                .and_then(|cap| cap.get(1))
-                .map_or("", |m| m.as_str())
-                .to_string();
-            domain = d_re
-                .captures(header)
-                .and_then(|cap| cap.get(1))
-                .map_or("", |m| m.as_str())
-                .to_string();
-        }
-    }
-
-    // Fetch the DNS TXT record for the domain key
-    let response = reqwest::get(format!(
-        "https://archive.zk.email/api/key?domain={}&selector={}",
-        domain, selector
-    ))
-    .await?;
-    let data: serde_json::Value = response.json().await?;
+    println!("domain: '{:?}'", domain);
 
     let p_values: Vec<String> = data
         .as_array()
