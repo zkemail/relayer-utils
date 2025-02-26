@@ -586,7 +586,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_fetch_public_key() -> Result<()> {
-        let fixtures_dir = "tests/fixtures";
+        let fixtures_dir = "tests/fixtures/confidential_outlook";
         let mut results = Vec::new();
 
         // Read all .eml files from fixtures directory
@@ -600,7 +600,7 @@ mod tests {
                     let eml = fs::read_to_string(&path)?;
                     let parsed_mail = parse_mail(eml.as_bytes())?;
                     let headers = EmailHeaders::new_from_mail(&parsed_mail);
-                    fetch_public_key_and_verify(parsed_mail, headers, false).await
+                    fetch_public_key_and_verify(parsed_mail, headers, true).await
                     // fetch_public_keys(headers).await
                 })
                 .await;

@@ -350,10 +350,10 @@ pub async fn generate_email_circuit_input(
     // Parse the raw email to extract canonicalized body and header, and other components
     let parsed_email = ParsedEmail::new_from_raw_email(
         email,
-        !params
+        params
             .as_ref()
             .and_then(|p| p.ignore_body_hash_check)
-            .unwrap_or(false),
+            .unwrap_or(true),
     )
     .await?;
 
@@ -520,7 +520,7 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
 ) -> Result<Value> {
     // Parse the raw email to extract canonicalized body and header, and other components
     let parsed_email =
-        ParsedEmail::new_from_raw_email(email, !params.ignore_body_hash_check).await?;
+        ParsedEmail::new_from_raw_email(email, params.ignore_body_hash_check).await?;
 
     // Clone the fields that are used by value before the move occurs
     let public_key = parsed_email.public_key.clone();
