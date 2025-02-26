@@ -46,12 +46,13 @@ impl ParsedEmail {
     /// # Returns
     ///
     /// A `Result` which is either a `ParsedEmail` instance or an error if parsing fails.
-    pub async fn new_from_raw_email(raw_email: &str) -> Result<Self> {
+    pub async fn new_from_raw_email(raw_email: &str, check_body_hash: bool) -> Result<Self> {
         // Extract all headers
         let parsed_mail = parse_mail(raw_email.as_bytes())?;
         let headers: EmailHeaders = EmailHeaders::new_from_mail(&parsed_mail);
 
-        let public_key = fetch_public_key_and_verify(parsed_mail, headers.clone()).await?;
+        let public_key =
+            fetch_public_key_and_verify(parsed_mail, headers.clone(), check_body_hash).await?;
 
         // Canonicalize the signed email to separate the header, body, and signature.
         let (canonicalized_header, canonicalized_body, signature_bytes) =

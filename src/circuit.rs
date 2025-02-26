@@ -348,7 +348,14 @@ pub async fn generate_email_circuit_input(
     params: Option<EmailCircuitParams>,
 ) -> Result<String> {
     // Parse the raw email to extract canonicalized body and header, and other components
-    let parsed_email = ParsedEmail::new_from_raw_email(email).await?;
+    let parsed_email = ParsedEmail::new_from_raw_email(
+        email,
+        !params
+            .as_ref()
+            .and_then(|p| p.ignore_body_hash_check)
+            .unwrap_or(false),
+    )
+    .await?;
 
     // Clone the fields that are used by value before the move occurs
     let public_key = parsed_email.public_key.clone();
@@ -512,7 +519,8 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
     params: CircuitInputWithDecomposedRegexesAndExternalInputsParams,
 ) -> Result<Value> {
     // Parse the raw email to extract canonicalized body and header, and other components
-    let parsed_email = ParsedEmail::new_from_raw_email(email).await?;
+    let parsed_email =
+        ParsedEmail::new_from_raw_email(email, !params.ignore_body_hash_check).await?;
 
     // Clone the fields that are used by value before the move occurs
     let public_key = parsed_email.public_key.clone();
@@ -654,12 +662,11 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
 ///
 /// The computed signal length as a `usize`.
 pub fn compute_signal_length(max_length: usize) -> usize {
-    (max_length / 31) + if max_length % 31 != 0 { 1 } else { 0 }
+    max_length / 31 + (if max_length % 31 != 0 { 1 } else { 0 })
 }
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
     use std::path::PathBuf;
 
