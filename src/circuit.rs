@@ -353,7 +353,7 @@ pub async fn generate_email_circuit_input(
         params
             .as_ref()
             .and_then(|p| p.ignore_body_hash_check)
-            .unwrap_or(true),
+            .unwrap_or(false),
     )
     .await?;
 
