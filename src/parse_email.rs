@@ -407,28 +407,29 @@ impl EmailHeaders {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use std::{fs, path::PathBuf};
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{fs, path::PathBuf};
 
-//     #[tokio::test]
-//     async fn test_new_from_raw_email() -> Result<()> {
-//         let test_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-//             .join("tests")
-//             .join("fixtures")
-//             .join("confidential")
-//             .join("amazon.eml");
+    #[tokio::test]
+    async fn test_new_from_raw_email() -> Result<()> {
+        let test_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("confidential")
+            .join("amazon.eml");
 
-//         let raw_email = fs::read_to_string(test_file)?;
+        let raw_email = fs::read_to_string(test_file)?;
 
-//         for i in 0..10 {
-//             println!("i: {:?}", i);
-//             let parsed_email = ParsedEmail::new_from_raw_email(&raw_email).await?;
-//             println!("key: {:?}", parsed_email.public_key);
-//             assert!(!parsed_email.canonicalized_header.is_empty());
-//             assert!(!parsed_email.canonicalized_body.is_empty());
-//         }
-//         Ok(())
-//     }
-// }
+        // Run in a loop, because with multiple keys returned it should always find the correct one
+        for i in 0..10 {
+            println!("i: {:?}", i);
+            let parsed_email = ParsedEmail::new_from_raw_email(&raw_email, true).await?;
+            println!("key: {:?}", parsed_email.public_key);
+            assert!(!parsed_email.canonicalized_header.is_empty());
+            assert!(!parsed_email.canonicalized_body.is_empty());
+        }
+        Ok(())
+    }
+}
