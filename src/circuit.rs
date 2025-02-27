@@ -801,6 +801,11 @@ mod tests {
     #[tokio::test]
     async fn test_generate_regex_inputs_with_external_inputs_with_sha_precompute_selector(
     ) -> Result<()> {
+        if std::env::var("CI").is_ok() {
+            println!("Skipping test that requires confidential data in CI environment");
+            return Ok(());
+        }
+
         // Get the test file path relative to the project root
         let test_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("tests")
@@ -868,6 +873,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_generate_regex_inputs_binance() -> Result<()> {
+        if std::env::var("CI").is_ok() {
+            println!("Skipping test that requires confidential data in CI environment");
+            return Ok(());
+        }
+
         // Get the test file path relative to the project root
         let test_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("tests")

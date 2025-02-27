@@ -586,6 +586,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_fetch_public_key() -> Result<()> {
+        if std::env::var("CI").is_ok() {
+            println!("Skipping test that requires confidential data in CI environment");
+            return Ok(());
+        }
+
         let fixtures_dir = "tests/fixtures/confidential_outlook";
         let mut results = Vec::new();
 

@@ -52,7 +52,8 @@ impl ParsedEmail {
         let headers: EmailHeaders = EmailHeaders::new_from_mail(&parsed_mail);
 
         let public_key =
-            fetch_public_key_and_verify(parsed_mail, headers.clone(), ignore_body_hash_check).await?;
+            fetch_public_key_and_verify(parsed_mail, headers.clone(), ignore_body_hash_check)
+                .await?;
 
         // Canonicalize the signed email to separate the header, body, and signature.
         let (canonicalized_header, canonicalized_body, signature_bytes) =
@@ -414,6 +415,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_new_from_raw_email() -> Result<()> {
+        if std::env::var("CI").is_ok() {
+            println!("Skipping test that requires confidential data in CI environment");
+            return Ok(());
+        }
+
         let test_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("tests")
             .join("fixtures")
