@@ -348,7 +348,14 @@ pub async fn generate_email_circuit_input(
     params: Option<EmailCircuitParams>,
 ) -> Result<String> {
     // Parse the raw email to extract canonicalized body and header, and other components
-    let parsed_email = ParsedEmail::new_from_raw_email(email).await?;
+    let parsed_email = ParsedEmail::new_from_raw_email(
+        email,
+        params
+            .as_ref()
+            .and_then(|p| p.ignore_body_hash_check)
+            .unwrap_or(false),
+    )
+    .await?;
 
     // Clone the fields that are used by value before the move occurs
     let public_key = parsed_email.public_key.clone();
@@ -512,7 +519,8 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
     params: CircuitInputWithDecomposedRegexesAndExternalInputsParams,
 ) -> Result<Value> {
     // Parse the raw email to extract canonicalized body and header, and other components
-    let parsed_email = ParsedEmail::new_from_raw_email(email).await?;
+    let parsed_email =
+        ParsedEmail::new_from_raw_email(email, params.ignore_body_hash_check).await?;
 
     // Clone the fields that are used by value before the move occurs
     let public_key = parsed_email.public_key.clone();
@@ -654,12 +662,11 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
 ///
 /// The computed signal length as a `usize`.
 pub fn compute_signal_length(max_length: usize) -> usize {
-    (max_length / 31) + if max_length % 31 != 0 { 1 } else { 0 }
+    max_length / 31 + (if max_length % 31 != 0 { 1 } else { 0 })
 }
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
     use std::path::PathBuf;
 
@@ -794,10 +801,16 @@ mod tests {
     #[tokio::test]
     async fn test_generate_regex_inputs_with_external_inputs_with_sha_precompute_selector(
     ) -> Result<()> {
+        if std::env::var("CI").is_ok() {
+            println!("Skipping test that requires confidential data in CI environment");
+            return Ok(());
+        }
+
         // Get the test file path relative to the project root
         let test_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("tests")
             .join("fixtures")
+            .join("confidential")
             .join("x.eml");
 
         let email = std::fs::read_to_string(test_file)?;
@@ -835,6 +848,160 @@ mod tests {
                 ignore_body_hash_check: false,
                 remove_soft_lines_breaks: true,
                 sha_precompute_selector: Some(">Not my account<".to_string()),
+                prover_eth_address: Some("0x9401296121FC9B78F84fc856B1F8dC88f4415B2e".to_string()),
+            },
+        )
+        .await?;
+
+        // Save the input to a file in the test output directory
+        let output_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("outputs")
+            .join("input.json");
+
+        // Create the output directory if it doesn't exist
+        if let Some(parent) = output_file.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        // Save the input to a file
+        let input_str = serde_json::to_string_pretty(&input)?;
+        std::fs::write(output_file, input_str)?;
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_generate_regex_inputs_binance() -> Result<()> {
+        if std::env::var("CI").is_ok() {
+            println!("Skipping test that requires confidential data in CI environment");
+            return Ok(());
+        }
+
+        // Get the test file path relative to the project root
+        let test_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("confidential")
+            .join("binance.eml");
+
+        let email = std::fs::read_to_string(test_file)?;
+
+        let mut decomposed_regexes = Vec::new();
+
+        // Email Recipient regex
+        let email_recipient_parts = vec![
+            RegexPartConfig {
+                is_public: false,
+                regex_def: "(\r\n|^)to:".to_string(),
+            },
+            RegexPartConfig {
+                is_public: false,
+                regex_def: "([^\r\n]+<)?".to_string(),
+            },
+            RegexPartConfig {
+                is_public: true,
+                regex_def: "[a-zA-Z0-9!#$%&\\*\\+-/=\\?\\^_`{\\|}~\\.]+@[a-zA-Z0-9_\\.-]+"
+                    .to_string(),
+            },
+            RegexPartConfig {
+                is_public: false,
+                regex_def: ">?\r\n".to_string(),
+            },
+        ];
+        decomposed_regexes.push(DecomposedRegex {
+            parts: email_recipient_parts,
+            name: "emailRecipient".to_string(),
+            max_length: 64,
+            location: "header".to_string(),
+        });
+
+        // Sender Domain regex
+        let sender_domain_parts = vec![
+            RegexPartConfig {
+                is_public: false,
+                regex_def: "(\r\n|^)from:[^\r\n]*@".to_string(),
+            },
+            RegexPartConfig {
+                is_public: true,
+                regex_def: "[A-Za-z0-9][A-Za-z0-9\\.-]+\\.[A-Za-z]{2,}".to_string(),
+            },
+            RegexPartConfig {
+                is_public: false,
+                regex_def: "[>\r\n]".to_string(),
+            },
+        ];
+        decomposed_regexes.push(DecomposedRegex {
+            parts: sender_domain_parts,
+            name: "senderDomain".to_string(),
+            max_length: 64,
+            location: "header".to_string(),
+        });
+
+        // Email Timestamp regex
+        let email_timestamp_parts = vec![
+            RegexPartConfig {
+                is_public: false,
+                regex_def: "(\r\n|^)dkim-signature:".to_string(),
+            },
+            RegexPartConfig {
+                is_public: false,
+                regex_def: "([a-z]+=[^;]+; )+t=".to_string(),
+            },
+            RegexPartConfig {
+                is_public: true,
+                regex_def: "[0-9]+".to_string(),
+            },
+            RegexPartConfig {
+                is_public: false,
+                regex_def: ";".to_string(),
+            },
+        ];
+        decomposed_regexes.push(DecomposedRegex {
+            parts: email_timestamp_parts,
+            name: "emailTimestamp".to_string(),
+            max_length: 64,
+            location: "header".to_string(),
+        });
+
+        // Subject regex
+        let subject_parts = vec![
+            RegexPartConfig {
+                is_public: false,
+                regex_def: "(\r\n|^)subject:".to_string(),
+            },
+            RegexPartConfig {
+                is_public: true,
+                regex_def: "[^\r\n]+".to_string(),
+            },
+            RegexPartConfig {
+                is_public: false,
+                regex_def: "\r\n".to_string(),
+            },
+        ];
+        decomposed_regexes.push(DecomposedRegex {
+            parts: subject_parts,
+            name: "subject".to_string(),
+            max_length: 128,
+            location: "header".to_string(),
+        });
+
+        let external_inputs = vec![ExternalInput {
+            name: "address".to_string(),
+            max_length: 44,
+            value: Some("0x9401296121FC9B78F84fc856B1F8dC88f4415B2e".to_string()),
+        }];
+
+        let input = generate_circuit_inputs_with_decomposed_regexes_and_external_inputs(
+            &email,
+            decomposed_regexes,
+            external_inputs,
+            CircuitInputWithDecomposedRegexesAndExternalInputsParams {
+                max_body_length: 0,
+                max_header_length: 1024,
+                ignore_body_hash_check: true,
+                remove_soft_lines_breaks: true,
+                sha_precompute_selector: None,
                 prover_eth_address: Some("0x9401296121FC9B78F84fc856B1F8dC88f4415B2e".to_string()),
             },
         )

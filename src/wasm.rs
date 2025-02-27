@@ -5,6 +5,8 @@ use rand::rngs::OsRng;
 #[cfg(target_arch = "wasm32")]
 use serde_wasm_bindgen::{from_value, to_value};
 #[cfg(target_arch = "wasm32")]
+use std::panic;
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
 #[cfg(target_arch = "wasm32")]
@@ -15,12 +17,25 @@ use crate::{
     CircuitInputWithDecomposedRegexesAndExternalInputsParams, DecomposedRegex, EmailCircuitParams,
     ExternalInput, PaddedEmailAddr, ParsedEmail,
 };
+
 #[cfg(target_arch = "wasm32")]
 use itertools::Itertools;
+
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_futures::future_to_promise;
+
 #[cfg(target_arch = "wasm32")]
 use zk_regex_apis::extractSubstrIdxes;
+
+#[cfg(target_arch = "wasm32")]
+use zk_regex_compiler::genFromDecomposed;
+
+#[wasm_bindgen(start)]
+#[cfg(target_arch = "wasm32")]
+pub fn init_panic_hook() {
+    panic::set_hook(Box::new(console_error_panic_hook::hook));
+}
+
 #[wasm_bindgen]
 #[allow(non_snake_case)]
 #[cfg(target_arch = "wasm32")]
@@ -36,8 +51,20 @@ use zk_regex_apis::extractSubstrIdxes;
 /// # Returns
 ///
 /// A `Promise` that resolves with the serialized `ParsedEmail` or rejects with an error message.
-pub async fn parseEmail(raw_email: String) -> Promise {
-    match ParsedEmail::new_from_raw_email(&raw_email).await {
+pub async fn parseEmail(
+    raw_email: String,
+    public_key: Option<Vec<u8>>,
+    ignore_body_hash_check: Option<bool>,
+) -> Promise {
+    let parsed_email_result = match public_key {
+        Some(pk) => ParsedEmail::new_from_raw_email_with_public_key(&raw_email, pk).await,
+        None => {
+            ParsedEmail::new_from_raw_email(&raw_email, ignore_body_hash_check.unwrap_or(true))
+                .await
+        }
+    };
+
+    match parsed_email_result {
         Ok(parsed_email) => match to_value(&parsed_email) {
             Ok(serialized_email) => Promise::resolve(&serialized_email),
             Err(err) => Promise::reject(&JsValue::from_str(&format!(
