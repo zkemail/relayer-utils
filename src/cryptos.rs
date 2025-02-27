@@ -771,20 +771,24 @@ async fn fetch_public_keys(email_headers: EmailHeaders) -> Result<(serde_json::V
         domain_selector_map.insert(domain, selector);
     }
 
-    // Get selector for from_domain
-    let selector = domain_selector_map.get(&from_domain).ok_or_else(|| {
-        let available_domains = domain_selector_map.keys().cloned().collect::<Vec<_>>();
-        anyhow::anyhow!(
-            "No DKIM signature found for sender domain '{}'. Available domains: {:?}",
-            from_domain,
-            available_domains
-        )
-    })?;
+    let (matching_domain, selector) = domain_selector_map
+        .iter()
+        .find(|(domain, _)| {
+            from_domain == **domain || domain.ends_with(&format!(".{}", from_domain))
+        })
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .ok_or_else(|| {
+            let available_domains = domain_selector_map.keys().cloned().collect::<Vec<_>>();
+            anyhow::anyhow!(
+                "No matching DKIM signature found for sender domain '{}'. Available domains: {:?}",
+                from_domain,
+                available_domains
+            )
+        })?;
 
-    // Fetch DNS record
     let url = format!(
         "https://archive.zk.email/api/key?domain={}&selector={}",
-        from_domain, selector
+        matching_domain, selector
     );
 
     let response = reqwest::get(&url)
