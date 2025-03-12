@@ -3,8 +3,7 @@
 ## Prerequisites
 
 - [Rust](https://rustup.rs/)
-- [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/)
-- [Bun](https://bun.sh/) (or Node.js)
+- [Bun](https://bun.sh/) (or Node.js) - since we use Bun for testing we recommend using Bun for development
 
 ## Initial Setup
 
@@ -23,6 +22,7 @@ bun install
 ```bash
 bun run build
 ```
+This will build the WebAssembly module and copy it to the `pkg` directory.
 
 ## Running Tests
 
@@ -52,6 +52,30 @@ cargo test test_name
 - `ts_tests/` - TypeScript tests
 - `pkg/` - Generated WebAssembly output (created after build)
 - `tests/fixtures/` - Test fixtures and sample data
+
+## Technical Details
+
+### Project Architecture
+
+This project is built as a Rust library that:
+1. Compiles to WebAssembly for browser/Node.js usage
+2. Uses wasm-bindgen for Rust/JS interop
+3. Implements email parsing and DKIM verification
+4. Provides regex pattern matching capabilities
+
+### Key Components
+
+- **Email Parsing**: Uses `mailparse` crate for RFC-compliant email parsing
+- **DKIM Verification**: Implements DKIM signature verification
+- **WebAssembly Bridge**: Uses wasm-bindgen for TypeScript/JavaScript integration
+- **Regex Processing**: Supports complex pattern matching on email contents
+
+### Build Process
+
+The project uses:
+- `wasm-pack` for WebAssembly compilation
+- TypeScript for type definitions and tests
+- Bun for running tests and managing dependencies
 
 ## Common Issues
 
