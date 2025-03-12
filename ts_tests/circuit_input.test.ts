@@ -1,12 +1,12 @@
-// TODO: Can only run one test file at a time, since init() will colide
 import { expect, test, describe } from "bun:test";
-import { generateCircuitInputsWithDecomposedRegexesAndExternalInputs, init } from "../pkg";
+import { generateCircuitInputsWithDecomposedRegexesAndExternalInputs } from "../pkg";
 import { readFile } from "fs/promises";
+import { initOnce } from "./setup";
 
 describe("generateCircuitInputsWithDecomposedRegexesAndExternalInputs test suite", async () => {
-  await init();
+  await initOnce();
   const helloEml = await readFile("tests/fixtures/test.eml", "utf-8");
-  const binanceEml = await readFile("tests/fixtures/confidential/binance.eml", "utf-8");
+  // const binanceEml = await readFile("tests/fixtures/confidential/binance.eml", "utf-8");
 
   test("Should create circuit inputs", async () => {
     const decomposedRegexes = [

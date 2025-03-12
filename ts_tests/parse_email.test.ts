@@ -1,15 +1,11 @@
-/*
- * TODO: Make jest ignore this
- * This file does not work with jest, so for now we renamed it so it doesn't run.
- */
- // TODO: Can only run one test file at a time, since init() will colide
 import { expect, test, describe } from "bun:test";
 
-import { parseEmail, init } from "../pkg";
+import { parseEmail } from "../pkg/relayer_utils";
 import airbnbEmail from "./airbnb_eml";
+import { initOnce } from "./setup";
 
 describe("Parse email test suite", async () => {
-  await init();
+  await initOnce();
 
   test("Should parse valid email", async () => {
     const parsedEmail = await parseEmail(airbnbEmail);

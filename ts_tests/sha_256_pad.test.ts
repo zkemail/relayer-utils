@@ -1,9 +1,9 @@
-// TODO: Can only run one test file at a time, since init() will colide
 import { expect, test, describe } from "bun:test";
-import { sha256Pad, init } from "../pkg";
+import { sha256Pad } from "../pkg/relayer_utils";
+import { initOnce } from "./setup";
 
 describe("sha256Pad test suite", async () => {
-  await init();
+  await initOnce();
   test("should pad", async () => {
     try {
       const text = "yellow is the new dark blue";
