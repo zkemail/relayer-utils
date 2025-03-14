@@ -8,6 +8,8 @@ use serde_wasm_bindgen::{from_value, to_value};
 use std::panic;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
+#[cfg(target_arch = "wasm32")]
+use sp1_verifier::{Groth16Verifier, GROTH16_VK_BYTES};
 
 #[cfg(target_arch = "wasm32")]
 use crate::{
@@ -554,4 +556,11 @@ pub fn extractInvitationCodeIdxes(inputStr: &str) -> Result<Array, JsValue> {
 pub fn extractInvitationCodeWithPrefixIdxes(inputStr: &str) -> Result<Array, JsValue> {
     let regex_config = include_str!("../regexes/invitation_code_with_prefix.json");
     extractSubstrIdxes(inputStr, JsValue::from_str(regex_config), false)
+}
+
+#[wasm_bindgen]
+#[allow(non_snake_case)]
+#[cfg(target_arch = "wasm32")]
+pub fn verifySp1Proof(proof: &[u8], public_inputs: &[u8], sp1_vk_hash: &str) -> bool {
+    Groth16Verifier::verify(proof, public_inputs, sp1_vk_hash, *GROTH16_VK_BYTES).is_ok()
 }
