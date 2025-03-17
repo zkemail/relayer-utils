@@ -344,8 +344,8 @@ dependencies = [
 
 [[package]]
 name = "cfdkim"
-version = "0.3.0"
-source = "git+https://github.com/SoraSuegami/dkim.git#93829027f03a7442392a37b4635471d8b7f49e6b"
+version = "0.3.3"
+source = "git+https://github.com/zkemail/cfdkim.git#2b8aab2d820e209844e7761cc4984d5e2992f3e7"
 dependencies = [
  "base64 0.21.7",
  "chrono",
@@ -1195,6 +1195,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "fancy-regex"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "531e46835a22af56d1e3b66f04844bed63158bc094a628bec1d321d9b4c44bf2"
+dependencies = [
+ "bit-set",
+ "regex-automata",
+ "regex-syntax",
+]
+
+[[package]]
 name = "fastrand"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1862,6 +1873,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2032,9 +2052,9 @@ dependencies = [
 
 [[package]]
 name = "mailparse"
-version = "0.14.1"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d096594926cab442e054e047eb8c1402f7d5b2272573b97ba68aa40629f9757"
+checksum = "3da03d5980411a724e8aaf7b61a7b5e386ec55a7fb49ee3d0ff79efc7e5e7c7e"
 dependencies = [
  "charset",
  "data-encoding",
@@ -2824,7 +2844,7 @@ dependencies = [
  "base64 0.21.7",
  "cfdkim",
  "ethers",
- "fancy-regex",
+ "fancy-regex 0.11.0",
  "file-rotate",
  "halo2curves 0.4.0",
  "hex",
@@ -4435,11 +4455,11 @@ dependencies = [
 
 [[package]]
 name = "zk-regex-apis"
-version = "2.1.0"
-source = "git+https://github.com/zkemail/zk-regex.git?branch=main#491a2dcb7f81b9bafcc5d3d4b595b8c8d4ae973e"
+version = "2.3.1"
+source = "git+https://github.com/zkemail/zk-regex.git?branch=dimidumo/zk-802-consistent-casing-everywhere#5b357f2c7aa4643964534d88ebe5db3512048a71"
 dependencies = [
- "fancy-regex",
- "itertools 0.10.5",
+ "fancy-regex 0.13.0",
+ "itertools 0.13.0",
  "js-sys",
  "serde",
  "serde-wasm-bindgen",

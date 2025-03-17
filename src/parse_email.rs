@@ -116,7 +116,7 @@ impl ParsedEmail {
     pub fn get_invitation_code(&self) -> Result<String> {
         let regex_config =
             serde_json::from_str(include_str!("../regexes/invitation_code.json")).unwrap();
-        let idxes = extract_substr_idxes(&self.canonicalized_header, &regex_config)?[0];
+        let idxes = extract_substr_idxes(&self.canonicalized_header, &regex_config, true)?[0];
         let str = self.canonicalized_header[idxes.0..idxes.1].to_string();
         Ok(str)
     }
@@ -124,7 +124,7 @@ impl ParsedEmail {
     pub fn get_invitation_code_idxes(&self) -> Result<(usize, usize)> {
         let regex_config =
             serde_json::from_str(include_str!("../regexes/invitation_code.json")).unwrap();
-        let idxes = extract_substr_idxes(&self.canonicalized_header, &regex_config)?[0];
+        let idxes = extract_substr_idxes(&self.canonicalized_header, &regex_config, true)?[0];
         Ok(idxes)
     }
 
@@ -194,7 +194,7 @@ pub fn extract_invitation_code_idxes_node(mut cx: FunctionContext) -> JsResult<J
     let input_str = cx.argument::<JsString>(0)?.value(&mut cx);
     let regex_config =
         serde_json::from_str(include_str!("../regexes/invitation_code.json")).unwrap();
-    let substr_idxes = match extract_substr_idxes(&input_str, &regex_config) {
+    let substr_idxes = match extract_substr_idxes(&input_str, &regex_config, true) {
         Ok(substr_idxes) => substr_idxes,
         Err(e) => return cx.throw_error(e.to_string()),
     };
@@ -231,7 +231,7 @@ pub fn extract_invitation_code_with_prefix_idxes_node(
     let input_str = cx.argument::<JsString>(0)?.value(&mut cx);
     let regex_config =
         serde_json::from_str(include_str!("../regexes/invitation_code_with_prefix.json")).unwrap();
-    let substr_idxes = match extract_substr_idxes(&input_str, &regex_config) {
+    let substr_idxes = match extract_substr_idxes(&input_str, &regex_config, true) {
         Ok(substr_idxes) => substr_idxes,
         Err(e) => return cx.throw_error(e.to_string()),
     };
