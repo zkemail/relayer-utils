@@ -1505,15 +1505,17 @@ dependencies = [
 
 [[package]]
 name = "halo2curves"
-version = "0.6.1"
-source = "git+https://github.com/privacy-scaling-explorations/halo2curves.git#794577eac4c56356c586b247f481446e011a2dbd"
+version = "0.7.0"
+source = "git+https://github.com/privacy-scaling-explorations/halo2curves.git?rev=8771fe5a5d54fc03e74dbc8915db5dad3ab46a83#8771fe5a5d54fc03e74dbc8915db5dad3ab46a83"
 dependencies = [
  "blake2",
  "digest",
  "ff",
  "group",
+ "halo2derive",
  "lazy_static",
  "num-bigint",
+ "num-integer",
  "num-traits",
  "pairing",
  "pasta_curves",
@@ -1525,6 +1527,19 @@ dependencies = [
  "static_assertions",
  "subtle",
  "unroll",
+]
+
+[[package]]
+name = "halo2derive"
+version = "0.1.0"
+source = "git+https://github.com/privacy-scaling-explorations/halo2curves.git?rev=8771fe5a5d54fc03e74dbc8915db5dad3ab46a83#8771fe5a5d54fc03e74dbc8915db5dad3ab46a83"
+dependencies = [
+ "num-bigint",
+ "num-integer",
+ "num-traits",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -2574,11 +2589,11 @@ checksum = "db23d408679286588f4d4644f965003d056e3dd5abcaaa938116871d7ce2fee7"
 
 [[package]]
 name = "poseidon-rs"
-version = "0.0.10"
-source = "git+https://github.com/SoraSuegami/poseidon-rs.git?branch=master#15aa98d045e531806e39e48ba5a0b999f5de5d8d"
+version = "1.0.0"
+source = "git+https://github.com/zkemail/poseidon-rs.git#c1df2bbb9cd81d761c8f403a4ee6d330f121f718"
 dependencies = [
  "getrandom",
- "halo2curves 0.6.1",
+ "halo2curves 0.7.0",
  "once_cell",
  "serde",
  "thiserror",
