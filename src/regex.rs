@@ -21,7 +21,7 @@ pub fn extract_substr_idxes_node(mut cx: FunctionContext) -> JsResult<JsArray> {
         Ok(regex_config) => regex_config,
         Err(e) => return cx.throw_error(e.to_string()),
     };
-    let substr_idxes = match extract_substr_idxes(&input_str, &regex_config) {
+    let substr_idxes = match extract_substr_idxes(&input_str, &regex_config, false) {
         Ok(substr_idxes) => substr_idxes,
         Err(e) => return cx.throw_error(e.to_string()),
     };
@@ -75,7 +75,7 @@ pub fn extract_email_domain_idxes_node(mut cx: FunctionContext) -> JsResult<JsAr
 
 pub fn extract_email_addr_with_name_idxes_node(mut cx: FunctionContext) -> JsResult<JsArray> {
     let input_str = cx.argument::<JsString>(0)?.value(&mut cx);
-    let substr_idxes = match extract_email_addr_with_name_idxes(&input_str) {
+    let substr_idxes = match extract_email_addr_idxes(&input_str) {
         Ok(substr_idxes) => substr_idxes,
         Err(e) => return cx.throw_error(e.to_string()),
     };
