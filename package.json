@@ -10,7 +10,7 @@
     "wasm:postbuild": "node build.js",
     "build": "npm run wasm:build && npm run wasm:postbuild"
   },
-  "version": "0.4.63",
+  "version": "0.4.64",
   "devDependencies": {
     "@types/bun": "latest",
     "prettier": "^3.3.3"
