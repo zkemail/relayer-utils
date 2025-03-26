@@ -460,7 +460,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_new_from_raw_email_devcon_speaker() -> Result<()> {
+    async fn test_new_from_raw_email_berkeley() -> Result<()> {
         if std::env::var("CI").is_ok() {
             println!("Skipping test that requires confidential data in CI environment");
             return Ok(());
@@ -470,7 +470,7 @@ mod tests {
             .join("tests")
             .join("fixtures")
             .join("confidential")
-            .join("berkley.eml");
+            .join("berkeley.eml");
 
         let raw_email = fs::read_to_string(test_file)?;
 
