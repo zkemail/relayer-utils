@@ -453,7 +453,6 @@ mod tests {
 
         let raw_email = fs::read_to_string(test_file)?;
 
-        // Run in a loop, because with multiple keys returned it should always find the correct one
         let parsed_email = ParsedEmail::new_from_raw_email(&raw_email, true).await?;
         assert!(!parsed_email.canonicalized_header.is_empty());
         assert!(!parsed_email.canonicalized_body.is_empty());
@@ -475,7 +474,6 @@ mod tests {
 
         let raw_email = fs::read_to_string(test_file)?;
 
-        // Run in a loop, because with multiple keys returned it should always find the correct one
         let parsed_email = ParsedEmail::new_from_raw_email(&raw_email, true).await?;
         assert!(!parsed_email.canonicalized_header.is_empty());
         assert!(!parsed_email.canonicalized_body.is_empty());
