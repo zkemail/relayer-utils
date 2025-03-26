@@ -776,20 +776,49 @@ async fn fetch_public_keys(email_headers: EmailHeaders) -> Result<(serde_json::V
         domain_selector_map.insert(domain, selector);
     }
 
-    let (matching_domain, selector) = domain_selector_map
+    // Try to find a direct match first
+    let matching_domain_result = domain_selector_map
         .iter()
         .find(|(domain, _)| {
             from_domain == **domain || domain.ends_with(&format!(".{}", from_domain))
         })
-        .map(|(k, v)| (k.clone(), v.clone()))
-        .ok_or_else(|| {
-            let available_domains = domain_selector_map.keys().cloned().collect::<Vec<_>>();
-            anyhow::anyhow!(
-                "No matching DKIM signature found for sender domain '{}'. Available domains: {:?}",
-                from_domain,
-                available_domains
-            )
-        })?;
+        .map(|(k, v)| (k.clone(), v.clone()));
+
+    // If no direct match, try to handle GApps DKIM domain format
+    if matching_domain_result.is_none() {
+        for (domain, selector) in &domain_selector_map {
+            if domain.contains("gappssmtp.com") {
+                let url = format!(
+                    "https://archive.zk.email/api/key?domain={}&selector={}",
+                    domain, selector
+                );
+
+                match reqwest::get(&url).await {
+                    Ok(response) if response.status().is_success() => {
+                        match response.json::<serde_json::Value>().await {
+                            Ok(data) => return Ok((data, from_domain)),
+                            Err(e) => {
+                                println!("Failed to parse JSON from GApps domain: {}", e);
+                            }
+                        }
+                    }
+                    _ => {
+                        // Continue to try other domains
+                    }
+                }
+            }
+        }
+    }
+
+    // Use the direct match or return an error
+    let (matching_domain, selector) = matching_domain_result.ok_or_else(|| {
+        let available_domains = domain_selector_map.keys().cloned().collect::<Vec<_>>();
+        anyhow::anyhow!(
+            "No matching DKIM signature found for sender domain '{}'. Available domains: {:?}",
+            from_domain,
+            available_domains
+        )
+    })?;
 
     let url = format!(
         "https://archive.zk.email/api/key?domain={}&selector={}",
