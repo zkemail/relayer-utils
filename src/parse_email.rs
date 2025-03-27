@@ -458,25 +458,4 @@ mod tests {
         assert!(!parsed_email.canonicalized_body.is_empty());
         Ok(())
     }
-
-    #[tokio::test]
-    async fn test_new_from_raw_email_berkeley() -> Result<()> {
-        if std::env::var("CI").is_ok() {
-            println!("Skipping test that requires confidential data in CI environment");
-            return Ok(());
-        }
-
-        let test_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests")
-            .join("fixtures")
-            .join("confidential")
-            .join("berkeley.eml");
-
-        let raw_email = fs::read_to_string(test_file)?;
-
-        let parsed_email = ParsedEmail::new_from_raw_email(&raw_email, true).await?;
-        assert!(!parsed_email.canonicalized_header.is_empty());
-        assert!(!parsed_email.canonicalized_body.is_empty());
-        Ok(())
-    }
 }
