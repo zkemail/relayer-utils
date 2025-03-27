@@ -34,6 +34,9 @@ use crate::{
     MAX_EMAIL_ADDR_BYTES,
 };
 
+const GAPPS_DOMAIN: &str = "gappssmtp.com";
+const DKIM_API_URL: &str = "https://archive.zk.email/api/key";
+
 type ShaResult = Vec<u8>; // The result of a SHA-256 hash operation.
 type RemainingBody = Vec<u8>; // The remaining part of a message after a SHA-256 hash operation.
 type RemainingBodyLength = usize; // The length of the remaining message body in bytes.
@@ -776,24 +779,38 @@ async fn fetch_public_keys(email_headers: EmailHeaders) -> Result<(serde_json::V
         domain_selector_map.insert(domain, selector);
     }
 
-    let (matching_domain, selector) = domain_selector_map
+    // First try direct match, then fall back to GApps domain if needed
+    let result = domain_selector_map
         .iter()
         .find(|(domain, _)| {
             from_domain == **domain || domain.ends_with(&format!(".{}", from_domain))
         })
         .map(|(k, v)| (k.clone(), v.clone()))
+        .or_else(|| {
+            domain_selector_map
+                .iter()
+                .find(|(domain, _)| domain.contains(GAPPS_DOMAIN))
+                .map(|(k, v)| (k.clone(), v.clone()))
+        })
         .ok_or_else(|| {
-            let available_domains = domain_selector_map.keys().cloned().collect::<Vec<_>>();
+            let available_domains = domain_selector_map
+                .keys()
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", ");
             anyhow::anyhow!(
-                "No matching DKIM signature found for sender domain '{}'. Available domains: {:?}",
+                "No matching DKIM signature found for sender domain '{}'. Available domains: [{}]",
                 from_domain,
                 available_domains
             )
         })?;
 
+    let (matching_domain, selector) = result;
+
+    // Try to fetch the public key
     let url = format!(
-        "https://archive.zk.email/api/key?domain={}&selector={}",
-        matching_domain, selector
+        "{}?domain={}&selector={}",
+        DKIM_API_URL, matching_domain, selector
     );
 
     let response = reqwest::get(&url)
