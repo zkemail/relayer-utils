@@ -2,15 +2,11 @@
   "parts": [
     {
       "is_public": false,
-      "regex_def": "<div id=3D\"[^\"]*zkemail[^\"]*\"[^>]*>"
+      "regex_def": "(<div id=3D\"[^\"]*zkemail[^\"]*\"[^>]*>)"
     },
     {
       "is_public": true,
       "regex_def": "[^<>/]+"
-    },
-    {
-      "is_public": false,
-      "regex_def": "</div>"
     }
   ]
 }
