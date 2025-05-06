@@ -5,19 +5,20 @@ use rand::rngs::OsRng;
 #[cfg(target_arch = "wasm32")]
 use serde_wasm_bindgen::{from_value, to_value};
 #[cfg(target_arch = "wasm32")]
+use sp1_verifier::{Groth16Verifier, GROTH16_VK_BYTES};
+#[cfg(target_arch = "wasm32")]
 use std::panic;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
-#[cfg(target_arch = "wasm32")]
-use sp1_verifier::{Groth16Verifier, GROTH16_VK_BYTES};
 
 #[cfg(target_arch = "wasm32")]
 use crate::{
     bytes_to_fields, email_nullifier, extract_rand_from_signature, field_to_hex,
     generate_circuit_inputs_with_decomposed_regexes_and_external_inputs,
-    generate_email_circuit_input, hex_to_field, AccountCode, AccountSalt,
-    CircuitInputWithDecomposedRegexesAndExternalInputsParams, DecomposedRegex, EmailCircuitParams,
-    ExternalInput, PaddedEmailAddr, ParsedEmail,
+    generate_email_circuit_input, generate_noir_circuit_input,
+    generate_noir_circuit_inputs_with_regexes_and_external_inputs, hex_to_field, AccountCode,
+    AccountSalt, CircuitInputWithDecomposedRegexesAndExternalInputsParams, DecomposedRegex,
+    EmailCircuitParams, ExternalInput, PaddedEmailAddr, ParsedEmail, RegexInput,
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -28,9 +29,6 @@ use wasm_bindgen_futures::future_to_promise;
 
 #[cfg(target_arch = "wasm32")]
 use zk_regex_apis::extractSubstrIdxes;
-
-#[cfg(target_arch = "wasm32")]
-use zk_regex_compiler::genFromDecomposed;
 
 #[wasm_bindgen(start)]
 #[cfg(target_arch = "wasm32")]
@@ -118,11 +116,15 @@ pub async fn generateAccountSalt(email_addr: String, account_code: String) -> Pr
     let email_addr = PaddedEmailAddr::from_email_addr(&email_addr);
     let account_code = match hex_to_field(&account_code) {
         Ok(field) => AccountCode::from(field),
-        Err(_) => return Promise::reject(&JsValue::from_str("Failed to parse AccountCode")),
+        Err(_) => {
+            return Promise::reject(&JsValue::from_str("Failed to parse AccountCode"));
+        }
     };
     let account_salt = match AccountSalt::new(&email_addr, account_code) {
         Ok(salt) => salt,
-        Err(_) => return Promise::reject(&JsValue::from_str("Failed to generate AccountSalt")),
+        Err(_) => {
+            return Promise::reject(&JsValue::from_str("Failed to generate AccountSalt"));
+        }
     };
     match to_value(&account_salt) {
         Ok(serialized_salt) => Promise::resolve(&serialized_salt),
@@ -246,7 +248,9 @@ pub async fn sha256Pad(data: JsValue, max_sha_bytes: usize) -> Promise {
         // Safe conversion of JsValue to Vec<u8>
         let data_vec: Vec<u8> = match from_value(data) {
             Ok(vec) => vec,
-            Err(e) => return Err(format!("Failed to convert input data: {}", e)),
+            Err(e) => {
+                return Err(format!("Failed to convert input data: {}", e));
+            }
         };
 
         // Validate input size
@@ -428,7 +432,9 @@ pub async fn extractRandFromSignature(signautre: Vec<u8>) -> Promise {
 
     let cm_rand = match extract_rand_from_signature(&signautre) {
         Ok(field) => field,
-        Err(_) => return Promise::reject(&JsValue::from_str("Failed to extract randomness")),
+        Err(_) => {
+            return Promise::reject(&JsValue::from_str("Failed to extract randomness"));
+        }
     };
     match to_value(&field_to_hex(&cm_rand)) {
         Ok(serialized_rand) => Promise::resolve(&serialized_rand),
@@ -457,7 +463,9 @@ pub async fn emailAddrCommitWithSignature(email_addr: String, signautre: Vec<u8>
     let padded_email_addr = PaddedEmailAddr::from_email_addr(&email_addr);
     let cm = match padded_email_addr.to_commitment_with_signature(&signautre) {
         Ok(cm) => cm,
-        Err(_) => return Promise::reject(&JsValue::from_str("Failed to commit email address")),
+        Err(_) => {
+            return Promise::reject(&JsValue::from_str("Failed to commit email address"));
+        }
     };
 
     match to_value(&field_to_hex(&cm)) {
@@ -485,7 +493,9 @@ pub async fn bytesToFields(bytes: JsValue) -> Promise {
 
     let bytes: Vec<u8> = match from_value(bytes) {
         Ok(bytes) => bytes,
-        Err(_) => return Promise::reject(&JsValue::from_str("Failed to convert input to bytes")),
+        Err(_) => {
+            return Promise::reject(&JsValue::from_str("Failed to convert input to bytes"));
+        }
     };
     let fields = bytes_to_fields(&bytes)
         .into_iter()
@@ -563,4 +573,68 @@ pub fn extractInvitationCodeWithPrefixIdxes(inputStr: &str) -> Result<Array, JsV
 #[cfg(target_arch = "wasm32")]
 pub fn verifySp1Proof(proof: &[u8], public_inputs: &[u8], sp1_vk_hash: &str) -> bool {
     Groth16Verifier::verify(proof, public_inputs, sp1_vk_hash, *GROTH16_VK_BYTES).is_ok()
+}
+
+#[wasm_bindgen]
+#[allow(non_snake_case)]
+#[cfg(target_arch = "wasm32")]
+/// Generates Noir circuit inputs including regex and external inputs, exposed to WASM.
+///
+/// # Arguments
+///
+/// * `email` - A `String` representing the raw email data.
+/// * `regex_inputs_js` - A `JsValue` representing a `Vec<RegexInput>`.
+/// * `external_inputs_js` - A `JsValue` representing a `Vec<ExternalInput>`.
+/// * `params_js` - A `JsValue` representing `CircuitInputWithDecomposedRegexesAndExternalInputsParams`.
+///
+/// # Returns
+///
+/// A `Promise` that resolves with the serialized JSON `Value` of the circuit inputs or rejects with an error message.
+pub async fn generateNoirCircuitInputsWithRegexesAndExternalInputs(
+    email: String,
+    regex_inputs_js: JsValue,
+    external_inputs_js: JsValue,
+    params_js: JsValue,
+) -> Promise {
+    console_error_panic_hook::set_once();
+
+    let future = async move {
+        // Deserialize inputs from JsValue
+        let regex_inputs: Vec<RegexInput> = from_value(regex_inputs_js).map_err(|e| {
+            JsValue::from_str(&format!("Failed to deserialize regex_inputs: {}", e))
+        })?;
+        let external_inputs: Vec<ExternalInput> = from_value(external_inputs_js).map_err(|e| {
+            JsValue::from_str(&format!("Failed to deserialize external_inputs: {}", e))
+        })?;
+        let params: CircuitInputWithDecomposedRegexesAndExternalInputsParams =
+            from_value(params_js)
+                .map_err(|e| JsValue::from_str(&format!("Failed to deserialize params: {}", e)))?;
+
+        // Call the original async Rust function
+        let circuit_inputs_result = generate_noir_circuit_inputs_with_regexes_and_external_inputs(
+            &email,
+            regex_inputs,
+            external_inputs,
+            params,
+        )
+        .await;
+
+        match circuit_inputs_result {
+            Ok(circuit_inputs) => {
+                // Serialize the successful result (serde_json::Value) to JsValue
+                to_value(&circuit_inputs)
+                    .map_err(|e| JsValue::from_str(&format!("Failed to serialize result: {}", e)))
+            }
+            Err(err) => {
+                // Propagate the error from the Rust function
+                Err(JsValue::from_str(&format!(
+                    "Failed to generate circuit inputs: {}",
+                    err
+                )))
+            }
+        }
+    };
+
+    // Convert the Rust future into a JavaScript Promise
+    future_to_promise(async { future.await })
 }

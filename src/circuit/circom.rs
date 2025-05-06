@@ -1,18 +1,20 @@
-use anyhow::{anyhow, Result};
-use num_bigint::BigInt;
-use regex::Regex;
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::{cmp, collections::VecDeque};
+use std::collections::VecDeque;
 use zk_regex_apis::extract_substrs::{
     extract_substr_idxes, DecomposedRegexConfig, RegexPartConfig,
 };
 
 use crate::{
-    field_to_hex, find_index_in_body, generate_partial_sha, hex_to_u256,
-    remove_quoted_printable_soft_breaks, sha256_pad, string_to_circom_bigint_bytes,
-    to_circom_bigint_bytes, vec_u8_to_bigint, AccountCode, PaddedEmailAddr, ParsedEmail,
-    MAX_BODY_PADDED_BYTES, MAX_HEADER_PADDED_BYTES,
+    field_to_hex, find_index_in_body, hex_to_u256, remove_quoted_printable_soft_breaks,
+    string_to_circom_bigint_bytes, vec_u8_to_bigint, AccountCode, PaddedEmailAddr, ParsedEmail,
+};
+
+use super::{
+    generate_circuit_inputs, CircuitInputParams,
+    CircuitInputWithDecomposedRegexesAndExternalInputsParams, CircuitOptions, CircuitParams,
+    ExternalInput,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -52,53 +54,6 @@ struct ClaimCircuitInput {
     account_code: String, // The account code as a string
 }
 
-struct CircuitInput {
-    pub header_padded: Vec<u8>, // The padded version of the email header
-    pub pubkey: Vec<String>,    // The public key in string format
-    pub signature: Vec<String>, // The signature in string format
-    pub header_len_padded_bytes: usize, // The length of the padded header in bytes
-    pub precomputed_sha: Option<Vec<u8>>, // The precomputed SHA-256 hash of the body, if present
-    pub body_padded: Option<Vec<u8>>, // The padded version of the email body, if present
-    pub body_len_padded_bytes: Option<usize>, // The length of the padded body in bytes, if present
-    pub body_hash_idx: Option<usize>, // The index in header where the body hash is stored
-}
-
-#[derive(Debug, Clone)]
-pub struct CircuitInputParams {
-    body: Vec<u8>,                           // The email body in bytes
-    header: Vec<u8>,                         // The email header in bytes
-    body_hash_idx: usize,                    // The index of the body hash within the circuit
-    rsa_signature: BigInt,                   // The RSA signature as a BigInt
-    rsa_public_key: BigInt,                  // The RSA public key as a BigInt
-    sha_precompute_selector: Option<String>, // Regex Selector for SHA-256 precomputation
-    max_header_length: usize,                // The maximum length of the email header
-    max_body_length: usize,                  // The maximum length of the email body
-    ignore_body_hash_check: bool,            // Flag to ignore the body hash check
-}
-
-pub struct CircuitParams {
-    pub body: Vec<u8>,          // The email body in bytes
-    pub header: Vec<u8>,        // The email header in bytes
-    pub body_hash_idx: usize,   // The index of the body hash in the header
-    pub rsa_signature: BigInt,  // The RSA signature as a BigInt
-    pub rsa_public_key: BigInt, // The RSA public key as a BigInt
-}
-
-pub struct CircuitOptions {
-    pub sha_precompute_selector: Option<String>, // Selector for SHA-256 precomputation
-    pub max_header_length: Option<usize>,        // The maximum length of the email header
-    pub max_body_length: Option<usize>,          // The maximum length of the email body
-    pub ignore_body_hash_check: Option<bool>,    // Flag to ignore the body hash check
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ExternalInput {
-    pub name: String,          // The name of the external input
-    pub value: Option<String>, // The optional value of the external input
-    pub max_length: usize,     // The maximum length of the input value
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DecomposedRegex {
@@ -106,225 +61,6 @@ pub struct DecomposedRegex {
     pub name: String,                // The name of the decomposed regex
     pub max_length: usize,           // The maximum length of the regex match
     pub location: String, // The location where the regex is applied (e.g., header or body)
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct CircuitInputWithDecomposedRegexesAndExternalInputsParams {
-    pub prover_eth_address: Option<String>, // The Ethereum address of the prover
-    pub max_header_length: usize,           // The maximum length of the email header
-    pub max_body_length: usize,             // The maximum length of the email body
-    pub ignore_body_hash_check: bool,       // Flag to ignore the body hash check
-    pub remove_soft_lines_breaks: bool,     // Flag to remove soft line breaks from the body
-    pub sha_precompute_selector: Option<String>, // Optional regex selector for SHA-256 precomputation
-}
-
-impl CircuitInputParams {
-    /// Creates a new `CircuitInputParams` instance with provided parameters and options.
-    ///
-    /// # Arguments
-    ///
-    /// * `params` - A `CircuitParams` struct containing:
-    ///   * `body`: A vector of bytes representing the email body.
-    ///   * `header`: A vector of bytes representing the email header.
-    ///   * `body_hash_idx`: The index of the body hash within the circuit.
-    ///   * `rsa_signature`: The RSA signature as a BigInt.
-    ///   * `rsa_public_key`: The RSA public key as a BigInt.
-    ///
-    /// * `options` - A `CircuitOptions` struct containing optional parameters:
-    ///   * `sha_precompute_selector`: Selector for SHA-256 precomputation.
-    ///   * `max_header_length`: Maximum length of the email header, with a default value if not provided.
-    ///   * `max_body_length`: Maximum length of the email body, with a default value if not provided.
-    ///   * `ignore_body_hash_check`: Flag to ignore the body hash check, defaults to false if not provided.
-    ///
-    /// # Returns
-    ///
-    /// A `CircuitInputParams` instance with the specified parameters and options applied.
-    pub fn new(params: CircuitParams, options: CircuitOptions) -> Self {
-        CircuitInputParams {
-            body: params.body,
-            header: params.header,
-            body_hash_idx: params.body_hash_idx,
-            rsa_signature: params.rsa_signature,
-            rsa_public_key: params.rsa_public_key,
-            sha_precompute_selector: options.sha_precompute_selector,
-            // Use the provided max_header_length or default to MAX_HEADER_PADDED_BYTES
-            max_header_length: options.max_header_length.unwrap_or(MAX_HEADER_PADDED_BYTES),
-            // Use the provided max_body_length or default to MAX_BODY_PADDED_BYTES
-            max_body_length: options.max_body_length.unwrap_or(MAX_BODY_PADDED_BYTES),
-            // Use the provided ignore_body_hash_check or default to false
-            ignore_body_hash_check: options.ignore_body_hash_check.unwrap_or(false),
-        }
-    }
-}
-
-/// Finds a selector string in cleaned content and maps it back to its original position.
-///
-/// # Arguments
-/// * `clean_content` - The cleaned content as a slice of bytes (no QP soft line breaks).
-/// * `selector` - The string to find in the cleaned content.
-/// * `position_map` - A slice mapping cleaned indices to original indices.
-///                    For each i, `position_map[i]` is the index in `original_body` where that cleaned byte originated.
-///                    If `position_map[i]` is `usize::MAX`, that cleaned position has no corresponding original position.
-///
-/// # Returns
-/// A tuple containing `(selector, original_index)`.
-///
-/// # Errors
-/// Returns an error if the selector is not found in the cleaned content or if the position mapping fails.
-fn find_selector_in_clean_content(
-    clean_content: &[u8],
-    selector: &str,
-    position_map: &[usize],
-) -> Result<(String, usize, usize)> {
-    let clean_string = String::from_utf8_lossy(clean_content);
-    let re = Regex::new(selector).unwrap();
-    if let Some(m) = re.find(&clean_string) {
-        let selector_start_index = m.start();
-        let selector_end_index = m.end();
-        // Map this cleaned index back to original
-        if selector_start_index < position_map.len() && selector_end_index < position_map.len() {
-            let original_start_index = position_map[selector_start_index];
-            let original_end_index = position_map[selector_end_index];
-            if original_start_index == usize::MAX || original_end_index == usize::MAX {
-                return Err(anyhow!("Failed to map selector position to original body"));
-            }
-            Ok((
-                selector.to_string(),
-                original_start_index,
-                original_end_index,
-            ))
-        } else {
-            Err(anyhow!("Selector index out of range in position map"))
-        }
-    } else {
-        Err(anyhow!(
-            "SHA precompute selector \"{}\" not found in cleaned body",
-            selector
-        ))
-    }
-}
-
-/// Gets the adjusted selector string that accounts for potential soft line breaks in QP encoding.
-/// If the selector exists in the original body, returns it as-is. Otherwise, finds it in cleaned
-/// content and maps it back to the original format, including any soft line breaks.
-///
-/// # Arguments
-/// * `original_body` - The original body as a slice of bytes, possibly containing QP soft line breaks.
-/// * `selector` - The string to find in the content.
-/// * `clean_content` - The cleaned content with soft line breaks removed.
-/// * `position_map` - The index mapping from cleaned content to original content.
-///
-/// # Returns
-/// The adjusted selector string that matches the original body format.
-///
-/// # Errors
-/// Returns an error if the selector cannot be found in either the original or cleaned content.
-fn get_adjusted_selector(
-    original_body: &[u8],
-    selector: &str,
-    clean_content: &[u8],
-    position_map: &[usize],
-) -> Result<String> {
-    let original_str = String::from_utf8_lossy(original_body);
-
-    // First, try finding the selector in the original body as-is
-    if original_str.contains(selector) {
-        return Ok(selector.to_string());
-    }
-
-    // If not found, we must find it in the cleaned content and map back to original
-    let (_, original_start_index, original_end_index) =
-        find_selector_in_clean_content(clean_content, selector, position_map)?;
-
-    // Retrieve the substring from the original body that corresponds to the found selector
-    let adjusted_slice = &original_body[original_start_index..original_end_index];
-
-    // Convert back to a string. If invalid UTF-8, use lossy conversion.
-    let adjusted_str = regex::escape(&String::from_utf8_lossy(adjusted_slice));
-    Ok(adjusted_str.to_string())
-}
-
-/// Generates the inputs for the circuit from the given parameters.
-///
-/// This function takes `CircuitInputParams` which includes the email body and header,
-/// RSA signature and public key, and other optional parameters. It processes these
-/// inputs to create a `CircuitInput` struct which is used in the zero-knowledge proof
-/// circuit.
-///
-/// # Arguments
-///
-/// * `params` - A `CircuitInputParams` struct containing the necessary parameters.
-///
-/// # Returns
-///
-/// A `Result` which is either a `CircuitInput` struct on success or an error on failure.
-///
-/// # Panics
-///
-/// This function panics if the partial SHA-256 generation fails.
-fn generate_circuit_inputs(params: CircuitInputParams) -> Result<CircuitInput> {
-    // Pad the header to the specified maximum length or the default
-    let (header_padded, header_padded_len) =
-        sha256_pad(params.header.clone(), params.max_header_length);
-
-    // Initialize the circuit input with the padded header and RSA information
-    let mut circuit_input = CircuitInput {
-        header_padded,
-        pubkey: to_circom_bigint_bytes(params.rsa_public_key),
-        signature: to_circom_bigint_bytes(params.rsa_signature),
-        header_len_padded_bytes: header_padded_len,
-        precomputed_sha: None,
-        body_padded: None,
-        body_len_padded_bytes: None,
-        body_hash_idx: None,
-    };
-
-    // If body hash check is not ignored, include the precomputed SHA and body information
-    if !params.ignore_body_hash_check {
-        // Calculate the length needed for SHA-256 padding of the body
-        let body_sha_length = ((params.body.len() + 63 + 65) / 64) * 64;
-        // Pad the body to the maximum length or the calculated SHA-256 padding length
-        let (body_padded, body_padded_len) = sha256_pad(
-            params.body.clone(),
-            cmp::max(params.max_body_length, body_sha_length),
-        );
-
-        let mut adjusted_selector = params.sha_precompute_selector;
-
-        if adjusted_selector.is_some() {
-            let (cleaned_body, position_map) =
-                remove_quoted_printable_soft_breaks(body_padded.clone());
-            adjusted_selector = Some(get_adjusted_selector(
-                &params.body,
-                &adjusted_selector.as_ref().unwrap(),
-                &cleaned_body,
-                &position_map,
-            )?);
-        }
-
-        // Ensure that the error type returned by `generate_partial_sha` is sized
-        // by converting it into an `anyhow::Error` if it's not already.
-        let result = generate_partial_sha(
-            body_padded,
-            body_padded_len,
-            adjusted_selector,
-            params.max_body_length,
-        );
-
-        // Use match to handle the result and convert any error into an anyhow::Error
-        let (precomputed_sha, body_remaining, body_remaining_length) = match result {
-            Ok((sha, remaining, len)) => (sha, remaining, len),
-            Err(e) => panic!("Failed to generate partial SHA: {:?}", e),
-        };
-
-        circuit_input.precomputed_sha = Some(precomputed_sha);
-        circuit_input.body_hash_idx = Some(params.body_hash_idx);
-        circuit_input.body_padded = Some(body_remaining);
-        circuit_input.body_len_padded_bytes = Some(body_remaining_length);
-    }
-
-    Ok(circuit_input)
 }
 
 /// Asynchronously generates the circuit input for an email.
@@ -572,7 +308,7 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
         .map(remove_quoted_printable_soft_breaks);
 
     // Add the cleaned body to the circuit inputs if soft line breaks are to be removed
-    if params.remove_soft_lines_breaks {
+    if params.remove_soft_line_breaks {
         if let Some((cleaned_body_vec, _)) = cleaned_body.clone() {
             circuit_inputs["decodedEmailBodyIn"] = cleaned_body_vec.into();
         }
@@ -590,7 +326,7 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
         // Determine the input string based on the regex location
         let input = if decomposed_regex.location == "header" {
             String::from_utf8_lossy(&email_circuit_inputs.header_padded.clone()).into_owned()
-        } else if decomposed_regex.location == "body" && params.remove_soft_lines_breaks {
+        } else if decomposed_regex.location == "body" && params.remove_soft_line_breaks {
             cleaned_body
                 .as_ref()
                 .map(|(v, _)| String::from_utf8_lossy(v).into_owned())
@@ -707,7 +443,7 @@ mod tests {
                 max_body_length: 2816,
                 max_header_length: 1024,
                 ignore_body_hash_check: false,
-                remove_soft_lines_breaks: true,
+                remove_soft_line_breaks: true,
                 sha_precompute_selector: None,
                 prover_eth_address: Some("0x9401296121FC9B78F84fc856B1F8dC88f4415B2e".to_string()),
             },
@@ -773,7 +509,7 @@ mod tests {
                 max_body_length: 2816,
                 max_header_length: 1024,
                 ignore_body_hash_check: false,
-                remove_soft_lines_breaks: true,
+                remove_soft_line_breaks: true,
                 sha_precompute_selector: None,
                 prover_eth_address: Some("0x9401296121FC9B78F84fc856B1F8dC88f4415B2e".to_string()),
             },
@@ -846,7 +582,7 @@ mod tests {
                 max_body_length: 3136,
                 max_header_length: 1024,
                 ignore_body_hash_check: false,
-                remove_soft_lines_breaks: true,
+                remove_soft_line_breaks: true,
                 sha_precompute_selector: Some(">Not my account<".to_string()),
                 prover_eth_address: Some("0x9401296121FC9B78F84fc856B1F8dC88f4415B2e".to_string()),
             },
@@ -1000,7 +736,7 @@ mod tests {
                 max_body_length: 0,
                 max_header_length: 1024,
                 ignore_body_hash_check: true,
-                remove_soft_lines_breaks: true,
+                remove_soft_line_breaks: true,
                 sha_precompute_selector: None,
                 prover_eth_address: Some("0x9401296121FC9B78F84fc856B1F8dC88f4415B2e".to_string()),
             },
