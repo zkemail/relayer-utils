@@ -246,7 +246,7 @@ pub async fn generate_noir_circuit_inputs_with_regexes_and_external_inputs(
                 if let Some(capture_group_ids) = noir_inputs.capture_group_ids {
                     for (i, id) in capture_group_ids.iter().enumerate() {
                         circuit_inputs
-                            [format!("{}_capture_group_{}_ids", regex_input.name, i + 1)] =
+                            [format!("{}_capture_group_{}_id", regex_input.name, i + 1)] =
                             serde_json::Value::Array(
                                 id.iter()
                                     .map(|s| serde_json::Value::Number((*s as u64).into()))
@@ -257,7 +257,7 @@ pub async fn generate_noir_circuit_inputs_with_regexes_and_external_inputs(
                     if let Some(capture_group_starts) = noir_inputs.capture_group_starts {
                         for (i, start) in capture_group_starts.iter().enumerate() {
                             circuit_inputs
-                                [format!("{}_capture_group_{}_starts", regex_input.name, i + 1)] =
+                                [format!("{}_capture_group_{}_start", regex_input.name, i + 1)] =
                                 serde_json::Value::Array(
                                     start
                                         .iter()
