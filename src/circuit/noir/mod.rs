@@ -270,7 +270,7 @@ pub async fn generate_noir_circuit_inputs_with_regexes_and_external_inputs(
                     }
 
                     if let Some(capture_group_indices) = noir_inputs.capture_group_start_indices {
-                        circuit_inputs[format!("{}_capture_groups_indices", regex_input.name)] =
+                        circuit_inputs[format!("{}_capture_group_start_indices", regex_input.name)] =
                             serde_json::Value::Array(
                                 capture_group_indices
                                     .iter()
