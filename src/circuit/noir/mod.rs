@@ -244,22 +244,27 @@ pub async fn generate_noir_circuit_inputs_with_regexes_and_external_inputs(
 
                 // Add capture group fields if they exist
                 if let Some(capture_group_ids) = noir_inputs.capture_group_ids {
-                    circuit_inputs[format!("{}_capture_groups_ids", regex_input.name)] =
-                        serde_json::Value::Array(
-                            capture_group_ids
-                                .iter()
-                                .map(|s| serde_json::Value::Number((*s as u64).into()))
-                                .collect(),
-                        );
-
-                    if let Some(capture_group_starts) = noir_inputs.capture_group_starts {
-                        circuit_inputs[format!("{}_capture_groups_starts", regex_input.name)] =
+                    for (i, id) in capture_group_ids.iter().enumerate() {
+                        circuit_inputs
+                            [format!("{}_capture_group_{}_ids", regex_input.name, i + 1)] =
                             serde_json::Value::Array(
-                                capture_group_starts
-                                    .iter()
+                                id.iter()
                                     .map(|s| serde_json::Value::Number((*s as u64).into()))
                                     .collect(),
                             );
+                    }
+
+                    if let Some(capture_group_starts) = noir_inputs.capture_group_starts {
+                        for (i, start) in capture_group_starts.iter().enumerate() {
+                            circuit_inputs
+                                [format!("{}_capture_group_{}_starts", regex_input.name, i + 1)] =
+                                serde_json::Value::Array(
+                                    start
+                                        .iter()
+                                        .map(|s| serde_json::Value::Number((*s as u64).into()))
+                                        .collect(),
+                                );
+                        }
                     } else {
                         return Err(anyhow::anyhow!("Capture group starts are missing"));
                     }
