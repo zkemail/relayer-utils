@@ -4,10 +4,24 @@ const path = require('path');
 const pkgDir = path.join(__dirname, 'pkg');
 const wasmFile = path.join(pkgDir, 'relayer_utils_bg.wasm');
 const jsFile = path.join(pkgDir, 'relayer_utils.js');
+const mjsFile = path.join(pkgDir, 'relayer_utils.mjs');
+const cjsFile = path.join(pkgDir, 'relayer_utils.cjs');
+const bgJsFile = path.join(pkgDir, 'relayer_utils_bg.js');
+const bgCjsFile = path.join(pkgDir, 'relayer_utils_bg.cjs');
 const typesFile = path.join(pkgDir, 'relayer_utils.d.ts');
 const packageJsonFile = path.join(pkgDir, 'package.json');
 
 const wasmBase64 = fs.readFileSync(wasmFile).toString('base64');
+
+// First, let's convert the background JS file to CommonJS format
+let bgJsCode = fs.readFileSync(bgJsFile, 'utf8');
+const bgCjsCode = bgJsCode
+  .replace(/export function/g, 'function')
+  .replace(/export const/g, 'const')
+  .replace(/export class/g, 'class')
+  .replace(/export { (.*) };/g, 'module.exports = { $1 };');
+
+fs.writeFileSync(bgCjsFile, bgCjsCode);
 
 let jsCode = fs.readFileSync(jsFile, 'utf8');
 
@@ -17,8 +31,8 @@ jsCode = jsCode.replace(
   ''
 );
 
-// Insert code to instantiate the wasm module from the base64 string
-const wasmInitCode = `
+// Insert code to instantiate the wasm module from the base64 string for ESM
+const wasmInitCodeESM = `
 import * as wasm_bindgen from "./relayer_utils_bg.js";
 import { __wbg_set_wasm } from "./relayer_utils_bg.js";
 
@@ -51,40 +65,85 @@ export { init };
 export * from "./relayer_utils_bg.js";
 `;
 
-jsCode = wasmInitCode;
+// CommonJS version
+const wasmInitCodeCJS = `
+const wasm_bindgen = require("./relayer_utils_bg.cjs");
+const { __wbg_set_wasm } = wasm_bindgen;
 
-// Write the modified JavaScript code back to relayer_utils.js
-fs.writeFileSync(jsFile, jsCode);
+const wasmBase64 = '${wasmBase64}';
+// Don't use Buffer for browser compatibility
+// Decode the base64 string into a binary string
+const binaryString = Buffer.from(wasmBase64, 'base64').toString('binary');
+
+// Convert the binary string into a Uint8Array
+const wasmBytes = new Uint8Array(binaryString.length);
+for (let i = 0; i < binaryString.length; i++) {
+    wasmBytes[i] = binaryString.charCodeAt(i);
+}
+
+let wasm;
+
+async function init() {
+  const imports = {};
+  imports['./relayer_utils_bg.js'] = wasm_bindgen;
+
+  const wasmModule = await WebAssembly.instantiate(wasmBytes, imports);
+  wasm = wasmModule.instance.exports;
+  __wbg_set_wasm(wasm);
+  if (wasm.__wbindgen_start) {
+    wasm.__wbindgen_start();
+  }
+}
+
+module.exports = {
+  init,
+  ...wasm_bindgen
+};
+`;
+
+// Write ESM version
+fs.writeFileSync(mjsFile, wasmInitCodeESM);
+
+// Write CommonJS version
+fs.writeFileSync(cjsFile, wasmInitCodeCJS);
 
 const packageJsonBase = fs.readFileSync(path.join(__dirname, 'package.json')).toString();
 const packageJsonBaseParsed = JSON.parse(packageJsonBase);
 
-const packageJson = `
-  {
-    "name": "${packageJsonBaseParsed.name}",
-    "type": "module",
-    "collaborators": [
-      "Sora Suegami",
-      "Aditya Bisht"
-    ],
-    "version": "${packageJsonBaseParsed.version}",
-    "license": "MIT",
-    "files": [
-      "relayer_utils_bg.wasm",
-      "relayer_utils.js",
-      "relayer_utils_bg.js",
-      "relayer_utils.d.ts"
-    ],
-    "main": "relayer_utils.js",
-    "types": "relayer_utils.d.ts",
-    "sideEffects": [
-      "./relayer_utils.js",
-      "./snippets/*"
-    ]
-  }
-`
+const packageJson = {
+  name: packageJsonBaseParsed.name,
+  collaborators: [
+    "Sora Suegami",
+    "Aditya Bisht"
+  ],
+  version: packageJsonBaseParsed.version,
+  license: "MIT",
+  files: [
+    "relayer_utils_bg.wasm",
+    "relayer_utils.js",
+    "relayer_utils_bg.js",
+    "relayer_utils_bg.cjs",
+    "relayer_utils.d.ts",
+    "relayer_utils.cjs",
+    "relayer_utils.mjs"
+  ],
+  main: "./relayer_utils.cjs",
+  module: "./relayer_utils.mjs",
+  types: "./relayer_utils.d.ts",
+  exports: {
+    ".": {
+      "require": "./relayer_utils.cjs",
+      "import": "./relayer_utils.mjs",
+      "types": "./relayer_utils.d.ts"
+    }
+  },
+  sideEffects: [
+    "./relayer_utils.js",
+    "./snippets/*"
+  ]
+};
 
-fs.writeFileSync(packageJsonFile, packageJson);
+fs.writeFileSync(packageJsonFile, JSON.stringify(packageJson, null, 2));
 
 let typesCode = fs.readFileSync(typesFile, 'utf8');
 typesCode += `/**
