@@ -10,7 +10,7 @@ use serde_json::Value;
 
 use zk_regex_compiler::{gen_circuit_inputs, NFAGraph, ProverInputs};
 
-use crate::{remove_quoted_printable_soft_breaks, vec_u8_to_bigint, ParsedEmail};
+use crate::{remove_quoted_printable_soft_breaks, string_to_circom_bigint_bytes, vec_u8_to_bigint, ParsedEmail};
 
 use super::{
     generate_circuit_inputs, CircuitInputParams,
@@ -200,11 +200,27 @@ pub async fn generate_noir_circuit_inputs_with_regexes_and_external_inputs(
 
     // Process external inputs and add them to the circuit inputs
     for external_input in external_inputs {
-        let value = match &external_input.value {
-            Some(val) => serde_json::Value::Array(vec![serde_json::Value::String(val.clone())]),
-            None => serde_json::Value::Null,
-        };
-        circuit_inputs[external_input.name] = value;
+        // Use the existing utility function to convert the string to a Vec<String> of byte values
+        let mut value_as_byte_strings =
+            string_to_circom_bigint_bytes(&external_input.value.as_deref().unwrap_or(""))?;
+
+        let target_len = external_input.max_length;
+
+        // Pad the Vec<String> with "0" strings if it's shorter than the target length
+        if value_as_byte_strings.len() < target_len {
+            value_as_byte_strings.extend(
+                std::iter::repeat("0".to_string()).take(target_len - value_as_byte_strings.len()),
+            );
+        }
+
+        // Convert the Vec<String> to a serde_json::Value::Array of serde_json::Value::String
+        let json_value_array = serde_json::Value::Array(
+            value_as_byte_strings
+                .into_iter()
+                .map(serde_json::Value::String)
+                .collect(),
+        );
+        circuit_inputs[external_input.name] = json_value_array;
     }
 
     // Process each regex input
@@ -270,7 +286,8 @@ pub async fn generate_noir_circuit_inputs_with_regexes_and_external_inputs(
                     }
 
                     if let Some(capture_group_indices) = noir_inputs.capture_group_start_indices {
-                        circuit_inputs[format!("{}_capture_group_start_indices", regex_input.name)] =
+                        circuit_inputs
+                            [format!("{}_capture_group_start_indices", regex_input.name)] =
                             serde_json::Value::Array(
                                 capture_group_indices
                                     .iter()
