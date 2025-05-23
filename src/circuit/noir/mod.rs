@@ -10,10 +10,13 @@ use serde_json::Value;
 
 use zk_regex_compiler::{gen_circuit_inputs, NFAGraph, ProverInputs};
 
-use crate::{remove_quoted_printable_soft_breaks, string_to_circom_bigint_bytes, vec_u8_to_bigint, ParsedEmail};
+use crate::{
+    remove_quoted_printable_soft_breaks, string_to_circom_bigint_bytes, vec_u8_to_bigint,
+    ParsedEmail,
+};
 
 use super::{
-    generate_circuit_inputs, CircuitInputParams,
+    compute_signal_length, generate_circuit_inputs, CircuitInputParams,
     CircuitInputWithDecomposedRegexesAndExternalInputsParams, CircuitOptions, CircuitParams,
     ExternalInput,
 };
@@ -204,12 +207,13 @@ pub async fn generate_noir_circuit_inputs_with_regexes_and_external_inputs(
         let mut value_as_byte_strings =
             string_to_circom_bigint_bytes(&external_input.value.as_deref().unwrap_or(""))?;
 
-        let target_len = external_input.max_length;
+        let signal_length = compute_signal_length(external_input.max_length);
 
         // Pad the Vec<String> with "0" strings if it's shorter than the target length
-        if value_as_byte_strings.len() < target_len {
+        if value_as_byte_strings.len() < signal_length {
             value_as_byte_strings.extend(
-                std::iter::repeat("0".to_string()).take(target_len - value_as_byte_strings.len()),
+                std::iter::repeat("0".to_string())
+                    .take(signal_length - value_as_byte_strings.len()),
             );
         }
 
