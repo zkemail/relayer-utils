@@ -126,12 +126,7 @@ pub async fn generate_noir_circuit_input(
             noir_circuit_input.partial_body_real_length =
                 Some(parsed_email.canonicalized_body.len());
             let partial_hash = u8_to_u32(email_circuit_inputs.precomputed_sha.unwrap().as_slice())?;
-            // Convert Vec<u32> to Vec<u8> by flattening each u32 into 4 bytes
-            let partial_hash_bytes: Vec<u8> = partial_hash
-                .iter()
-                .flat_map(|&n| n.to_be_bytes().to_vec())
-                .collect();
-            noir_circuit_input.partial_body_hash = Some(partial_hash_bytes);
+            noir_circuit_input.partial_body_hash = Some(partial_hash);
         }
 
         if params.header_mask.is_some() {

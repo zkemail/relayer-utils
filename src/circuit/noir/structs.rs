@@ -28,7 +28,7 @@ pub struct NoirCircuitInputs {
     pub body: Option<BoundedVec>,
     pub body_hash_index: Option<usize>,
     pub partial_body_real_length: Option<usize>,
-    pub partial_body_hash: Option<Vec<u8>>,
+    pub partial_body_hash: Option<Vec<u32>>,
     pub header_mask: Option<Vec<u8>>,
     pub body_mask: Option<Vec<u8>>,
     pub decoded_body: Option<BoundedVec>,
