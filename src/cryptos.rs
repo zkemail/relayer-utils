@@ -720,6 +720,7 @@ async fn fetch_public_keys(email_headers: EmailHeaders) -> Result<(serde_json::V
     // Extract From header with better error handling
     let from_headers = email_headers
         .get_header("From")
+        .or_else(|| email_headers.get_header("from"))
         .ok_or_else(|| anyhow::anyhow!("From header not found"))?;
 
     if from_headers.is_empty() {

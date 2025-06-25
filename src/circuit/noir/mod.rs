@@ -103,24 +103,22 @@ pub async fn generate_noir_circuit_input(
         to_address_sequence: None,
     };
 
-    if params
-        .ignore_body_hash_check
-        .is_some_and(|ignore_body_hash_check| !ignore_body_hash_check)
-    {
-        if email_circuit_inputs.body_padded.as_ref().is_none()
-            || email_circuit_inputs.body_hash_idx.is_none()
-        {
-            return Err(anyhow::anyhow!(
-                "Body hash check is enabled but body or body hash index is missing"
-            ));
-        }
+    if email_circuit_inputs.body_padded.is_some() {
+        let body_padded = email_circuit_inputs.body_padded.clone().unwrap();
 
-        // Create the BoundedVec for the body
-        noir_circuit_input.body = Some(BoundedVec {
-            storage: email_circuit_inputs.body_padded.clone().unwrap(),
-            len: parsed_email.canonicalized_body.as_bytes().len(),
-        });
-        noir_circuit_input.body_hash_index = email_circuit_inputs.body_hash_idx;
+        if params.ignore_body_hash_check.is_some_and(|x| !x) {
+            if email_circuit_inputs.body_hash_idx.is_none() {
+                return Err(anyhow::anyhow!(
+                    "Body hash check is enabled but body hash index is missing"
+                ));
+            }
+
+            noir_circuit_input.body = Some(BoundedVec {
+                storage: body_padded.clone(),
+                len: parsed_email.canonicalized_body.as_bytes().len(),
+            });
+            noir_circuit_input.body_hash_index = email_circuit_inputs.body_hash_idx;
+        }
 
         if params.sha_precompute_selector.is_some() {
             noir_circuit_input.partial_body_real_length =
@@ -129,25 +127,21 @@ pub async fn generate_noir_circuit_input(
             noir_circuit_input.partial_body_hash = Some(partial_hash);
         }
 
-        if params.header_mask.is_some() {
-            noir_circuit_input.header_mask = params.header_mask;
-        }
-
         if params.body_mask.is_some() {
             noir_circuit_input.body_mask = params.body_mask;
         }
 
-        if params
-            .remove_soft_line_breaks
-            .is_some_and(|remove_soft_line_breaks| remove_soft_line_breaks)
-        {
-            let (cleaned_body, index_map) =
-                remove_quoted_printable_soft_breaks(email_circuit_inputs.body_padded.unwrap());
+        if params.remove_soft_line_breaks.is_some_and(|x| x) {
+            let (cleaned_body, index_map) = remove_quoted_printable_soft_breaks(body_padded);
             noir_circuit_input.decoded_body = Some(BoundedVec {
                 storage: cleaned_body,
                 len: index_map.len(),
             });
         }
+    }
+
+    if params.header_mask.is_some() {
+        noir_circuit_input.header_mask = params.header_mask;
     }
 
     if params.extract_from.is_some_and(|extract_from| extract_from) {
