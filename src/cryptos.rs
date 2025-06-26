@@ -512,6 +512,7 @@ pub fn generate_partial_sha(
     // Calculate the cutoff index for SHA-256 block size (64 bytes)
     let sha_cutoff_index = (selector_index / 64) * 64;
     let precompute_text = &body[..sha_cutoff_index];
+    // Will be padded to max_remaining_body_length
     let mut body_remaining = body[sha_cutoff_index..].to_vec();
 
     let body_remaining_length = body_length - precompute_text.len();

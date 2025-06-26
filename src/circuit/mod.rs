@@ -36,7 +36,7 @@ struct CircuitInput {
     pub header_len_padded_bytes: usize, // The length of the padded header in bytes
     pub precomputed_sha: Option<Vec<u8>>, // The precomputed SHA-256 hash of the body, if present
     pub body_padded: Option<Vec<u8>>, // The padded version of the email body, if present
-    pub body_len_padded_bytes: Option<usize>, // The length of the padded body in bytes, if present
+    pub body_len: Option<usize>, // The length of the padded body in bytes, if present
     pub body_hash_idx: Option<usize>, // The index in header where the body hash is stored
 }
 
@@ -144,7 +144,7 @@ fn generate_circuit_inputs(params: CircuitInputParams) -> Result<CircuitInput> {
         header_len_padded_bytes: header_padded_len,
         precomputed_sha: None,
         body_padded: None,
-        body_len_padded_bytes: None,
+        body_len: None,
         body_hash_idx: None,
     };
 
@@ -152,8 +152,8 @@ fn generate_circuit_inputs(params: CircuitInputParams) -> Result<CircuitInput> {
     if !params.ignore_body_hash_check {
         // Calculate the length needed for SHA-256 padding of the body
         let body_sha_length = ((params.body.len() + 63 + 65) / 64) * 64;
-        // Pad the body to the maximum length or the calculated SHA-256 padding length
-        let (body_padded, body_padded_len) = sha256_pad(
+        // Pad the body to accommodate both SHA-256 requirements and maximum length constraints
+        let (body_padded, body_sha_block_len) = sha256_pad(
             params.body.clone(),
             cmp::max(params.max_body_length, body_sha_length),
         );
@@ -175,21 +175,21 @@ fn generate_circuit_inputs(params: CircuitInputParams) -> Result<CircuitInput> {
         // by converting it into an `anyhow::Error` if it's not already.
         let result = generate_partial_sha(
             body_padded,
-            body_padded_len,
+            body_sha_block_len,
             adjusted_selector,
             params.max_body_length,
         );
 
         // Use match to handle the result and convert any error into an anyhow::Error
-        let (precomputed_sha, body_remaining, body_remaining_length) = match result {
+        let (precomputed_sha, body_remaining_padded, body_remaining_length) = match result {
             Ok((sha, remaining, len)) => (sha, remaining, len),
             Err(e) => panic!("Failed to generate partial SHA: {:?}", e),
         };
 
         circuit_input.precomputed_sha = Some(precomputed_sha);
         circuit_input.body_hash_idx = Some(params.body_hash_idx);
-        circuit_input.body_padded = Some(body_remaining);
-        circuit_input.body_len_padded_bytes = Some(body_remaining_length);
+        circuit_input.body_padded = Some(body_remaining_padded);
+        circuit_input.body_len = Some(body_remaining_length);
     }
 
     Ok(circuit_input)

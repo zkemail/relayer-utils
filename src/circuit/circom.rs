@@ -187,7 +187,7 @@ pub async fn generate_email_circuit_input(
         code_idx,
         padded_body: email_circuit_inputs.body_padded,
         body_hash_idx: email_circuit_inputs.body_hash_idx,
-        padded_body_len: email_circuit_inputs.body_len_padded_bytes,
+        padded_body_len: email_circuit_inputs.body_len,
         precomputed_sha: email_circuit_inputs.precomputed_sha,
         command_idx,
         padded_cleaned_body: padded_cleaned_body.map(|(cleaned_body, _)| cleaned_body),
@@ -298,7 +298,7 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
         circuit_inputs["bodyHashIndex"] = email_circuit_inputs.body_hash_idx.into();
         circuit_inputs["precomputedSHA"] = email_circuit_inputs.precomputed_sha.into();
         circuit_inputs["emailBody"] = email_circuit_inputs.body_padded.clone().into();
-        circuit_inputs["emailBodyLength"] = email_circuit_inputs.body_len_padded_bytes.into();
+        circuit_inputs["emailBodyLength"] = email_circuit_inputs.body_len.into();
     }
 
     // Clean the body by removing quoted-printable soft breaks if necessary

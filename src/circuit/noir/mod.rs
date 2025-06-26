@@ -125,6 +125,19 @@ pub async fn generate_noir_circuit_input(
                 Some(parsed_email.canonicalized_body.len());
             let partial_hash = u8_to_u32(email_circuit_inputs.precomputed_sha.unwrap().as_slice())?;
             noir_circuit_input.partial_body_hash = Some(partial_hash);
+
+            // Calculate remaining body length after SHA cutoff
+            // TODO: This will fail if the selector is not found in the body (i.e selector is without soflt line breaks).
+            let selector = params.sha_precompute_selector.unwrap();
+            let selector_bytes = selector.as_bytes();
+            let body_bytes = parsed_email.canonicalized_body.as_bytes();
+            let selector_index = body_bytes
+                .windows(selector_bytes.len())
+                .position(|window| window == selector_bytes)
+                .ok_or_else(|| anyhow::anyhow!("Selector not found in body"))?;
+            let sha_cutoff_index = (selector_index / 64) * 64;
+            let remaining_body_length = body_bytes.len() - sha_cutoff_index;
+            noir_circuit_input.body.as_mut().unwrap().len = remaining_body_length;
         }
 
         if params.body_mask.is_some() {
