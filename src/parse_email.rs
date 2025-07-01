@@ -336,10 +336,6 @@ pub fn remove_quoted_printable_soft_breaks(body: Vec<u8>) -> (Vec<u8>, Vec<usize
     // Pad the cleaned result with zeros to match the original length
     cleaned.resize(original_len, 0);
 
-    // Pad index_map with usize::MAX for these padded positions
-    let padding_needed = original_len - index_map.len();
-    index_map.extend(std::iter::repeat(usize::MAX).take(padding_needed));
-
     (cleaned, index_map)
 }
 

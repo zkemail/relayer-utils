@@ -115,7 +115,7 @@ pub async fn generate_noir_circuit_input(
 
             noir_circuit_input.body = Some(BoundedVec {
                 storage: body_padded.clone(),
-                len: parsed_email.canonicalized_body.as_bytes().len(),
+                len: parsed_email.canonicalized_body.len(),
             });
             noir_circuit_input.body_hash_index = email_circuit_inputs.body_hash_idx;
         }
@@ -127,7 +127,7 @@ pub async fn generate_noir_circuit_input(
             noir_circuit_input.partial_body_hash = Some(partial_hash);
 
             // Calculate remaining body length after SHA cutoff
-            // TODO: This will fail if the selector is not found in the body (i.e selector is without soflt line breaks).
+            // TODO: This will fail if the selector is not found in the body (i.e selector is without soft line breaks).
             let selector = params.sha_precompute_selector.unwrap();
             let selector_bytes = selector.as_bytes();
             let body_bytes = parsed_email.canonicalized_body.as_bytes();
@@ -145,7 +145,8 @@ pub async fn generate_noir_circuit_input(
         }
 
         if params.remove_soft_line_breaks.is_some_and(|x| x) {
-            let (cleaned_body, index_map) = remove_quoted_printable_soft_breaks(body_padded);
+            let (cleaned_body, index_map) =
+                remove_quoted_printable_soft_breaks(body_padded.clone());
             noir_circuit_input.decoded_body = Some(BoundedVec {
                 storage: cleaned_body,
                 len: index_map.len(),
@@ -231,10 +232,36 @@ pub async fn generate_noir_circuit_inputs_with_regexes_and_external_inputs(
 
     // Process each regex input
     for regex_input in regex_inputs {
+        let haystack = match regex_input.haystack_location {
+            HaystackLocation::Header => {
+                let original_bytes =
+                    &noir_circuit_input.header.storage[..noir_circuit_input.header.len];
+                let trimmed_bytes = trim_sha256_padding(original_bytes);
+                let haystack_string = String::from_utf8(trimmed_bytes.to_vec())
+                    .map_err(|e| anyhow::anyhow!("Failed to convert header to UTF-8: {}", e))?;
+
+                haystack_string
+            }
+            HaystackLocation::Body => {
+                let body = if params.remove_soft_line_breaks {
+                    noir_circuit_input.decoded_body.as_ref().unwrap()
+                } else {
+                    noir_circuit_input.body.as_ref().unwrap()
+                };
+
+                let original_bytes = &body.storage[..body.len];
+                let trimmed_bytes = trim_sha256_padding(original_bytes);
+                let haystack_string = String::from_utf8(trimmed_bytes.to_vec())
+                    .map_err(|e| anyhow::anyhow!("Failed to convert body to UTF-8: {}", e))?;
+
+                haystack_string
+            }
+        };
+
         // Use zk_regex_compiler to generate regex circuit inputs
         let regex_result = gen_circuit_inputs(
             &NFAGraph::from_json(&regex_input.regex_graph_json)?,
-            &regex_input.haystack,
+            &haystack,
             regex_input.max_haystack_length,
             regex_input.max_match_length,
             regex_input.proving_framework,

@@ -1,6 +1,6 @@
-import zkeSdk, { DecomposedRegex, ExternalInput, ExternalInputInput, ExternalInputProof, parseEmail, PublicProofData } from "@zk-email/sdk";
+import zkeSdk, { DecomposedRegex, ExternalInput, ExternalInputInput, ExternalInputProof, PublicProofData } from "@zk-email/sdk";
 import { initNoirWasm } from "@zk-email/sdk/initNoirWasm";
-import { init, generateNoirCircuitInputsWithRegexesAndExternalInputs } from "../../pkg/relayer_utils.js";
+import { init, generateNoirCircuitInputsWithRegexesAndExternalInputs, parseEmail } from "../../pkg/relayer_utils.js";
 
 export function setupNoirProver(element: HTMLElement) {
   const sdk = zkeSdk({
@@ -51,17 +51,12 @@ export function setupNoirProver(element: HTMLElement) {
           if (!regexGraph) {
             throw new Error(`No regexGraph was compiled for decomposedRegexe ${dr.name}`);
           }
-    
-          // const haystack =
-          //   dr.location === "header" ? parsedEmail.canonicalizedHeader : parsedEmail.cleanedBody;
-    
-          let haystack;
+        
+          let haystack_location;
           if (dr.location === "header") {
-            haystack = parsedEmail.canonicalizedHeader;
-          } else if (blueprint.props.shaPrecomputeSelector) {
-            haystack = parsedEmail.cleanedBody.split(blueprint.props.shaPrecomputeSelector)[1];
+            haystack_location = "Header";
           } else {
-            haystack = parsedEmail.cleanedBody;
+            haystack_location = "Body";
           }
     
           const maxHaystackLength =
@@ -72,7 +67,7 @@ export function setupNoirProver(element: HTMLElement) {
           return {
             name: dr.name,
             regex_graph_json: JSON.stringify(regexGraph),
-            haystack,
+            haystack_location,
             max_haystack_length: maxHaystackLength,
             max_match_length: dr.maxLength,
             proving_framework: "noir",
@@ -106,9 +101,7 @@ export function setupNoirProver(element: HTMLElement) {
           noirParams
         );
         console.log("circuitInputs: ", circuitInputs);
-    
-        console.log("circuitInputs: ", circuitInputs);
-    
+
         if (!circuitInputs) {
           throw new Error("Could not generate circuit inputs for noir");
         }

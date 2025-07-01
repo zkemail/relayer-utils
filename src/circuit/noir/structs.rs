@@ -52,10 +52,16 @@ pub struct NoirInputGenerationArgs {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum HaystackLocation {
+    Header,
+    Body,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RegexInput {
     pub name: String,
     pub regex_graph_json: String,
-    pub haystack: String,
+    pub haystack_location: HaystackLocation,
     pub max_haystack_length: usize,
     pub max_match_length: usize,
     pub proving_framework: ProvingFramework,

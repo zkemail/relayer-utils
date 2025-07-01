@@ -20,8 +20,8 @@ pub fn find_selector_in_clean_content(
     selector: &str,
     position_map: &[usize],
 ) -> Result<(String, usize, usize)> {
-    let clean_string = String::from_utf8_lossy(clean_content);
-    let re = Regex::new(selector).unwrap();
+    let clean_string = String::from_utf8(clean_content.to_vec())?;
+    let re = Regex::new(selector)?;
     if let Some(m) = re.find(&clean_string) {
         let selector_start_index = m.start();
         let selector_end_index = m.end();
@@ -69,7 +69,7 @@ pub fn get_adjusted_selector(
     clean_content: &[u8],
     position_map: &[usize],
 ) -> Result<String> {
-    let original_str = String::from_utf8_lossy(original_body);
+    let original_str = String::from_utf8(original_body.to_vec())?;
 
     // First, try finding the selector in the original body as-is
     if original_str.contains(selector) {
@@ -81,9 +81,7 @@ pub fn get_adjusted_selector(
         find_selector_in_clean_content(clean_content, selector, position_map)?;
 
     // Retrieve the substring from the original body that corresponds to the found selector
-    let adjusted_slice = &original_body[original_start_index..original_end_index];
+    let adjusted_selector = &original_body[original_start_index..original_end_index];
 
-    // Convert back to a string. If invalid UTF-8, use lossy conversion.
-    let adjusted_str = regex::escape(&String::from_utf8_lossy(adjusted_slice));
-    Ok(adjusted_str.to_string())
+    Ok(String::from_utf8(adjusted_selector.to_vec())?)
 }

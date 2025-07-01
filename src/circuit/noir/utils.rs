@@ -315,3 +315,36 @@ pub fn u8_to_u32(input: &[u8]) -> Result<Vec<u32>> {
 
     Ok(output)
 }
+
+pub fn trim_sha256_padding(data: &[u8]) -> &[u8] {
+    // SHA256 padding starts with 0x80 byte followed by zeros
+    // Find the last 0x80 byte (padding marker)
+    if let Some(padding_start) = data.iter().rposition(|&b| b == 0x80) {
+        // Check if everything after 0x80 is zeros or length encoding
+        let after_padding = &data[padding_start + 1..];
+
+        // If we find 0x80 and it's followed by zeros/length, return data before padding
+        if after_padding.iter().rev().take(8).all(|&b| b != 0x80) {
+            return &data[..padding_start];
+        }
+    }
+
+    // Fallback: find the last non-zero byte that isn't part of length encoding
+    // SHA256 padding ends with 8-byte length, so check if last 8 bytes look like length
+    if data.len() >= 8 {
+        let (content, potential_length) = data.split_at(data.len() - 8);
+        // If last 8 bytes represent a reasonable length, trim from there
+        if let Some(last_nonzero) = content.iter().rposition(|&b| b != 0) {
+            if content[last_nonzero] == 0x80 {
+                return &content[..last_nonzero];
+            }
+        }
+    }
+
+    // Ultimate fallback: trim trailing zeros
+    if let Some(last_nonzero) = data.iter().rposition(|&b| b != 0) {
+        &data[..=last_nonzero]
+    } else {
+        data
+    }
+}

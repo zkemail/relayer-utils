@@ -485,7 +485,7 @@ pub fn generate_partial_sha(
     // Check if a selector is provided
     if let Some(selector) = selector_regex {
         // Create a regex pattern from the selector
-        let pattern = regex::Regex::new(&selector).unwrap();
+        let pattern = regex::Regex::new(&selector)?;
         let body_str = {
             // Undo SHA padding
             let mut trimmed_body = body.clone();
@@ -495,7 +495,7 @@ pub fn generate_partial_sha(
                 trimmed_body.pop();
             }
 
-            String::from_utf8(trimmed_body).unwrap()
+            String::from_utf8(trimmed_body)?
         };
 
         // Find the index of the selector in the body
