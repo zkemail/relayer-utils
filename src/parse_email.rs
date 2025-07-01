@@ -408,6 +408,59 @@ impl EmailHeaders {
     }
 }
 
+/// `ParsedEmail` holds the canonicalized parts of an email along with its signature and public key.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParsedEmailUnverified {
+    /// The canonicalized email header.
+    pub canonicalized_header: String,
+    /// The canonicalized email body.
+    pub canonicalized_body: String,
+    /// The email signature bytes.
+    pub signature: Vec<u8>,
+    /// The cleaned email body.
+    pub cleaned_body: String,
+    /// The email headers.
+    pub headers: EmailHeaders,
+}
+
+impl ParsedEmailUnverified {
+    /// Creates a new `ParsedEmailUnverified` from a raw email string.
+    ///
+    /// This function parses the raw email, extracts and canonicalizes the header and body.
+    ///
+    /// # Arguments
+    ///
+    /// * `raw_email` - A string slice representing the raw email to be parsed.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` which is either a `ParsedEmailUnverified` instance or an error if parsing fails.
+    pub fn new_from_raw_email(raw_email: &str) -> Result<Self> {
+        // Extract all headers
+        let parsed_mail = parse_mail(raw_email.as_bytes())?;
+        let headers: EmailHeaders = EmailHeaders::new_from_mail(&parsed_mail);
+
+        // Canonicalize the signed email to separate the header, body, and signature.
+        let (canonicalized_header, canonicalized_body, signature_bytes) =
+            canonicalize_signed_email(raw_email.as_bytes())?;
+
+        // Construct the `ParsedEmail` instance.
+        let parsed_email = ParsedEmailUnverified {
+            canonicalized_header: String::from_utf8(canonicalized_header)?, // Convert bytes to string, may return an error if not valid UTF-8.
+            canonicalized_body: String::from_utf8(canonicalized_body.clone())?, // Convert bytes to string, may return an error if not valid UTF-8.
+            signature: signature_bytes.into_iter().collect_vec(), // Collect the signature bytes into a vector.
+            cleaned_body: String::from_utf8(
+                remove_quoted_printable_soft_breaks(canonicalized_body).0,
+            )?, // Remove quoted-printable soft breaks from the canonicalized body.
+            headers,
+        };
+
+        Ok(parsed_email)
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
