@@ -19,7 +19,7 @@ export function setupNoirProver(element: HTMLElement) {
       try {
         console.log("getting blueprint");
         // const blueprint = await sdk.getBlueprintById("4c67a6fe-6202-40ff-8672-9dbe02e5cb52");
-        const blueprint = await sdk.getBlueprintById("b31e09ef-86fa-4a70-a062-e016a8780af8");
+        const blueprint = await sdk.getBlueprintById("1efb18f3-c0f7-44e5-95dd-38059cc0004a");
 
         console.log("blueprint: ", blueprint);
 
@@ -153,7 +153,7 @@ export function setupNoirProver(element: HTMLElement) {
 
 async function getEml() {
   try {
-    const response = await fetch("/x.eml"); // URL is relative to the root of the project
+    const response = await fetch("/amazon.eml"); // URL is relative to the root of the project
     if (!response.ok) {
       throw new Error("Network response was not ok " + response.statusText);
     }
