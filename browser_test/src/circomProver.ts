@@ -86,6 +86,9 @@ export function setupCircomProver(element: HTMLElement) {
           shaPrecomputeSelector: blueprint.props.shaPrecomputeSelector,
         };
         
+        const zips = await blueprint.getCircomRegexGraphs();
+        console.log("zips: ", zips);
+        
         const decomposedRegexesCleaned = blueprint.props.decomposedRegexes.map((dcr) => {
           return {
             ...dcr,
