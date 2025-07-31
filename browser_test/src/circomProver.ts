@@ -79,30 +79,58 @@ export function setupCircomProver(element: HTMLElement) {
         // relayer utils input gen ==========================================================
         // 
         const params: GenerateProofInputsParams = {
-          emailHeaderMaxLength: blueprint.props.emailHeaderMaxLength || 256,
-          emailBodyMaxLength: blueprint.props.emailBodyMaxLength || 2560,
+          maxHeaderLength: blueprint.props.emailHeaderMaxLength || 256,
+          maxBodyLength: blueprint.props.emailBodyMaxLength || 2560,
           ignoreBodyHashCheck: blueprint.props.ignoreBodyHashCheck || false,
-          removeSoftLinebreaks: blueprint.props.removeSoftLinebreaks || true,
+          removeSoftLineBreaks: blueprint.props.removeSoftLinebreaks || true,
           shaPrecomputeSelector: blueprint.props.shaPrecomputeSelector,
         };
         
-        const zips = await blueprint.getCircomRegexGraphs();
-        console.log("zips: ", zips);
+        const regexGraphs = await blueprint.getCircomRegexGraphs();
+        console.log("zips: ", regexGraphs);
         
         const decomposedRegexesCleaned = blueprint.props.decomposedRegexes.map((dcr) => {
+          const regexGraph = regexGraphs[`${dcr.name}_regex.json`];
+          if (!regexGraph) {
+            throw new Error(`No regexGraph was compiled for decomposedRegexe ${dcr.name}`);
+          }
+
+          let haystackLocation;
+          if (dcr.location === "header") {
+            haystackLocation = "header";
+          } else {
+            haystackLocation = "body";
+          }
+
+          const maxHaystackLength =
+          dcr.location === "header"
+            ? blueprint.props.emailHeaderMaxLength
+            : blueprint.props.emailBodyMaxLength;
+          
+            if(!maxHaystackLength) return;
+          console.log("regexGraph \n", regexGraph, "dcr \n", dcr, "maxHaystackLength",maxHaystackLength, "dcr.maxLength \n", dcr.maxLength
+          );
           return {
-            ...dcr,
+            name: dcr.name,
+            haystackLocation,
+            maxHaystackLength: maxHaystackLength,
+            maxMatchLength: maxHaystackLength,
+            regexGraphJson : JSON.stringify(regexGraph),
             parts: dcr.parts.map((p) => ({
               // @ts-ignore
               is_public: p.isPublic || !!p.is_public,
               // @ts-ignore
               regex_def: p.regexDef || !!p.regex_def,
             })),
+            provingFramework: "circom",
           };
         });
+
+        console.log("decomposedRegexesCleaned \n",decomposedRegexesCleaned, "\n externalInputs \n", externalInputs, " \n params\n", params);
         
         const inputs = await generateCircuitInputsWithDecomposedRegexesAndExternalInputs(eml!, decomposedRegexesCleaned, externalInputs, params);
         // ==================================================================================
+        console.log("inputs \n", inputs);
         
         const proof = prover.generateProof(eml!, externalInputs, { _inputs: inputs });
         console.log("proof: ", proof);
