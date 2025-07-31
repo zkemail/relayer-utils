@@ -114,7 +114,7 @@ export function setupCircomProver(element: HTMLElement) {
             name: dcr.name,
             haystackLocation,
             maxHaystackLength: maxHaystackLength,
-            maxMatchLength: maxHaystackLength,
+            maxMatchLength: maxHaystackLength, // TODO: change with length in the decomposed regex
             regexGraphJson : JSON.stringify(regexGraph),
             parts: dcr.parts.map((p) => ({
               // @ts-ignore
