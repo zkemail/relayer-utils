@@ -42,7 +42,7 @@ export function setupCircomProver(element: HTMLElement) {
 
         console.log("blueprint: ", blueprint);
 
-        const prover = blueprint.createProver({ isLocal: true });
+        const prover = blueprint.createProver({isLocal: true});
         console.log("prover");
         console.log("typeof prover", typeof prover);
 
@@ -116,11 +116,16 @@ export function setupCircomProver(element: HTMLElement) {
             maxHaystackLength: maxHaystackLength,
             maxMatchLength: maxHaystackLength, // TODO: change with length in the decomposed regex
             regexGraphJson : JSON.stringify(regexGraph),
+            maxLength: 256,
+            location: "header",
+            maxHeaderLength: 256,
             parts: dcr.parts.map((p) => ({
               // @ts-ignore
               is_public: p.isPublic || !!p.is_public,
               // @ts-ignore
               regex_def: p.regexDef || !!p.regex_def,
+              max_length: 128,
+              maxLength: 128
             })),
             provingFramework: "circom",
           };
@@ -129,10 +134,23 @@ export function setupCircomProver(element: HTMLElement) {
         console.log("decomposedRegexesCleaned \n",decomposedRegexesCleaned, "\n externalInputs \n", externalInputs, " \n params\n", params);
         
         const inputs = await generateCircuitInputsWithDecomposedRegexesAndExternalInputs(eml!, decomposedRegexesCleaned, externalInputs, params);
-        // ==================================================================================
+        
         console.log("inputs \n", inputs);
         
-        const proof = prover.generateProof(eml!, externalInputs, { _inputs: inputs });
+        const circuitInputsObject: any = {};
+        for (const [key, value] of inputs) {
+          if (value && typeof value === "object" && value instanceof Map) {
+            circuitInputsObject[key] = Object.fromEntries(value);
+          } else if (value) {
+            circuitInputsObject[key] = value;
+          }
+        }
+        
+        console.log("circuitInputsObject: ", circuitInputsObject);
+        
+        // ==================================================================================
+        
+        const proof = await prover.generateProof(eml!, externalInputs, { _inputs: JSON.stringify(circuitInputsObject) });
         console.log("proof: ", proof);
         
         return;
