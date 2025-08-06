@@ -382,33 +382,60 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
 
         match regex_result {
             ProverInputs::Circom(circom_inputs) => {
+                let match_start = circom_inputs.match_start;
                 // Add Circom-specific fields
-                circuit_inputs[format!("{}_match_start", decomposed_regex.name)] =
-                    serde_json::Value::Number(circom_inputs.match_start.into());
-                circuit_inputs[format!("{}_match_length", decomposed_regex.name)] =
+                circuit_inputs[format!("{}MatchStart", decomposed_regex.name)] =
+                    serde_json::Value::Number(match_start.into());
+                circuit_inputs[format!("{}MatchLength", decomposed_regex.name)] =
                     serde_json::Value::Number(circom_inputs.match_length.into());
-                circuit_inputs[format!("{}_in_haystack", decomposed_regex.name)] =
-                    circom_inputs.in_haystack.into();
-                circuit_inputs[format!("{}_curr_states", decomposed_regex.name)] =
+                circuit_inputs[format!("{}CurrentStates", decomposed_regex.name)] =
                     circom_inputs.curr_states.into();
-                circuit_inputs[format!("{}_next_states", decomposed_regex.name)] =
+                circuit_inputs[format!("{}NextStates", decomposed_regex.name)] =
                     circom_inputs.next_states.into();
 
+                // Add capture group fields if they exist
                 if let Some(capture_group_ids) = circom_inputs.capture_group_ids {
-                    circuit_inputs[format!("{}_capture_group_ids", decomposed_regex.name)] =
-                        capture_group_ids.into();
-                }
+                    for (i, id) in capture_group_ids.iter().enumerate() {
+                        circuit_inputs[format!("{}CaptureGroup{}Id", decomposed_regex.name, i)] =
+                            serde_json::Value::Array(
+                                id.iter()
+                                    .map(|s| serde_json::Value::Number((*s as u64).into()))
+                                    .collect(),
+                            );
+                    }
 
-                if let Some(capture_group_starts) = circom_inputs.capture_group_starts {
-                    circuit_inputs[format!("{}_capture_group_starts", decomposed_regex.name)] =
-                        capture_group_starts.into();
-                }
-
-                if let Some(capture_group_start_indices) = circom_inputs.capture_group_start_indices
-                {
-                    circuit_inputs
-                        [format!("{}_capture_group_start_indices", decomposed_regex.name)] =
-                        capture_group_start_indices.into();
+                    if let Some(capture_group_starts) = circom_inputs.capture_group_starts {
+                        for (i, start) in capture_group_starts.iter().enumerate() {
+                            circuit_inputs
+                                [format!("{}CaptureGroup{}Start", decomposed_regex.name, i)] =
+                                serde_json::Value::Array(
+                                    start
+                                        .iter()
+                                        .map(|s| serde_json::Value::Number((*s as u64).into()))
+                                        .collect(),
+                                );
+                        }
+                    } else {
+                        return Err(anyhow::anyhow!("Capture group starts are missing"));
+                    }
+                    // It gives us absolute position so, we made it relative to the match start
+                    // TODO: Need to check if this needs to be changed from the regex compiler since tests are passing there
+                    if let Some(capture_group_indices) = circom_inputs.capture_group_start_indices {
+                        circuit_inputs
+                            [format!("{}CaptureGroupStartIndices", decomposed_regex.name)] =
+                            serde_json::Value::Array(
+                                capture_group_indices
+                                    .iter()
+                                    .map(|s| {
+                                        serde_json::Value::Number(
+                                            (*s as i64 - match_start as i64).into(),
+                                        )
+                                    })
+                                    .collect(),
+                            );
+                    } else {
+                        return Err(anyhow::anyhow!("Capture group indices are missing"));
+                    }
                 }
             }
             ProverInputs::Noir(_) => {
