@@ -1,10 +1,7 @@
 import zkeSdk, { Blueprint, DecomposedRegex, ExternalInput, ExternalInputInput, ExternalInputProof, GenerateProofInputsParams, GenerateProofInputsParamsInternal, ProofProps, ProofStatus, PublicProofData, ZkFramework } from "@zk-email/sdk";
 import { init, generateCircuitInputsWithDecomposedRegexesAndExternalInputs, parseEmail } from "../../pkg/relayer_utils.js";
-// import { localProverWorkerCode } from "./localProverWorkerString";
 
-// const blueprintId = "cd38535c-6e86-4f50-b7a5-ae15f834eaf7";
 const blueprintId = "8241f8bd-9fe7-443d-a09d-0150dcc7e85e";
-// 
 
 let relayerUtilsResolver: (value: any) => void;
 const relayerUtilsInit: Promise<void> = new Promise((resolve) => {
@@ -36,21 +33,15 @@ export function setupCircomProver(element: HTMLElement) {
   if (proveButton) {
     proveButton.addEventListener("click", async () => {
       try {
-        const startTime = new Date();
         console.log("getting blueprint");
         const blueprint = await sdk.getBlueprintById(blueprintId);
 
         console.log("blueprint: ", blueprint);
 
         const prover = blueprint.createProver({isLocal: true});
-        console.log("prover");
-        console.log("typeof prover", typeof prover);
+        console.log("prover created");
 
         const eml = await getEml();
-        
-        // const proofDirect = await prover.generateProof(eml!);
-        
-        // console.log("manual worked: ", proofDirect);
 
         try {
           const isValidEml = await blueprint.validateEmail(eml!);
@@ -63,21 +54,7 @@ export function setupCircomProver(element: HTMLElement) {
         console.log("parsed email: ", !!parsedEmail);
         
         const externalInputs: ExternalInputInput[] = [];
-        
-        // TODO: we want to use this instead of sdk input gen
-        // const inputs = await generateProofInputsSdkCopy(
-        //   eml!,
-        //   blueprint,
-        //   // Add external inputs here if needed
-        //   externalInputs
-        // );
-        // =================================================
-        
-        // const inputs = await prover.generateProofInputs(eml!, externalInputs);
-        // console.log("inputs: ", inputs);
-        
-        // relayer utils input gen ==========================================================
-        // 
+
         const params: GenerateProofInputsParams = {
           maxHeaderLength: blueprint.props.emailHeaderMaxLength || 256,
           maxBodyLength: blueprint.props.emailBodyMaxLength || 2560,
@@ -87,7 +64,6 @@ export function setupCircomProver(element: HTMLElement) {
         };
         
         const regexGraphs = await blueprint.getCircomRegexGraphs();
-        console.log("zips: ", regexGraphs);
         
         const decomposedRegexesCleaned = blueprint.props.decomposedRegexes.map((dcr) => {
           const regexGraph = regexGraphs[`${dcr.name}_regex.json`];
@@ -101,6 +77,7 @@ export function setupCircomProver(element: HTMLElement) {
           } else {
             haystackLocation = "body";
           }
+          console.log("dcr \n", dcr);
 
           const maxHaystackLength =
           dcr.location === "header"
@@ -108,34 +85,28 @@ export function setupCircomProver(element: HTMLElement) {
             : blueprint.props.emailBodyMaxLength;
           
             if(!maxHaystackLength) return;
-          console.log("regexGraph \n", regexGraph, "dcr \n", dcr, "maxHaystackLength",maxHaystackLength, "dcr.maxLength \n", dcr.maxLength
-          );
+
           return {
             name: dcr.name,
             haystackLocation,
             maxHaystackLength: maxHaystackLength,
-            maxMatchLength: maxHaystackLength, // TODO: change with length in the decomposed regex
+            maxMatchLength: 128, // TODO: extract the length from the blueprint in the zk-email-sdk-js and pass it here
             regexGraphJson : JSON.stringify(regexGraph),
-            maxLength: 256,
-            location: "header",
-            maxHeaderLength: 256,
             parts: dcr.parts.map((p) => ({
               // @ts-ignore
               is_public: p.isPublic || !!p.is_public,
               // @ts-ignore
               regex_def: p.regexDef || !!p.regex_def,
-              max_length: 128,
-              maxLength: 128
+              ...(p.isPublic && { maxLength: 32 }), // TODO same as above
             })),
             provingFramework: "circom",
           };
         });
 
-        console.log("decomposedRegexesCleaned \n",decomposedRegexesCleaned, "\n externalInputs \n", externalInputs, " \n params\n", params);
-        
+   
         const inputs = await generateCircuitInputsWithDecomposedRegexesAndExternalInputs(eml!, decomposedRegexesCleaned, externalInputs, params);
         
-        console.log("inputs \n", inputs);
+        console.log("inputs to the circuits\n", inputs);
         
         const circuitInputsObject: any = {};
         for (const [key, value] of inputs) {
