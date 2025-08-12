@@ -418,19 +418,13 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
                     } else {
                         return Err(anyhow::anyhow!("Capture group starts are missing"));
                     }
-                    // It gives us absolute position so, we made it relative to the match start
-                    // TODO: Need to check if this needs to be changed from the regex compiler since tests are passing there
                     if let Some(capture_group_indices) = circom_inputs.capture_group_start_indices {
                         circuit_inputs
                             [format!("{}CaptureGroupStartIndices", decomposed_regex.name)] =
                             serde_json::Value::Array(
                                 capture_group_indices
                                     .iter()
-                                    .map(|s| {
-                                        serde_json::Value::Number(
-                                            (*s as i64 - match_start as i64).into(),
-                                        )
-                                    })
+                                    .map(|s| serde_json::Value::Number((*s as i64).into()))
                                     .collect(),
                             );
                     } else {
