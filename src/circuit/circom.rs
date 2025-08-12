@@ -372,6 +372,7 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
         }
 
         // Use zk_regex_compiler instead of extract_substr_idxes
+        // TODO: Same gen_circuit_input is written for noir as well, so we can combine both the functions after this function call
         let regex_result = gen_circuit_inputs(
             &NFAGraph::from_json(&decomposed_regex.regex_graph_json)?,
             &haystack,
@@ -379,7 +380,6 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
             decomposed_regex.max_match_length,
             decomposed_regex.proving_framework,
         )?;
-
         match regex_result {
             ProverInputs::Circom(circom_inputs) => {
                 let match_start = circom_inputs.match_start;

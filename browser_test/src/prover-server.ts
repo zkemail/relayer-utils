@@ -16,31 +16,6 @@ const blueprintId = "8241f8bd-9fe7-443d-a09d-0150dcc7e85e";
 
 import pako from "pako";
 
-/**
- * Unzips (decompresses) an array of zipped ArrayBuffers and merges them into a single Uint8Array.
- * This is useful for preparing circuit input data that may be compressed.
- * 
- * @param buffers Array of zipped ArrayBuffers
- * @returns Uint8Array of the merged, unzipped data
- */
-function mergeAndUnzipArrayBuffers(buffers: ArrayBuffer[]): Uint8Array {
-  // Unzip each buffer using pako
-  const unzippedArrays = buffers.map((buffer) => {
-    const uint8Array = new Uint8Array(buffer); // Convert ArrayBuffer to Uint8Array
-
-    return pako.ungzip(uint8Array);
-  });
-
-  let mergedUnzipped;
-    const totalLength = unzippedArrays.reduce((sum, arr) => sum + arr.length, 0);
-    mergedUnzipped = new Uint8Array(totalLength);
-    let offset = 0;
-    for (const arr of unzippedArrays) {
-      mergedUnzipped.set(arr, offset);
-      offset += arr.length;
-    }
-  return mergedUnzipped;
-}
 
 async function main() {
   await init();
@@ -150,26 +125,19 @@ async function main() {
       blueprint.getWasmFileDownloadLink(),
     ]);
 
-    // console.log("Downloading WASM and zkey files... \n", wasmUrl, "\nchunkedZkeyUrls \n",chunkedZkeyUrls);
     const wasmRes = await fetch(wasmUrl);
-    const wasmBuff = await wasmRes.arrayBuffer();
-    // const zkeyPromises = chunkedZkeyUrls.map(({ url }) =>
-    //   fetch(url).then((res) => res.arrayBuffer())
-    // );
-    // console.log("\n zkeyPromises \n", zkeyPromises);
-    // const zkeyChunks = await Promise.all(zkeyPromises);
-    // console.log("Downloads complete.", zkeyChunks);
-    // const zkeyBuff = mergeAndUnzipArrayBuffers(zkeyChunks);
-    // Read the circuit zkey file locally instead of downloading from chunked URLs
-    let circuit = await fs.promises.readFile(path.join(__dirname, '../circuit.zkey'));
-    let wasm = await fs.promises.readFile(path.join(__dirname, '../circuit.wasm'));
+    const wasmBuff = new Uint8Array(await wasmRes.arrayBuffer());
     console.log("Starting proof generation...");
-    const wasmPath = path.join(__dirname, "../circuit.wasm");
     const zkeyPath = path.join(__dirname, "../circuit.zkey");
-
+    if (!fs.existsSync(zkeyPath)) {
+      console.log(
+        `File ${zkeyPath} not found. Please download this file to your local environment before running the prover.`
+      );
+      throw new Error(`Missing required file: ${zkeyPath}`);
+    }
     const { proof, publicSignals } = await groth16.fullProve(
       circuitInputsObject,
-      wasmPath,
+      wasmBuff,
       zkeyPath
     );
     console.log("Proof generation finished.");
@@ -182,4 +150,3 @@ async function main() {
 }
 
 main().then((x)=> console.log("Proof generation finally happenend 🎉")).catch(console.error);
-
