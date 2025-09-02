@@ -1,0 +1,75 @@
+Delivered-To: yogeshshahi120@gmail.com
+Received: by 2002:a05:7108:5e85:b0:47f:4051:d657 with SMTP id ev5csp1218074gdb;
+        Fri, 22 Aug 2025 23:59:07 -0700 (PDT)
+X-Google-Smtp-Source: AGHT+IFLl4l7A6SKSW7/X6M4sCbyCp6E/LtBnXgQitc3mXhmvPpLD9A15zKAm4Hv1x3ACxHbyy9r
+X-Received: by 2002:a05:622a:209:b0:4b2:8ac4:ef6b with SMTP id d75a77b69052e-4b2aab28ce1mr69583081cf.78.1755932346900;
+        Fri, 22 Aug 2025 23:59:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1755932346; cv=none;
+        d=google.com; s=arc-20240605;
+        b=d0GamXf3hsBhtc6AO7TIZ5CPJMHh9iMnwtWtm4yJx72YNrw3dhgDUgdOU0EEfHvQRY
+         nOGpejLM54/1JgQtcrkQU/qPr5EwSWzspHh6R4OTZj5I2g9QVS+A6NVor9VtfdxevkDx
+         eN7j6A7NSYsqH8Ml1k9ZZ9FmeNf1jNeWaQ2JFkQoZMCsyzlG46IUMJRQ19/SDfR9++QG
+         kYIa8vqtE779vdBsWI/tV0mh4fJ3349bx9SWK/xsdoEwsR8ScJNFmjlmVHoYCXu5DUba
+         1LHeoKsO0GszHnJjeiBzcFXn8HLmSptPkHJYxSnN5tpd9jPCeN1vDZyTeWN4xFlRkl9e
+         bSYQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;
+        h=content-transfer-encoding:mime-version:subject:message-id:to:from
+         :date:dkim-signature;
+        bh=VHgcAWi2xRXZm0DA4ihT7cYtF7t6AYCtpVyB8R4WYMY=;
+        fh=MrUDigLt8TyE79/Vsak8GkhPoyKFErE0pW3gJJgnYJQ=;
+        b=ISTi3pvc8IB6i9cnJFpLAlcdiXUS3fzaNcCMG4qCXpCvGh0sl7M9tMbfXFwvJuCzZf
+         KXIQHW3xkvKpYA7qPrrLYRDj89Poar6Lx9AxRnY3p4LVc6zSYmqsGujsaarceZvckFsa
+         7VtsM6YzT2jd9tKSJv8DmWoc0616i8yU+XUPBOlpkVD5FElN+p9WYggbrdZLDeboiPqb
+         25qyk5hyEo5RFCTSADJxHeiSKqUXMIHj0It1Lo5CrlhIfAC/BoQPGHGz6VlWmkfyozBj
+         c/vuFVqKkwL4x1L5LGOu5ouvql/XOt8Nu4dQmZxT58mwhQyhPMtpYSPt/58N3mrDAoOw
+         mDaw==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@github.com header.s=pf2023 header.b=Juy8nwl8;
+       spf=pass (google.com: domain of noreply@github.com designates 192.30.252.211 as permitted sender) smtp.mailfrom=noreply@github.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=github.com
+Return-Path: <noreply@github.com>
+Received: from out-28.smtp.github.com (out-28.smtp.github.com. [192.30.252.211])
+        by mx.google.com with ESMTPS id d75a77b69052e-4b2b8e43c0dsi7393621cf.846.2025.08.22.23.59.06
+        for <yogeshshahi120@gmail.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Fri, 22 Aug 2025 23:59:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of noreply@github.com designates 192.30.252.211 as permitted sender) client-ip=192.30.252.211;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@github.com header.s=pf2023 header.b=Juy8nwl8;
+       spf=pass (google.com: domain of noreply@github.com designates 192.30.252.211 as permitted sender) smtp.mailfrom=noreply@github.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=github.com
+Received: from github.com (hubbernetes-node-531b44e.ash1-iad.github.net [10.56.208.50])
+	by smtp.github.com (Postfix) with ESMTPA id 9B1239206DD;
+	Fri, 22 Aug 2025 23:59:06 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=github.com;
+	s=pf2023; t=1755932346;
+	bh=VHgcAWi2xRXZm0DA4ihT7cYtF7t6AYCtpVyB8R4WYMY=;
+	h=Date:From:To:Subject:From;
+	b=Juy8nwl8FUv8aQ1x1rEOCiikwzic8OqoCCOjBHaWe2hC46AFbFHQzQSFKc2lmi4H0
+	 2gwbBlJQ9FU2DzNyY/l425GX+JeZMlBoJlztrmew8KoypcOHV4BqX5LhLcFAra+s5e
+	 bDTWDfRN31+F9XhRBNpqL3jc8ybSV2rY0TWoIQEs=
+Date: Fri, 22 Aug 2025 23:59:06 -0700
+From: GitHub <noreply@github.com>
+To: Yogesh Shahi <yogeshshahi120@gmail.com>
+Message-ID: <68a966ba9905b_fa10b81089f3@lowworker-74c7b88f6d-m2b9v.mail>
+Subject: [GitHub] A third-party OAuth application has been added to your
+ account
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=UTF-8
+Content-Transfer-Encoding: 7bit
+X-Auto-Response-Suppress: All
+
+Hey BornPsych!
+
+A third-party OAuth application (ETHGlobal) with read:user and user:email scopes was recently authorized to access your account.
+Visit https://github.com/settings/connections/applications/7f0a42d8039f524b6a28 for more information.
+
+To see this and other security events for your account, visit https://github.com/settings/security-log
+
+If you run into problems, please contact support by visiting https://github.com/contact
+
+Thanks,
+The GitHub Team
+

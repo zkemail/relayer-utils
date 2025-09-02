@@ -1,5 +1,5 @@
 import "./style.css";
-// import { setupNoirProver } from "./noirProver.ts";
+import { setupNoirProver } from "./noirProver.ts";
 import { setupCircomProver } from "./circomProver.ts";
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
@@ -18,5 +18,5 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   </div>
 `;
 
-// setupNoirProver(document.querySelector<HTMLElement>("#noir-prover")!);
+setupNoirProver(document.querySelector<HTMLElement>("#noir-prover")!);
 setupCircomProver(document.querySelector<HTMLElement>("#circom-prover")!);

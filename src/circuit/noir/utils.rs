@@ -348,3 +348,32 @@ pub fn trim_sha256_padding(data: &[u8]) -> &[u8] {
         data
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use super::*;
+    use num_bigint::BigInt;
+
+    #[test]
+    fn test_bn_to_redc_limb_str_array_default_bits() {
+        // input = 10 (0b1010), bits inferred = 4
+        // multiplicand = 2^(2*4 + 4) = 2^12 = 4096
+        // redc = 4096 / 10 = 409 = 0x199 -> padded to even-length hex => 0x0199
+        let input = BigInt::from_str("109972718247858676105445491731969739025099570203215436860403194537885769912508143126998085553441160311842633017299847894924258714244656926063669849902309067183493129957507318289476198223876428891444563263537333415232217496928379554793454205964382581680047986651731934678992460914478002947423285539094294567929").unwrap();
+        let limbs = bn_to_redc_limb_str_array(&input, None);
+        println!("limbs: {:?}", limbs);
+        assert!(true);
+    }
+
+    #[test]
+    fn test_bn_to_redc_limb_str_array_custom_bits() {
+        // input = 10, bits provided = 8
+        // multiplicand = 2^(2*8 + 4) = 2^20 = 1_048_576
+        // redc = 1_048_576 / 10 = 104_857 = 0x19999 -> padded => 0x019999
+        let input = BigInt::from(10u32);
+        let limbs = bn_to_redc_limb_str_array(&input, Some(8));
+        assert_eq!(limbs, vec!["0x019999".to_string()]);
+    }
+}

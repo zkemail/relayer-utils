@@ -3,15 +3,15 @@ import { initNoirWasm } from "@zk-email/sdk/initNoirWasm";
 import { init, generateNoirCircuitInputsWithRegexesAndExternalInputs, parseEmail } from "../../pkg/relayer_utils.js";
 
 export function setupNoirProver(element: HTMLElement) {
-  const sdk = zkeSdk({
-    baseUrl: "https://staging-conductor.zk.email",
-    logging: { enabled: true, level: "debug" },
-  });
+  // const sdk = zkeSdk({
+  //   baseUrl: "https://staging-conductor.zk.email",
+  //   logging: { enabled: true, level: "debug" },
+  // });
   // const sdk = zkeSdk({
   //   baseUrl: "http://127.0.0.1:8080",
   //   logging: { enabled: true, level: "debug" },
   // });
-  // const sdk = zkeSdk({ baseUrl: "https://dev-conductor.zk.email" });
+  const sdk = zkeSdk({ baseUrl: "https://dev-conductor.zk.email" });
 
   const proveButton = element.querySelector("button");
   if (proveButton) {
@@ -19,7 +19,7 @@ export function setupNoirProver(element: HTMLElement) {
       try {
         console.log("getting blueprint");
         // const blueprint = await sdk.getBlueprintById("4c67a6fe-6202-40ff-8672-9dbe02e5cb52");
-        const blueprint = await sdk.getBlueprintById("1efb18f3-c0f7-44e5-95dd-38059cc0004a");
+        const blueprint = await sdk.getBlueprintById("8b080866-b02d-41bc-81e8-28c1c60d0264");
 
         console.log("blueprint: ", blueprint);
 
@@ -63,13 +63,21 @@ export function setupNoirProver(element: HTMLElement) {
             dr.location === "header"
               ? blueprint.props.emailHeaderMaxLength
               : blueprint.props.emailBodyMaxLength;
+          console.log("maxHaystackLength ", maxHaystackLength)
     
           return {
             name: dr.name,
             regex_graph_json: JSON.stringify(regexGraph),
             haystack_location,
-            max_haystack_length: maxHaystackLength,
-            max_match_length: dr.maxLength,
+            max_haystack_length: 600,
+            max_match_length: 64,
+            parts: dr.parts.map((p) => ({
+              // @ts-ignore
+              is_public: p.isPublic || !!p.is_public,
+              // @ts-ignore
+              regex_def: p.regexDef || !!p.regex_def,
+              ...(p.isPublic && { maxLength: 20 }), // TODO same as above
+            })),
             proving_framework: "noir",
           };
         });
@@ -125,10 +133,12 @@ export function setupNoirProver(element: HTMLElement) {
     
         console.log("circuitInputsObject: ", circuitInputsObject);
         // delete circuitInputsObject.dkim_header_sequence;
-    
-        console.time("witness");
+
+        console.log("circuit witness gen started")
+        // console.time("witness");
         const { witness } = await noir.execute(circuitInputsObject);
-        console.timeEnd("witness");
+        // console.timeEnd("witness");
+        console.log("witness")
     
         console.time("prove");
         const proof = await backend.generateProof(witness);
@@ -153,7 +163,7 @@ export function setupNoirProver(element: HTMLElement) {
 
 async function getEml() {
   try {
-    const response = await fetch("/amazon.eml"); // URL is relative to the root of the project
+    const response = await fetch("/x.eml"); // URL is relative to the root of the project
     if (!response.ok) {
       throw new Error("Network response was not ok " + response.statusText);
     }
