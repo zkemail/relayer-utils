@@ -1,7 +1,9 @@
+// CLIENT SIDE PROOVING DOESN'T WORK FOR NOIR CURRENTLY
+
 import zkeSdk, { Blueprint, DecomposedRegex, ExternalInput, ExternalInputInput, ExternalInputProof, GenerateProofInputsParams, GenerateProofInputsParamsInternal, ProofProps, ProofStatus, PublicProofData, ZkFramework } from "@zk-email/sdk";
 import { init, generateCircuitInputsWithDecomposedRegexesAndExternalInputs, parseEmail } from "../../pkg/relayer_utils.js";
 
-const blueprintId = "8241f8bd-9fe7-443d-a09d-0150dcc7e85e";
+const blueprintId = "acca28fd-753f-45ba-a14d-1ae32e1c4a41";
 
 let relayerUtilsResolver: (value: any) => void;
 const relayerUtilsInit: Promise<void> = new Promise((resolve) => {
@@ -38,7 +40,7 @@ export function setupCircomProver(element: HTMLElement) {
 
         console.log("blueprint: ", blueprint);
 
-        const prover = blueprint.createProver({isLocal: true});
+        const prover = blueprint.createProver({isLocal: false});
         console.log("prover created");
 
         const eml = await getEml();
@@ -90,18 +92,20 @@ export function setupCircomProver(element: HTMLElement) {
             name: dcr.name,
             haystackLocation,
             maxHaystackLength: maxHaystackLength,
-            maxMatchLength: 128, // TODO: extract the length from the blueprint in the zk-email-sdk-js and pass it here
+            maxMatchLength: 64, // TODO: extract the length from the blueprint in the zk-email-sdk-js and pass it here
             regexGraphJson : JSON.stringify(regexGraph),
             parts: dcr.parts.map((p) => ({
               // @ts-ignore
               is_public: p.isPublic || !!p.is_public,
               // @ts-ignore
               regex_def: p.regexDef || !!p.regex_def,
-              ...(p.isPublic && { maxLength: 32 }), // TODO same as above
+              ...(p.isPublic && { maxLength: 20 }), // TODO same as above
             })),
             provingFramework: "circom",
           };
         });
+
+        console.log("decomposedRegexesCleaned ", decomposedRegexesCleaned)
 
    
         const inputs = await generateCircuitInputsWithDecomposedRegexesAndExternalInputs(eml!, decomposedRegexesCleaned, externalInputs, params);
@@ -206,7 +210,7 @@ export function setupCircomProver(element: HTMLElement) {
 
 async function getEml() {
   try {
-    const response = await fetch("/residency.eml"); // URL is relative to the root of the project
+    const response = await fetch("/github.eml"); // URL is relative to the root of the project
     if (!response.ok) {
       throw new Error("Network response was not ok " + response.statusText);
     }
