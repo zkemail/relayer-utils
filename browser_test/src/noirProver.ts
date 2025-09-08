@@ -18,8 +18,7 @@ export function setupNoirProver(element: HTMLElement) {
     proveButton.addEventListener("click", async () => {
       try {
         console.log("getting blueprint");
-        // const blueprint = await sdk.getBlueprintById("4c67a6fe-6202-40ff-8672-9dbe02e5cb52");
-        const blueprint = await sdk.getBlueprintById("1efb18f3-c0f7-44e5-95dd-38059cc0004a");
+        const blueprint = await sdk.getBlueprintById("5565c715-62e2-4ef1-92cb-b22a0f70b8dc");
 
         console.log("blueprint: ", blueprint);
 
@@ -63,13 +62,21 @@ export function setupNoirProver(element: HTMLElement) {
             dr.location === "header"
               ? blueprint.props.emailHeaderMaxLength
               : blueprint.props.emailBodyMaxLength;
+          console.log("maxHaystackLength ", maxHaystackLength)
     
           return {
             name: dr.name,
             regex_graph_json: JSON.stringify(regexGraph),
             haystack_location,
             max_haystack_length: maxHaystackLength,
-            max_match_length: dr.maxLength,
+            max_match_length: 64,
+            parts: dr.parts.map((p) => ({
+              // @ts-ignore
+              is_public: p.isPublic || !!p.is_public,
+              // @ts-ignore
+              regex_def: p.regexDef || !!p.regex_def,
+              ...(p.isPublic && { maxLength: 64 }), // TODO same as above
+            })),
             proving_framework: "noir",
           };
         });
@@ -83,7 +90,7 @@ export function setupNoirProver(element: HTMLElement) {
           proverEthAddress: "0x0000000000000000000000000000000000000000",
         };
     
-        console.log("generating inputs regexInputs: ", regexInputs);
+        console.log("generating inputs regexInputs: ", regexInputs, "\n older regex input from blueprint", blueprint.props.decomposedRegexes);
         // console.log("generating inputs externalInputs: ", externalInputs);
         console.log("generating inputs noirParams: ", noirParams);
     
@@ -125,14 +132,18 @@ export function setupNoirProver(element: HTMLElement) {
     
         console.log("circuitInputsObject: ", circuitInputsObject);
         // delete circuitInputsObject.dkim_header_sequence;
-    
-        console.time("witness");
+
+        console.log("circuit witness gen started")
+        // console.time("witness");
         const { witness } = await noir.execute(circuitInputsObject);
-        console.timeEnd("witness");
+        // console.timeEnd("witness");
+        console.log("witness")
     
         console.time("prove");
         const proof = await backend.generateProof(witness);
         console.timeEnd("prove");
+
+        console.log("proof of the circuit", proof);
     
         const { publicData, externalInputsProof } = parseNoirPublicOutputs(
           proof.publicInputs,
@@ -153,7 +164,7 @@ export function setupNoirProver(element: HTMLElement) {
 
 async function getEml() {
   try {
-    const response = await fetch("/amazon.eml"); // URL is relative to the root of the project
+    const response = await fetch("/github.eml"); // URL is relative to the root of the project
     if (!response.ok) {
       throw new Error("Network response was not ok " + response.statusText);
     }
@@ -225,13 +236,19 @@ function parseNoirPublicOutputs(
         partOutputs.push(publicOutputs[publicOutputIterator]);
         publicOutputIterator++;
       } else if (part.isPublic) {
+        // Use part's maxLength if available, otherwise fall back to decomposedRegex's maxLength
+        const partMaxLength = part.maxLength ?? maxLength;
+        if (!partMaxLength) {
+          throw new Error(`No maxLength found for public part. Either part.maxLength or decomposedRegex.maxLength must be defined`);
+        }
+        
         let partStr = "";
-        for (let i = publicOutputIterator; i < publicOutputIterator + maxLength; i++) {
+        for (let i = publicOutputIterator; i < publicOutputIterator + partMaxLength; i++) {
           const char = toUtf8(publicOutputs[i]);
           partStr += char;
         }
         partOutputs.push(partStr);
-        publicOutputIterator += maxLength;
+        publicOutputIterator += partMaxLength;
         // The next element is the length of the part
         const partLength = parseInt(publicOutputs[publicOutputIterator], 16);
         if (partStr.length !== partLength) {
