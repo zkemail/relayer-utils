@@ -339,9 +339,7 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
             HaystackLocation::Header => {
                 let original_bytes = &email_circuit_inputs.header_padded;
                 let trimmed_bytes = trim_sha256_padding(original_bytes);
-                let haystack_string = String::from_utf8(trimmed_bytes.to_vec())
-                    .map_err(|e| anyhow::anyhow!("Failed to convert header to UTF-8: {}", e))?;
-                haystack_string
+                String::from_utf8_lossy(trimmed_bytes).into_owned()
             }
             HaystackLocation::Body => {
                 let body_bytes = if params.remove_soft_line_breaks {
