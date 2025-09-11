@@ -5385,7 +5385,7 @@ dependencies = [
 [[package]]
 name = "zk-regex-compiler"
 version = "2.0.0-alpha.2"
-source = "git+https://github.com/zkemail/zk-regex.git?rev=776a578e064f46569186e8f42a602b6be1db0ff3#776a578e064f46569186e8f42a602b6be1db0ff3"
+source = "git+https://github.com/zkemail/zk-regex.git?rev=35014c2bff69115bb92be2dc2c9b006fa69a6649#35014c2bff69115bb92be2dc2c9b006fa69a6649"
 dependencies = [
  "clap",
  "comptime",
