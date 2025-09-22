@@ -35,7 +35,7 @@ use crate::{
 };
 
 const GAPPS_DOMAIN: &str = "gappssmtp.com";
-const DKIM_API_URL: &str = "https://archive.zk.email/api/key";
+const DKIM_API_URL: &str = "https://archive.zk.email/api/key/domain";
 
 type ShaResult = Vec<u8>; // The result of a SHA-256 hash operation.
 type RemainingBody = Vec<u8>; // The remaining part of a message after a SHA-256 hash operation.
