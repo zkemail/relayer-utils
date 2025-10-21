@@ -1,10 +1,8 @@
 use anyhow::Result;
-use js_sys::Number;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::VecDeque;
 use crate::regex::{
-    extract_substr_idxes,
     DecomposedRegexConfig, RegexPart,
 };
 use zk_regex_compiler::{gen_circuit_inputs, NFAGraph, ProverInputs, ProvingFramework};
@@ -132,7 +130,7 @@ impl Clone for DecomposedRegex {
             max_haystack_length: self.max_haystack_length,
             haystack_location: self.haystack_location.clone(),
             regex_graph_json: self.regex_graph_json.clone(),
-            proving_framework: self.proving_framework.clone(),
+            proving_framework: self.proving_framework,
         }
     }
 }
@@ -142,11 +140,11 @@ mod regex_parts_serde {
     use super::*;
     use serde::{Deserializer, Serializer};
 
-    pub fn serialize<S>(parts: &Vec<RegexPart>, serializer: S) -> Result<S::Ok, S::Error>
+    pub fn serialize<S>(parts: &[RegexPart], serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        let serializable: Vec<SerializableRegexPart> = parts.iter().map(|p| p.clone().into()).collect();
+        let serializable: Vec<SerializableRegexPart> = parts.iter().map(|p| p.into()).collect();
         serializable.serialize(serializer)
     }
 
