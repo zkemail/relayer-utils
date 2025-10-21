@@ -9,7 +9,7 @@ use hex;
 use itertools::Itertools;
 use mailparse::{parse_mail, ParsedMail};
 use serde::{Deserialize, Serialize};
-use zk_regex_apis::extract_substrs::{
+use crate::regex::{
     extract_body_hash_idxes, extract_email_addr_idxes, extract_email_domain_idxes,
     extract_from_addr_idxes, extract_message_id_idxes, extract_subject_all_idxes,
     extract_substr_idxes, extract_timestamp_idxes, extract_to_addr_idxes,
@@ -206,11 +206,11 @@ impl ParsedEmail {
     pub fn get_invitation_code(&self, ignore_body_hash_check: bool) -> Result<String> {
         let regex_config = serde_json::from_str(include_str!("../regexes/invitation_code.json"))?;
         if ignore_body_hash_check {
-            let idxes = extract_substr_idxes(&self.canonicalized_header, &regex_config, false)?[0];
+            let idxes = extract_substr_idxes(&self.canonicalized_header, &regex_config, None, false)?[0];
             let str = self.canonicalized_header[idxes.0..idxes.1].to_string();
             Ok(str)
         } else {
-            let idxes = extract_substr_idxes(&self.cleaned_body, &regex_config, false)?[0];
+            let idxes = extract_substr_idxes(&self.cleaned_body, &regex_config, None, false)?[0];
             let str = self.cleaned_body[idxes.0..idxes.1].to_string();
             Ok(str)
         }
@@ -223,10 +223,10 @@ impl ParsedEmail {
     ) -> Result<(usize, usize)> {
         let regex_config = serde_json::from_str(include_str!("../regexes/invitation_code.json"))?;
         if ignore_body_hash_check {
-            let idxes = extract_substr_idxes(&self.canonicalized_header, &regex_config, false)?[0];
+            let idxes = extract_substr_idxes(&self.canonicalized_header, &regex_config, None, false)?[0];
             Ok(idxes)
         } else {
-            let idxes = extract_substr_idxes(&self.cleaned_body, &regex_config, false)?[0];
+            let idxes = extract_substr_idxes(&self.cleaned_body, &regex_config, None, false)?[0];
             Ok(idxes)
         }
     }
@@ -261,12 +261,12 @@ impl ParsedEmail {
         if ignore_body_hash_check {
             Ok("".to_string())
         } else {
-            match extract_substr_idxes(&self.canonicalized_body, &regex_config, false) {
+            match extract_substr_idxes(&self.canonicalized_body, &regex_config, None, false) {
                 Ok(idxes) => {
                     let str = self.canonicalized_body[idxes[0].0..idxes[0].1].to_string();
                     Ok(str.replace("=\r\n", ""))
                 }
-                Err(_) => match extract_substr_idxes(&self.cleaned_body, &regex_config, false) {
+                Err(_) => match extract_substr_idxes(&self.cleaned_body, &regex_config, None, false) {
                     Ok(idxes) => {
                         let str = self.cleaned_body[idxes[0].0..idxes[0].1].to_string();
                         Ok(str)
@@ -283,7 +283,7 @@ impl ParsedEmail {
         if ignore_body_hash_check {
             Ok((0, 0))
         } else {
-            let idxes = extract_substr_idxes(&self.cleaned_body, &regex_config, false)?[0];
+            let idxes = extract_substr_idxes(&self.cleaned_body, &regex_config, None, false)?[0];
             Ok(idxes)
         }
     }

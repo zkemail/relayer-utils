@@ -25,7 +25,7 @@ use std::{
     fmt,
     hash::{Hash, Hasher},
 };
-use zk_regex_apis::padding::pad_string;
+use crate::regex::pad_string;
 
 use crate::{
     converters::{

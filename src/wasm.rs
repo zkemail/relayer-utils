@@ -27,9 +27,6 @@ use itertools::Itertools;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_futures::future_to_promise;
 
-#[cfg(target_arch = "wasm32")]
-use zk_regex_apis::extractSubstrIdxes;
-
 #[wasm_bindgen(start)]
 #[cfg(target_arch = "wasm32")]
 pub fn init_panic_hook() {
@@ -548,7 +545,7 @@ pub async fn emailNullifier(mut signautre: Vec<u8>) -> Promise {
 /// A `Promise` that resolves with an array of arrays containing the start and end indices of the invitation code substrings,
 pub fn extractInvitationCodeIdxes(inputStr: &str) -> Result<Array, JsValue> {
     let regex_config = include_str!("../regexes/invitation_code.json");
-    extractSubstrIdxes(inputStr, JsValue::from_str(regex_config), false)
+    crate::regex::wasm::extractSubstrIdxes(inputStr, JsValue::from_str(regex_config), false)
 }
 
 #[wasm_bindgen]
@@ -565,7 +562,7 @@ pub fn extractInvitationCodeIdxes(inputStr: &str) -> Result<Array, JsValue> {
 /// A `Promise` that resolves with an array of arrays containing the start and end indices of the invitation code substrings,
 pub fn extractInvitationCodeWithPrefixIdxes(inputStr: &str) -> Result<Array, JsValue> {
     let regex_config = include_str!("../regexes/invitation_code_with_prefix.json");
-    extractSubstrIdxes(inputStr, JsValue::from_str(regex_config), false)
+    crate::regex::wasm::extractSubstrIdxes(inputStr, JsValue::from_str(regex_config), false)
 }
 
 #[wasm_bindgen]
