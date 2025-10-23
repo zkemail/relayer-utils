@@ -147,18 +147,17 @@ fn compose_pattern_for_nfa(
     let mut public_count = 0;
 
     for part in &config.parts {
-        let part_pattern = match part {
+        match part {
             RegexPart::Pattern(p) => {
                 // Wrap in non-capturing group
-                format!("(?:{})", p)
+                pattern.push_str(p);
             },
             RegexPart::PublicPattern((p, _max_bytes)) => {
                 public_count += 1;
                 // Wrap in capturing group
-                format!("({})", p)
+                pattern.push_str(&format!("({})", p).as_str());
             }
         };
-        pattern.push_str(&part_pattern);
     }
 
     // Verify we got the expected number of public parts
@@ -186,19 +185,18 @@ fn compose_pattern_standalone(
     let mut current_group = 1; // Group 0 is always the full match
 
     for part in &config.parts {
-        let part_pattern = match part {
+        match part {
             RegexPart::Pattern(p) => {
                 // Wrap in non-capturing group
-                format!("(?:{})", p)
+                pattern.push_str(p);
             },
             RegexPart::PublicPattern((p, _max_bytes)) => {
                 // Wrap in capturing group
                 public_group_indices.push(current_group);
                 current_group += 1;
-                format!("({})", p)
+                pattern.push_str(&format!("({})", p).as_str());
             }
         };
-        pattern.push_str(&part_pattern);
     }
 
     if pattern.is_empty() {
