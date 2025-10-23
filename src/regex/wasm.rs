@@ -17,9 +17,16 @@ pub fn extractSubstrIdxes(
     regexConfigJson: JsValue,
     revealPrivate: bool,
 ) -> Result<Array, JsValue> {
-    // Parse config from JSON
-    let config: DecomposedRegexConfig = from_value(regexConfigJson)
-        .map_err(|e| JsValue::from_str(&format!("Invalid config: {}", e)))?;
+    // Try parsing as new format first, fall back to legacy format
+    let config: DecomposedRegexConfig = match from_value::<DecomposedRegexConfig>(regexConfigJson.clone()) {
+        Ok(cfg) => cfg,
+        Err(_) => {
+            // Try parsing as legacy format
+            let legacy: crate::regex::types::LegacyDecomposedRegexConfig = from_value(regexConfigJson)
+                .map_err(|e| JsValue::from_str(&format!("Invalid config: {}", e)))?;
+            legacy.to_new_config(None)
+        }
+    };
 
     // Extract indices (standalone mode - no NFAGraph)
     let indices = extract_substr_idxes(inputStr, &config, None, revealPrivate)
@@ -44,9 +51,16 @@ pub fn extractSubstr(
     regexConfigJson: JsValue,
     revealPrivate: bool,
 ) -> Result<Array, JsValue> {
-    // Parse config from JSON
-    let config: DecomposedRegexConfig = from_value(regexConfigJson)
-        .map_err(|e| JsValue::from_str(&format!("Invalid config: {}", e)))?;
+    // Try parsing as new format first, fall back to legacy format
+    let config: DecomposedRegexConfig = match from_value::<DecomposedRegexConfig>(regexConfigJson.clone()) {
+        Ok(cfg) => cfg,
+        Err(_) => {
+            // Try parsing as legacy format
+            let legacy: crate::regex::types::LegacyDecomposedRegexConfig = from_value(regexConfigJson)
+                .map_err(|e| JsValue::from_str(&format!("Invalid config: {}", e)))?;
+            legacy.to_new_config(None)
+        }
+    };
 
     // Extract substrings (standalone mode - no NFAGraph)
     let substrings = extract_substr(inputStr, &config, None, revealPrivate)
@@ -193,5 +207,14 @@ mod tests {
         assert_eq!(result.len(), 10);
         assert_eq!(&result[0..5], b"hello");
         assert_eq!(&result[5..10], &[0u8; 5]);
+    }
+
+    #[test]
+    fn test_wasm_extract_substr() {
+        let input = "from:alice@example.com";
+        let regex_config_json = JsValue::from_str(r#"{"parts":[{"is_public":true,"regex_def":"[a-z]+@[a-z]+\\.com"}]}"#);
+        let result = extractSubstr(input, regex_config_json, false);
+        println!("result: {:?}", result);
+        assert_eq!(result.unwrap(), vec!["alice@example.com"]);
     }
 }
