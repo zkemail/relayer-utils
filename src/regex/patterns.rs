@@ -1,5 +1,5 @@
-use crate::regex::types::{DecomposedRegexConfig, RegexPart, ExtractionResult, ExtractionError};
-use crate::regex::extract::{extract_substr_idxes, extract_substr};
+use crate::regex::extract::{extract_substr, extract_substr_idxes};
+use crate::regex::types::{DecomposedRegexConfig, ExtractionError, ExtractionResult, RegexPart};
 use lazy_static::lazy_static;
 
 // Pre-defined regex patterns for common email components

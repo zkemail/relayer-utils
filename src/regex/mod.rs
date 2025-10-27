@@ -14,19 +14,19 @@
 //! This ensures consistency when used in circuit contexts while maintaining
 //! standalone functionality.
 
-pub mod types;
 pub mod extract;
-pub mod patterns;
 pub mod padding;
+pub mod patterns;
+pub mod types;
 
 #[cfg(target_arch = "wasm32")]
 pub mod wasm;
 
 // Re-export main types and functions
-pub use types::*;
 pub use extract::*;
-pub use patterns::*;
 pub use padding::*;
+pub use patterns::*;
+pub use types::*;
 
 // Re-export NFAGraph from compiler for convenience
 pub use zk_regex_compiler::NFAGraph;

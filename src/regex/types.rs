@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 // Re-export new compiler types for convenience
-pub use zk_regex_compiler::{DecomposedRegexConfig, RegexPart, NFAGraph};
+pub use zk_regex_compiler::{DecomposedRegexConfig, NFAGraph, RegexPart};
 
 /// Error type for extraction operations
 #[derive(Debug, thiserror::Error)]
@@ -55,10 +55,15 @@ impl LegacyRegexPartConfig {
 impl LegacyDecomposedRegexConfig {
     /// Convert old config to new config with optional max_bytes per part
     pub fn to_new_config(&self, max_bytes_per_part: Option<Vec<usize>>) -> DecomposedRegexConfig {
-        let parts = self.parts.iter().enumerate().map(|(i, part)| {
-            let max_bytes = max_bytes_per_part.as_ref().and_then(|v| v.get(i).copied());
-            part.to_new_part(max_bytes)
-        }).collect();
+        let parts = self
+            .parts
+            .iter()
+            .enumerate()
+            .map(|(i, part)| {
+                let max_bytes = max_bytes_per_part.as_ref().and_then(|v| v.get(i).copied());
+                part.to_new_part(max_bytes)
+            })
+            .collect();
 
         DecomposedRegexConfig { parts }
     }

@@ -1,10 +1,8 @@
+use crate::regex::{DecomposedRegexConfig, RegexPart};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::VecDeque;
-use crate::regex::{
-    DecomposedRegexConfig, RegexPart,
-};
 use zk_regex_compiler::{gen_circuit_inputs, NFAGraph, ProverInputs, ProvingFramework};
 
 use crate::{
@@ -87,7 +85,9 @@ impl From<&RegexPart> for SerializableRegexPart {
     fn from(part: &RegexPart) -> Self {
         match part {
             RegexPart::Pattern(p) => SerializableRegexPart::Pattern(p.clone()),
-            RegexPart::PublicPattern((p, max)) => SerializableRegexPart::PublicPattern((p.clone(), *max)),
+            RegexPart::PublicPattern((p, max)) => {
+                SerializableRegexPart::PublicPattern((p.clone(), *max))
+            }
         }
     }
 }
@@ -96,10 +96,10 @@ impl From<&RegexPart> for SerializableRegexPart {
 #[serde(rename_all = "camelCase")]
 pub struct DecomposedRegex {
     #[serde(with = "regex_parts_serde")]
-    pub parts: Vec<RegexPart>,       // The parts of the regex configuration (using new RegexPart enum)
-    pub name: String,                // The name of the decomposed regex
-    pub max_match_length: usize,     // The maximum length of the regex match
-    pub max_haystack_length: usize,  // The maximum length of the haystack
+    pub parts: Vec<RegexPart>, // The parts of the regex configuration (using new RegexPart enum)
+    pub name: String,               // The name of the decomposed regex
+    pub max_match_length: usize,    // The maximum length of the regex match
+    pub max_haystack_length: usize, // The maximum length of the haystack
     pub haystack_location: String, // The location where the regex is applied (e.g., header or body)
     pub regex_graph_json: String,
     pub proving_framework: ProvingFramework,
@@ -121,10 +121,14 @@ impl std::fmt::Debug for DecomposedRegex {
 impl Clone for DecomposedRegex {
     fn clone(&self) -> Self {
         DecomposedRegex {
-            parts: self.parts.iter().map(|p| match p {
-                RegexPart::Pattern(s) => RegexPart::Pattern(s.clone()),
-                RegexPart::PublicPattern((s, n)) => RegexPart::PublicPattern((s.clone(), *n)),
-            }).collect(),
+            parts: self
+                .parts
+                .iter()
+                .map(|p| match p {
+                    RegexPart::Pattern(s) => RegexPart::Pattern(s.clone()),
+                    RegexPart::PublicPattern((s, n)) => RegexPart::PublicPattern((s.clone(), *n)),
+                })
+                .collect(),
             name: self.name.clone(),
             max_match_length: self.max_match_length,
             max_haystack_length: self.max_haystack_length,

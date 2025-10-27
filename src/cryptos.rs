@@ -1,5 +1,6 @@
 //! Cryptographic functions.
 
+use crate::regex::pad_string;
 use crate::EmailHeaders;
 use crate::{field_to_hex, hex_to_field};
 use anyhow::Result;
@@ -25,7 +26,6 @@ use std::{
     fmt,
     hash::{Hash, Hasher},
 };
-use crate::regex::pad_string;
 
 use crate::{
     converters::{

@@ -1,5 +1,7 @@
+use crate::regex::types::{
+    DecomposedRegexConfig, ExtractionError, ExtractionResult, NFAGraph, RegexPart,
+};
 use fancy_regex::Regex;
-use crate::regex::types::{DecomposedRegexConfig, RegexPart, NFAGraph, ExtractionError, ExtractionResult};
 
 /// Extracts substring indices matching a decomposed regex pattern
 ///
@@ -26,13 +28,42 @@ use crate::regex::types::{DecomposedRegexConfig, RegexPart, NFAGraph, Extraction
 ///
 /// # Examples
 ///
-/// ```rust
-/// // With NFAGraph (circuit context)
-/// let nfa = NFAGraph::from_json(&regex_graph_json)?;
-/// let indices = extract_substr_idxes(input, &config, Some(&nfa), false)?;
+/// Basic usage without `NFAGraph`:
+/// ```
+/// use relayer_utils::{DecomposedRegexConfig, RegexPart, extract_substr_idxes};
 ///
-/// // Without NFAGraph (standalone)
-/// let indices = extract_substr_idxes(input, &config, None, false)?;
+/// let config = DecomposedRegexConfig {
+///     parts: vec![
+///         RegexPart::Pattern("prefix:".to_string()),
+///         RegexPart::PublicPattern(("\\w+".to_string(), 20)),
+///     ],
+/// };
+///
+/// let input = "prefix:hello world prefix:test";
+/// let indices = extract_substr_idxes(input, &config, None, false).unwrap();
+///
+/// assert_eq!(&input[indices[0].0..indices[0].1], "hello");
+/// assert_eq!(&input[indices[1].0..indices[1].1], "test");
+/// ```
+///
+/// With `NFAGraph` (circuit context):
+/// ```ignore
+/// use relayer_utils::{NFAGraph, DecomposedRegexConfig, RegexPart, extract_substr_idxes};
+///
+/// // Pseudocode: obtain a valid regex graph JSON from the compiler
+/// let regex_graph_json = "...";
+/// let nfa = NFAGraph::from_json(&regex_graph_json)?;
+///
+/// let config = DecomposedRegexConfig {
+///     parts: vec![
+///         RegexPart::Pattern("prefix:".to_string()),
+///         RegexPart::PublicPattern(("\\w+".to_string(), 20)),
+///     ],
+/// };
+///
+/// let input = "prefix:hello";
+/// let indices = extract_substr_idxes(input, &config, Some(&nfa), false)?;
+/// assert_eq!(&input[indices[0].0..indices[0].1], "hello");
 /// ```
 pub fn extract_substr_idxes(
     input: &str,
@@ -64,14 +95,13 @@ fn extract_with_nfa(
     let pattern = compose_pattern_for_nfa(config, nfa)?;
 
     // Compile and execute regex
-    let regex = Regex::new(&pattern)
-        .map_err(|e| ExtractionError::CompilationError(e.to_string()))?;
+    let regex =
+        Regex::new(&pattern).map_err(|e| ExtractionError::CompilationError(e.to_string()))?;
 
     let mut results = Vec::new();
 
     for captures in regex.captures_iter(input) {
-        let captures = captures
-            .map_err(|e| ExtractionError::MatchFailed(e.to_string()))?;
+        let captures = captures.map_err(|e| ExtractionError::MatchFailed(e.to_string()))?;
 
         if reveal_private {
             // Return full match
@@ -106,14 +136,13 @@ fn extract_without_nfa(
     let (pattern, public_group_indices) = compose_pattern_standalone(config)?;
 
     // Compile and execute regex
-    let regex = Regex::new(&pattern)
-        .map_err(|e| ExtractionError::CompilationError(e.to_string()))?;
+    let regex =
+        Regex::new(&pattern).map_err(|e| ExtractionError::CompilationError(e.to_string()))?;
 
     let mut results = Vec::new();
 
     for captures in regex.captures_iter(input) {
-        let captures = captures
-            .map_err(|e| ExtractionError::MatchFailed(e.to_string()))?;
+        let captures = captures.map_err(|e| ExtractionError::MatchFailed(e.to_string()))?;
 
         if reveal_private {
             // Return full match
@@ -151,7 +180,7 @@ fn compose_pattern_for_nfa(
             RegexPart::Pattern(p) => {
                 // Wrap in non-capturing group
                 pattern.push_str(p);
-            },
+            }
             RegexPart::PublicPattern((p, _max_bytes)) => {
                 public_count += 1;
                 // Wrap in capturing group
@@ -189,7 +218,7 @@ fn compose_pattern_standalone(
             RegexPart::Pattern(p) => {
                 // Wrap in non-capturing group
                 pattern.push_str(p);
-            },
+            }
             RegexPart::PublicPattern((p, _max_bytes)) => {
                 // Wrap in capturing group
                 public_group_indices.push(current_group);
