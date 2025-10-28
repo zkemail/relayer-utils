@@ -178,7 +178,6 @@ fn compose_pattern_for_nfa(
     for part in &config.parts {
         match part {
             RegexPart::Pattern(p) => {
-                // Wrap in non-capturing group
                 pattern.push_str(p);
             }
             RegexPart::PublicPattern((p, _max_bytes)) => {
@@ -216,13 +215,12 @@ fn compose_pattern_standalone(
     for part in &config.parts {
         match part {
             RegexPart::Pattern(p) => {
-                // Wrap in non-capturing group
                 pattern.push_str(p);
             }
             RegexPart::PublicPattern((p, _max_bytes)) => {
-                // Wrap in capturing group
                 public_group_indices.push(current_group);
                 current_group += 1;
+                // Wrap in capturing group
                 pattern.push_str(&format!("({})", p).as_str());
             }
         };
