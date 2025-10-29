@@ -3,6 +3,35 @@ use crate::regex::types::{
 };
 use fancy_regex::Regex;
 
+/// Converts bare capturing groups to non-capturing groups
+/// This preserves existing special groups like (?:...), (?=...), (?!...), (?<=...), etc.
+fn convert_bare_groups_to_non_capturing(pattern: &str) -> String {
+    let mut result = String::new();
+    let mut chars = pattern.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == '(' {
+            // Check if this is already a special group
+            if let Some(&next) = chars.peek() {
+                if next == '?' {
+                    // This is already a special group like (?:...), keep it as-is
+                    result.push(ch);
+                } else {
+                    // This is a bare capturing group, convert it
+                    result.push_str("(?:");
+                }
+            } else {
+                // Parenthesis at end of string (shouldn't happen in valid regex)
+                result.push(ch);
+            }
+        } else {
+            result.push(ch);
+        }
+    }
+
+    result
+}
+
 /// Extracts substring indices matching a decomposed regex pattern
 ///
 /// This function supports two modes:
@@ -16,6 +45,19 @@ use fancy_regex::Regex;
 ///    - Creates capture groups based on PublicPattern parts
 ///    - Works standalone without compiler dependency
 ///    - Suitable for simple extraction use cases
+///
+/// # Capture Group Handling
+///
+/// To ensure stable and predictable capture group numbering, this function automatically
+/// converts bare capturing groups `(...)` to non-capturing groups `(?:...)` within
+/// PublicPattern parts before wrapping them in an outer capturing group. This prevents
+/// nested capture groups from interfering with the expected group indices.
+///
+/// For example:
+/// - Input pattern: `"(\w+)@(\d+)"`
+/// - Converted to: `"((?:\w+)@(?:\d+))"` (only 1 capture group)
+///
+/// Existing special groups like `(?:...)`, `(?=...)`, `(?!...)`, etc. are preserved as-is.
 ///
 /// # Arguments
 /// * `input` - The input string to search
@@ -182,8 +224,11 @@ fn compose_pattern_for_nfa(
             }
             RegexPart::PublicPattern((p, _max_bytes)) => {
                 public_count += 1;
+                // Convert any bare capturing groups to non-capturing groups to prevent
+                // nested capture groups from interfering with the expected group numbering
+                let adjusted_pattern = convert_bare_groups_to_non_capturing(p);
                 // Wrap in capturing group
-                pattern.push_str(&format!("({})", p).as_str());
+                pattern.push_str(&format!("({})", adjusted_pattern).as_str());
             }
         };
     }
@@ -220,8 +265,11 @@ fn compose_pattern_standalone(
             RegexPart::PublicPattern((p, _max_bytes)) => {
                 public_group_indices.push(current_group);
                 current_group += 1;
+                // Convert any bare capturing groups to non-capturing groups to prevent
+                // nested capture groups from interfering with the expected group numbering
+                let adjusted_pattern = convert_bare_groups_to_non_capturing(p);
                 // Wrap in capturing group
-                pattern.push_str(&format!("({})", p).as_str());
+                pattern.push_str(&format!("({})", adjusted_pattern).as_str());
             }
         };
     }
@@ -324,5 +372,62 @@ mod tests {
         // reveal_private = true: full match
         let full_match = extract_substr_idxes(input, &config, None, true).unwrap();
         assert_eq!(&input[full_match[0].0..full_match[0].1], "prefix:hello");
+    }
+
+    #[test]
+    fn test_nested_capturing_groups_converted() {
+        // Test that bare capturing groups inside PublicPattern are converted to non-capturing
+        // This ensures stable capture group numbering
+        let config = DecomposedRegexConfig {
+            parts: vec![
+                RegexPart::Pattern("data:".to_string()),
+                RegexPart::PublicPattern(("(\\w+)-(\\d+)".to_string(), 50)),
+            ],
+        };
+
+        let input = "data:hello-123";
+        let result = extract_substr_idxes(input, &config, None, false).unwrap();
+
+        // Should extract the entire public pattern match, not individual nested groups
+        assert_eq!(result.len(), 1, "Should have exactly one capture group");
+        assert_eq!(&input[result[0].0..result[0].1], "hello-123");
+    }
+
+    #[test]
+    fn test_multiple_public_patterns_with_nested_groups() {
+        // Test multiple PublicPattern parts each with nested groups
+        let config = DecomposedRegexConfig {
+            parts: vec![
+                RegexPart::Pattern("from:".to_string()),
+                RegexPart::PublicPattern(("(\\w+)@(\\w+)".to_string(), 50)),
+                RegexPart::Pattern(" to:".to_string()),
+                RegexPart::PublicPattern(("(\\w+)@(\\w+)".to_string(), 50)),
+            ],
+        };
+
+        let input = "from:alice@example to:bob@test";
+        let result = extract_substr_idxes(input, &config, None, false).unwrap();
+
+        // Should extract exactly two capture groups (one per PublicPattern)
+        assert_eq!(result.len(), 2, "Should have exactly two capture groups");
+        assert_eq!(&input[result[0].0..result[0].1], "alice@example");
+        assert_eq!(&input[result[1].0..result[1].1], "bob@test");
+    }
+
+    #[test]
+    fn test_already_non_capturing_groups_preserved() {
+        // Test that already non-capturing groups (?:...) work correctly
+        let config = DecomposedRegexConfig {
+            parts: vec![
+                RegexPart::Pattern("prefix:".to_string()),
+                RegexPart::PublicPattern(("(?:\\w+)-(?:\\d+)".to_string(), 50)),
+            ],
+        };
+
+        let input = "prefix:hello-123";
+        let result = extract_substr_idxes(input, &config, None, false).unwrap();
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(&input[result[0].0..result[0].1], "hello-123");
     }
 }
