@@ -3,30 +3,108 @@ use crate::regex::types::{
 };
 use fancy_regex::Regex;
 
-/// Converts bare capturing groups to non-capturing groups
-/// This preserves existing special groups like (?:...), (?=...), (?!...), (?<=...), etc.
+/// Converts capturing groups to non-capturing groups `(?:...)` in a regex pattern.
+/// Matches zk-regex-compiler's behavior: https://github.com/zkemail/zk-regex/blob/3d37c3110fbd1baa96d048ab658bcb47acd8731b/compiler/src/utils.rs#L37
+///
+/// This function converts:
+/// - Bare capturing groups `(...)` to `(?:...)`
+/// - Named captures `(?<name>...)` (PCRE style) to `(?:...)`
+/// - Named captures `(?P<name>...)` (Rust style) to `(?:...)`
+///
+/// This function properly handles:
+/// - Escaped parentheses like `\(` and `\)` (preserved as-is)
+/// - Parentheses within character classes like `[()]` (preserved as-is)
+/// - Special groups like `(?:...)`, `(?=...)`, `(?!...)`, etc. (preserved as-is)
+///
+/// # Arguments
+///
+/// * `pattern` - The regex pattern string to process
+///
+/// # Returns
+///
+/// A new string with all capturing groups converted to non-capturing groups
+///
+/// # Examples
+///
+/// ```text
+/// convert_bare_groups_to_non_capturing("(a|b)")         → "(?:a|b)"
+/// convert_bare_groups_to_non_capturing("(?<name>abc)")  → "(?:abc)"
+/// convert_bare_groups_to_non_capturing("(?P<name>abc)") → "(?:abc)"
+/// convert_bare_groups_to_non_capturing("(?:a|b)")       → "(?:a|b)" // unchanged
+/// convert_bare_groups_to_non_capturing(r"\(a\)")        → r"\(a\)"  // escaped parens preserved
+/// convert_bare_groups_to_non_capturing("[()]")          → "[()]"    // char class preserved
+/// ```
 fn convert_bare_groups_to_non_capturing(pattern: &str) -> String {
-    let mut result = String::new();
-    let mut chars = pattern.chars().peekable();
+    let mut result = String::with_capacity(pattern.len() + pattern.len() / 4);
+    let chars: Vec<char> = pattern.chars().collect();
+    let mut i = 0;
+    let mut in_char_class = false;
+    let mut escaped = false;
 
-    while let Some(ch) = chars.next() {
-        if ch == '(' {
-            // Check if this is already a special group
-            if let Some(&next) = chars.peek() {
-                if next == '?' {
-                    // This is already a special group like (?:...), keep it as-is
+    while i < chars.len() {
+        let ch = chars[i];
+
+        if escaped {
+            // Previous char was backslash, this char is escaped
+            result.push(ch);
+            escaped = false;
+        } else if ch == '\\' {
+            // Start escape sequence
+            result.push(ch);
+            escaped = true;
+        } else if ch == '[' && !in_char_class {
+            // Entering character class
+            result.push(ch);
+            in_char_class = true;
+        } else if ch == ']' && in_char_class {
+            // Exiting character class
+            result.push(ch);
+            in_char_class = false;
+        } else if ch == '(' && !in_char_class {
+            // Check if this is a capturing group that needs conversion
+            if i + 1 >= chars.len() || chars[i + 1] != '?' {
+                // Bare capturing group: (...)
+                result.push_str("(?:");
+            } else if i + 2 < chars.len() && chars[i + 2] == '<' {
+                // Could be: (?<=...) positive lookbehind, or (?<!...) negative lookbehind, or (?<name>...) PCRE named capture
+                if i + 3 < chars.len() && (chars[i + 3] == '=' || chars[i + 3] == '!') {
+                    // Lookbehind assertion: (?<=...) or (?<!...)
+                    // These are special groups, preserve as-is
                     result.push(ch);
                 } else {
-                    // This is a bare capturing group, convert it
+                    // PCRE named capture: (?<name>...)
+                    // Convert to non-capturing and skip the name
                     result.push_str("(?:");
+                    i += 2; // Skip '?' and '<'
+                    // Skip until we find the closing '>'
+                    while i + 1 < chars.len() && chars[i + 1] != '>' {
+                        i += 1;
+                    }
+                    if i + 1 < chars.len() && chars[i + 1] == '>' {
+                        i += 1; // Skip the '>'
+                    }
+                }
+            } else if i + 3 < chars.len() && chars[i + 2] == 'P' && chars[i + 3] == '<' {
+                // Rust named capture: (?P<name>...)
+                // Convert to non-capturing and skip the name
+                result.push_str("(?:");
+                i += 3; // Skip '?', 'P', and '<'
+                // Skip until we find the closing '>'
+                while i + 1 < chars.len() && chars[i + 1] != '>' {
+                    i += 1;
+                }
+                if i + 1 < chars.len() && chars[i + 1] == '>' {
+                    i += 1; // Skip the '>'
                 }
             } else {
-                // Parenthesis at end of string (shouldn't happen in valid regex)
+                // Other special group like (?:...), (?=...), etc.
                 result.push(ch);
             }
         } else {
             result.push(ch);
         }
+
+        i += 1;
     }
 
     result
@@ -220,7 +298,8 @@ fn compose_pattern_for_nfa(
     for part in &config.parts {
         match part {
             RegexPart::Pattern(p) => {
-                pattern.push_str(p);
+                let adjusted_pattern = convert_bare_groups_to_non_capturing(p);
+                pattern.push_str(&adjusted_pattern);
             }
             RegexPart::PublicPattern((p, _max_bytes)) => {
                 public_count += 1;
@@ -260,7 +339,8 @@ fn compose_pattern_standalone(
     for part in &config.parts {
         match part {
             RegexPart::Pattern(p) => {
-                pattern.push_str(p);
+                let adjusted_pattern = convert_bare_groups_to_non_capturing(p);
+                pattern.push_str(&adjusted_pattern);
             }
             RegexPart::PublicPattern((p, _max_bytes)) => {
                 public_group_indices.push(current_group);
@@ -429,5 +509,34 @@ mod tests {
 
         assert_eq!(result.len(), 1);
         assert_eq!(&input[result[0].0..result[0].1], "hello-123");
+    }
+
+    #[test]
+    fn test_extract_substr_subject_all_patterns() {
+        let omit_non_capture_groups = DecomposedRegexConfig {
+            parts: vec![
+                RegexPart::Pattern("(\r\n|^)subject:".to_string()),
+                RegexPart::PublicPattern(("[^\r\n]+".to_string(), 64)),
+                RegexPart::Pattern("\r\n".to_string()),
+            ],
+        };
+
+        let explicit_non_capture_groups = DecomposedRegexConfig {
+            parts: vec![
+                RegexPart::Pattern("(?:\r\n|^)subject:".to_string()),
+                RegexPart::PublicPattern(("([^\r\n]+)".to_string(), 64)),
+                RegexPart::Pattern("\r\n".to_string()),
+            ],
+        };
+
+        let input = "subject:hello world\r\n";
+
+        let expected_output = "hello world";
+        
+        let result_omit_capture_groups = extract_substr(input, &omit_non_capture_groups, None, false).unwrap();
+        let result_explicit_capture_groups = extract_substr(input, &explicit_non_capture_groups, None, false).unwrap();
+        
+        assert_eq!(result_omit_capture_groups[0], expected_output);
+        assert_eq!(result_explicit_capture_groups[0], expected_output);
     }
 }
