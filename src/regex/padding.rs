@@ -6,6 +6,15 @@
 ///
 /// # Returns
 /// A vector of bytes padded to target_len with zeros
+///
+/// # Behavior
+/// - If the input string is shorter than `target_len`, it will be padded with zeros
+/// - If the input string is exactly `target_len` bytes, it will be returned as-is
+/// - If the input string exceeds `target_len`, it will be **silently truncated** to `target_len`
+///
+/// # Security Note
+/// Callers must validate input length before calling this function to prevent truncation.
+/// See `PaddedEmailAddr::from_email_addr()` for an example of proper validation.
 pub fn pad_string(s: &str, target_len: usize) -> Vec<u8> {
     let mut padded = s.as_bytes().to_vec();
     padded.resize(target_len, 0);

@@ -100,14 +100,31 @@ impl PaddedEmailAddr {
     ///
     /// # Returns
     ///
-    /// A new instance of `PaddedEmailAddr`.
-    pub fn from_email_addr(email_addr: &str) -> Self {
+    /// A `Result` containing a new instance of `PaddedEmailAddr` or an error if the email address
+    /// exceeds the maximum length of 256 bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the email address length exceeds `MAX_EMAIL_ADDR_BYTES` (256 bytes).
+    /// This validation prevents potential security issues where different email addresses could
+    /// produce identical padded representations due to silent truncation.
+    pub fn from_email_addr(email_addr: &str) -> Result<Self> {
         let email_addr_len = email_addr.as_bytes().len();
+
+        // Validate that the email address does not exceed the maximum allowed length
+        if email_addr_len > MAX_EMAIL_ADDR_BYTES {
+            return Err(anyhow::anyhow!(
+                "Email address length ({} bytes) exceeds maximum allowed length ({} bytes)",
+                email_addr_len,
+                MAX_EMAIL_ADDR_BYTES
+            ));
+        }
+
         let padded_bytes = pad_string(email_addr, MAX_EMAIL_ADDR_BYTES);
-        Self {
+        Ok(Self {
             padded_bytes,
             email_addr_len,
-        }
+        })
     }
 
     /// Converts the padded email address into a vector of field elements.
@@ -588,6 +605,104 @@ mod tests {
         assert_eq!(field_to_hex(&hash_field), expected_hash);
     }
 
+    #[test]
+    fn test_padded_email_addr_valid() {
+        // Test with a valid email address
+        let email = "test@example.com";
+        let result = PaddedEmailAddr::from_email_addr(email);
+        assert!(result.is_ok());
+
+        let padded = result.unwrap();
+        assert_eq!(padded.email_addr_len, email.len());
+        assert_eq!(padded.padded_bytes.len(), MAX_EMAIL_ADDR_BYTES);
+        assert_eq!(&padded.padded_bytes[..email.len()], email.as_bytes());
+
+        // Verify padding is zeros
+        for i in email.len()..MAX_EMAIL_ADDR_BYTES {
+            assert_eq!(padded.padded_bytes[i], 0);
+        }
+    }
+
+    #[test]
+    fn test_padded_email_addr_exactly_256_bytes() {
+        // Test with an email address that is exactly 256 bytes (boundary case)
+        let email = "a".repeat(256);
+        let result = PaddedEmailAddr::from_email_addr(&email);
+        assert!(result.is_ok());
+
+        let padded = result.unwrap();
+        assert_eq!(padded.email_addr_len, 256);
+        assert_eq!(padded.padded_bytes.len(), MAX_EMAIL_ADDR_BYTES);
+    }
+
+    #[test]
+    fn test_padded_email_addr_exceeds_max_length() {
+        // Test with an email address that exceeds 256 bytes
+        let email = "a".repeat(257);
+        let result = PaddedEmailAddr::from_email_addr(&email);
+        assert!(result.is_err());
+
+        let error = result.unwrap_err();
+        let error_msg = error.to_string();
+        assert!(
+            error_msg.contains("exceeds maximum allowed length"),
+            "Expected error message about exceeding max length, got: {}",
+            error_msg
+        );
+    }
+
+    #[test]
+    fn test_padded_email_addr_collision_prevention() {
+        // Test that two different emails exceeding 256 bytes would have been rejected
+        // This demonstrates the security fix preventing collision attacks
+        let email1 = format!("{}@example.com", "a".repeat(250));
+        let email2 = format!("{}@different.com", "a".repeat(250));
+
+        // Both should be rejected since they exceed 256 bytes
+        assert!(PaddedEmailAddr::from_email_addr(&email1).is_err());
+        assert!(PaddedEmailAddr::from_email_addr(&email2).is_err());
+    }
+
+    #[test]
+    fn test_padded_email_addr_long_but_valid() {
+        // Test with a long but valid email (under 256 bytes)
+        let local_part = "a".repeat(200);
+        let email = format!("{}@example.com", local_part);
+        assert!(email.len() < MAX_EMAIL_ADDR_BYTES);
+
+        let result = PaddedEmailAddr::from_email_addr(&email);
+        assert!(result.is_ok());
+
+        let padded = result.unwrap();
+        assert_eq!(padded.email_addr_len, email.len());
+    }
+
+    #[test]
+    fn test_calculate_account_salt_with_valid_email() {
+        // Test calculate_account_salt with valid email
+        let email = "test@example.com";
+        // Use a valid 32-byte hex string (64 hex chars) for field element
+        let account_code = "0x0000000000000000000000000000000000000000000000000000000000000001";
+        let result = calculate_account_salt(email, account_code);
+        assert!(
+            result.is_ok(),
+            "Expected Ok, got Err: {:?}",
+            result.unwrap_err()
+        );
+    }
+
+    #[test]
+    fn test_calculate_account_salt_with_invalid_email() {
+        // Test calculate_account_salt with email exceeding max length
+        let email = "a".repeat(300);
+        let account_code = "0x1234567890abcdef";
+        let result = calculate_account_salt(&email, account_code);
+        assert!(result.is_err());
+
+        let error = result.unwrap_err();
+        assert!(error.to_string().contains("exceeds maximum allowed length"));
+    }
+
     #[tokio::test]
     async fn test_fetch_public_key() -> Result<()> {
         if std::env::var("CI").is_ok() {
@@ -688,24 +803,24 @@ pub fn calculate_default_hash(input: &str) -> String {
 ///
 /// # Returns
 ///
-/// A string representation of the calculated account salt.
-pub fn calculate_account_salt(email_addr: &str, account_code: &str) -> String {
-    // Pad the email address
-    let padded_email_addr = PaddedEmailAddr::from_email_addr(email_addr);
+/// A `Result` containing the string representation of the calculated account salt or an error.
+pub fn calculate_account_salt(email_addr: &str, account_code: &str) -> Result<String> {
+    // Pad the email address (now returns Result)
+    let padded_email_addr = PaddedEmailAddr::from_email_addr(email_addr)?;
 
     // Convert account code to field element
     let account_code = if account_code.starts_with("0x") {
-        hex_to_field(account_code).unwrap()
+        hex_to_field(account_code)?
     } else {
-        hex_to_field(&format!("0x{}", account_code)).unwrap()
+        hex_to_field(&format!("0x{}", account_code))?
     };
     let account_code = AccountCode::from(account_code);
 
     // Generate account salt
-    let account_salt = AccountSalt::new(&padded_email_addr, account_code).unwrap();
+    let account_salt = AccountSalt::new(&padded_email_addr, account_code)?;
 
     // Convert account salt to hexadecimal representation
-    field_to_hex(&account_salt.0)
+    Ok(field_to_hex(&account_salt.0))
 }
 
 /// Fetches the public key from DNS records using the DKIM signature in the email headers.

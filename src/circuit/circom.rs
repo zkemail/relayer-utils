@@ -316,7 +316,7 @@ pub async fn generate_claim_input(
     account_code: &str,
 ) -> Result<String> {
     // Convert the email address to a padded format
-    let padded_email_address = PaddedEmailAddr::from_email_addr(email_address);
+    let padded_email_address = PaddedEmailAddr::from_email_addr(email_address)?;
     // Collect the padded bytes into a vector
     let padded_email_addr_bytes = padded_email_address.padded_bytes;
 

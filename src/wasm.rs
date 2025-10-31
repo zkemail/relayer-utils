@@ -110,7 +110,12 @@ pub async fn generateAccountCode() -> Promise {
 ///
 /// A `Promise` that resolves with the serialized `AccountSalt` or rejects with an error message.
 pub async fn generateAccountSalt(email_addr: String, account_code: String) -> Promise {
-    let email_addr = PaddedEmailAddr::from_email_addr(&email_addr);
+    let email_addr = match PaddedEmailAddr::from_email_addr(&email_addr) {
+        Ok(addr) => addr,
+        Err(e) => {
+            return Promise::reject(&JsValue::from_str(&format!("Invalid email address: {}", e)));
+        }
+    };
     let account_code = match hex_to_field(&account_code) {
         Ok(field) => AccountCode::from(field),
         Err(_) => {
@@ -145,7 +150,12 @@ pub async fn generateAccountSalt(email_addr: String, account_code: String) -> Pr
 ///
 /// A `Promise` that resolves with the serialized padded email address or rejects with an error message.
 pub async fn padEmailAddr(email_addr: String) -> Promise {
-    let padded_email_addr = PaddedEmailAddr::from_email_addr(&email_addr);
+    let padded_email_addr = match PaddedEmailAddr::from_email_addr(&email_addr) {
+        Ok(addr) => addr,
+        Err(e) => {
+            return Promise::reject(&JsValue::from_str(&format!("Invalid email address: {}", e)));
+        }
+    };
     match to_value(&padded_email_addr) {
         Ok(serialized_addr) => Promise::resolve(&serialized_addr),
         Err(_) => Promise::reject(&JsValue::from_str("Failed to serialize padded_email_addr")),
@@ -457,7 +467,12 @@ pub async fn emailAddrCommitWithSignature(email_addr: String, signautre: Vec<u8>
 
     console_error_panic_hook::set_once();
 
-    let padded_email_addr = PaddedEmailAddr::from_email_addr(&email_addr);
+    let padded_email_addr = match PaddedEmailAddr::from_email_addr(&email_addr) {
+        Ok(addr) => addr,
+        Err(e) => {
+            return Promise::reject(&JsValue::from_str(&format!("Invalid email address: {}", e)));
+        }
+    };
     let cm = match padded_email_addr.to_commitment_with_signature(&signautre) {
         Ok(cm) => cm,
         Err(_) => {
