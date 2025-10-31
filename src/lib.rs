@@ -7,6 +7,8 @@ pub mod logger;
 pub mod parse_email;
 pub mod proof;
 pub mod regex;
+
+#[cfg(target_arch = "wasm32")]
 pub mod wasm;
 
 pub use circuit::*;

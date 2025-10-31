@@ -5,7 +5,7 @@ use wasm_bindgen::prelude::*;
 use crate::regex::extract::{extract_substr, extract_substr_idxes};
 use crate::regex::padding::pad_string;
 use crate::regex::patterns::*;
-use crate::regex::types::{DecomposedRegexConfig, ExtractionError};
+use crate::regex::types::DecomposedRegexConfig;
 
 // Core extraction functions
 // Note: WASM uses standalone mode (no NFAGraph) for simplicity
