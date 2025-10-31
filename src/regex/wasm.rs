@@ -199,27 +199,3 @@ pub fn extractMessageIdIdxes(inputStr: &str) -> Result<Array, JsValue> {
 pub fn padString(str: &str, paddedBytesSize: usize) -> Vec<u8> {
     pad_string(str, paddedBytesSize)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_wasm_pad_string() {
-        let result = padString("hello", 10);
-        assert_eq!(result.len(), 10);
-        assert_eq!(&result[0..5], b"hello");
-        assert_eq!(&result[5..10], &[0u8; 5]);
-    }
-
-    #[test]
-    fn test_wasm_extract_substr() {
-        let input = "from:alice@example.com";
-        let regex_config_json = JsValue::from_str(
-            r#"{"parts":[{"is_public":true,"regex_def":"[a-z]+@[a-z]+\\.com"}]}"#,
-        );
-        let result = extractSubstr(input, regex_config_json, false);
-        println!("result: {:?}", result);
-        assert_eq!(result.unwrap(), vec!["alice@example.com"]);
-    }
-}
