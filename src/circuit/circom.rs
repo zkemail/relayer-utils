@@ -1,11 +1,8 @@
+use crate::regex::{DecomposedRegexConfig, RegexPart};
 use anyhow::Result;
-use js_sys::Number;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::VecDeque;
-use zk_regex_apis::extract_substrs::{
-    extract_substr_idxes, DecomposedRegexConfig, RegexPartConfig,
-};
 use zk_regex_compiler::{gen_circuit_inputs, NFAGraph, ProverInputs, ProvingFramework};
 
 use crate::{
@@ -58,16 +55,110 @@ struct ClaimCircuitInput {
     account_code: String, // The account code as a string
 }
 
+/// Serializable wrapper for RegexPart that can be used in JSON files
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum SerializableRegexPart {
+    Pattern(String),
+    PublicPattern((String, usize)),
+}
+
+impl From<SerializableRegexPart> for RegexPart {
+    fn from(part: SerializableRegexPart) -> Self {
+        match part {
+            SerializableRegexPart::Pattern(p) => RegexPart::Pattern(p),
+            SerializableRegexPart::PublicPattern((p, max)) => RegexPart::PublicPattern((p, max)),
+        }
+    }
+}
+
+impl From<RegexPart> for SerializableRegexPart {
+    fn from(part: RegexPart) -> Self {
+        match part {
+            RegexPart::Pattern(p) => SerializableRegexPart::Pattern(p),
+            RegexPart::PublicPattern((p, max)) => SerializableRegexPart::PublicPattern((p, max)),
+        }
+    }
+}
+
+impl From<&RegexPart> for SerializableRegexPart {
+    fn from(part: &RegexPart) -> Self {
+        match part {
+            RegexPart::Pattern(p) => SerializableRegexPart::Pattern(p.clone()),
+            RegexPart::PublicPattern((p, max)) => {
+                SerializableRegexPart::PublicPattern((p.clone(), *max))
+            }
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DecomposedRegex {
-    pub parts: Vec<RegexPartConfig>, // The parts of the regex configuration
-    pub name: String,                // The name of the decomposed regex
-    pub max_match_length: usize,     // The maximum length of the regex match
-    pub max_haystack_length: usize,  // The maximum length of the haystack
+    #[serde(with = "regex_parts_serde")]
+    pub parts: Vec<RegexPart>, // The parts of the regex configuration (using new RegexPart enum)
+    pub name: String,               // The name of the decomposed regex
+    pub max_match_length: usize,    // The maximum length of the regex match
+    pub max_haystack_length: usize, // The maximum length of the haystack
     pub haystack_location: String, // The location where the regex is applied (e.g., header or body)
     pub regex_graph_json: String,
     pub proving_framework: ProvingFramework,
+}
+
+impl std::fmt::Debug for DecomposedRegex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DecomposedRegex")
+            .field("name", &self.name)
+            .field("max_match_length", &self.max_match_length)
+            .field("max_haystack_length", &self.max_haystack_length)
+            .field("haystack_location", &self.haystack_location)
+            .field("regex_graph_json", &"<json>")
+            .field("proving_framework", &self.proving_framework)
+            .finish()
+    }
+}
+
+impl Clone for DecomposedRegex {
+    fn clone(&self) -> Self {
+        DecomposedRegex {
+            parts: self
+                .parts
+                .iter()
+                .map(|p| match p {
+                    RegexPart::Pattern(s) => RegexPart::Pattern(s.clone()),
+                    RegexPart::PublicPattern((s, n)) => RegexPart::PublicPattern((s.clone(), *n)),
+                })
+                .collect(),
+            name: self.name.clone(),
+            max_match_length: self.max_match_length,
+            max_haystack_length: self.max_haystack_length,
+            haystack_location: self.haystack_location.clone(),
+            regex_graph_json: self.regex_graph_json.clone(),
+            proving_framework: self.proving_framework,
+        }
+    }
+}
+
+// Custom serde module for Vec<RegexPart>
+mod regex_parts_serde {
+    use super::*;
+    use serde::{Deserializer, Serializer};
+
+    pub fn serialize<S>(parts: &[RegexPart], serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let serializable: Vec<SerializableRegexPart> = parts.iter().map(|p| p.into()).collect();
+        serializable.serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<RegexPart>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let serializable: Vec<SerializableRegexPart> = Vec::deserialize(deserializer)?;
+        Ok(serializable.into_iter().map(Into::into).collect())
+    }
 }
 
 /// Asynchronously generates the circuit input for an email.
@@ -225,7 +316,7 @@ pub async fn generate_claim_input(
     account_code: &str,
 ) -> Result<String> {
     // Convert the email address to a padded format
-    let padded_email_address = PaddedEmailAddr::from_email_addr(email_address);
+    let padded_email_address = PaddedEmailAddr::from_email_addr(email_address)?;
     // Collect the padded bytes into a vector
     let padded_email_addr_bytes = padded_email_address.padded_bytes;
 
