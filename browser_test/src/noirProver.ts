@@ -4,7 +4,7 @@ import { init, generateNoirCircuitInputsWithRegexesAndExternalInputs, parseEmail
 
 export function setupNoirProver(element: HTMLElement) {
   const sdk = zkeSdk({
-    baseUrl: "https://staging-conductor.zk.email",
+    baseUrl: "https://dev-conductor.zk.email",
     logging: { enabled: true, level: "debug" },
   });
   // const sdk = zkeSdk({
@@ -18,7 +18,7 @@ export function setupNoirProver(element: HTMLElement) {
     proveButton.addEventListener("click", async () => {
       try {
         console.log("getting blueprint");
-        const blueprint = await sdk.getBlueprintById("5565c715-62e2-4ef1-92cb-b22a0f70b8dc");
+        const blueprint = await sdk.getBlueprintById("8c247aad-92c0-44a4-b089-bdf847ff5858");
 
         console.log("blueprint: ", blueprint);
 
@@ -69,13 +69,14 @@ export function setupNoirProver(element: HTMLElement) {
             regex_graph_json: JSON.stringify(regexGraph),
             haystack_location,
             max_haystack_length: maxHaystackLength,
-            max_match_length: 64,
+            max_match_length: dr.maxMatchLength || 64,
             parts: dr.parts.map((p) => ({
               // @ts-ignore
               is_public: p.isPublic || !!p.is_public,
               // @ts-ignore
-              regex_def: p.regexDef || !!p.regex_def,
-              ...(p.isPublic && { maxLength: 64 }), // TODO same as above
+              regex_def: p.regexDef || p.regex_def,
+              // @ts-ignore
+              ...(p.isPublic && { maxLength: p.maxLength || p.max_length || 64 }),
             })),
             proving_framework: "noir",
           };
@@ -86,7 +87,8 @@ export function setupNoirProver(element: HTMLElement) {
           maxBodyLength: blueprint.props.emailBodyMaxLength || 0,
           ignoreBodyHashCheck: blueprint.props.ignoreBodyHashCheck,
           removeSoftLineBreaks: blueprint.props.removeSoftLinebreaks,
-          shaPrecomputeSelector: blueprint.props.shaPrecomputeSelector,
+          // Convert empty string to undefined/null
+          shaPrecomputeSelector: blueprint.props.shaPrecomputeSelector || undefined,
           proverEthAddress: "0x0000000000000000000000000000000000000000",
         };
     
@@ -164,7 +166,7 @@ export function setupNoirProver(element: HTMLElement) {
 
 async function getEml() {
   try {
-    const response = await fetch("/github.eml"); // URL is relative to the root of the project
+    const response = await fetch("/x.eml"); // URL is relative to the root of the project
     if (!response.ok) {
       throw new Error("Network response was not ok " + response.statusText);
     }
