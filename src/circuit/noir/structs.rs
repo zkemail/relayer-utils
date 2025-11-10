@@ -1,5 +1,14 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use zk_regex_compiler::ProvingFramework;
+
+/// Custom deserializer that treats empty strings as None
+fn deserialize_empty_string_as_none<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s: Option<String> = Option::deserialize(deserializer)?;
+    Ok(s.filter(|s| !s.is_empty()))
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BoundedVec {
@@ -41,6 +50,7 @@ pub struct NoirCircuitInputs {
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct NoirInputGenerationArgs {
     pub ignore_body_hash_check: Option<bool>,
+    #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     pub sha_precompute_selector: Option<String>,
     pub max_headers_length: Option<usize>,
     pub max_body_length: Option<usize>,

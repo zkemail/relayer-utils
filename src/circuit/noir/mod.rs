@@ -106,6 +106,28 @@ pub async fn generate_noir_circuit_input(
     if email_circuit_inputs.body_padded.is_some() {
         let body_padded = email_circuit_inputs.body_padded.clone().unwrap();
 
+        // When sha_precompute_selector is used, body_padded is already the REMAINING body
+        // after the selector cutoff, not the full body. So we use it directly.
+        // When no selector is used, body_padded is the full padded body.
+        let body_storage_zero_padded = if params.sha_precompute_selector.is_some() {
+            // Use body_padded directly as it's already the remaining body after cutoff
+            body_padded.clone()
+        } else {
+            // No selector - use the full canonicalized body
+            let actual_body_bytes = parsed_email.canonicalized_body.as_bytes();
+            if actual_body_bytes.len() > body_padded.len() {
+                return Err(anyhow::anyhow!(
+                    "Email body length ({}) exceeds maximum body length ({}). \
+                     Please increase email_body_max_length in your blueprint configuration.",
+                    actual_body_bytes.len(),
+                    body_padded.len()
+                ));
+            }
+            let mut body_storage = actual_body_bytes.to_vec();
+            body_storage.resize(body_padded.len(), 0);
+            body_storage
+        };
+
         if params.ignore_body_hash_check.is_some_and(|x| !x) {
             if email_circuit_inputs.body_hash_idx.is_none() {
                 return Err(anyhow::anyhow!(
@@ -113,9 +135,21 @@ pub async fn generate_noir_circuit_input(
                 ));
             }
 
+            // When sha_precompute_selector is used, body_padded is the REMAINING body after cutoff
+            // and body_padded_len is the actual length of the remaining body
+            let body_len = if params.sha_precompute_selector.is_some() {
+                // Use the remaining body length from email_circuit_inputs
+                email_circuit_inputs
+                    .body_padded_len
+                    .unwrap_or(parsed_email.canonicalized_body.len())
+            } else {
+                // No selector - use the full canonicalized body length
+                parsed_email.canonicalized_body.len()
+            };
+
             noir_circuit_input.body = Some(BoundedVec {
-                storage: body_padded.clone(),
-                len: parsed_email.canonicalized_body.len(),
+                storage: body_storage_zero_padded.clone(),
+                len: body_len,
             });
             noir_circuit_input.body_hash_index = email_circuit_inputs.body_hash_idx;
         }
@@ -126,21 +160,6 @@ pub async fn generate_noir_circuit_input(
                 Some(parsed_email.canonicalized_body.len());
             let partial_hash = u8_to_u32(email_circuit_inputs.precomputed_sha.unwrap().as_slice())?;
             noir_circuit_input.partial_body_hash = Some(partial_hash);
-
-            // If a selector was provided, adjust the body length to start from the cutoff point
-            if let Some(selector) = &params.sha_precompute_selector {
-                // Calculate remaining body length after SHA cutoff
-                // TODO: This will fail if the selector is not found in the body (i.e selector is without soft line breaks).
-                let selector_bytes = selector.as_bytes();
-                let body_bytes = parsed_email.canonicalized_body.as_bytes();
-                let selector_index = body_bytes
-                    .windows(selector_bytes.len())
-                    .position(|window| window == selector_bytes)
-                    .ok_or_else(|| anyhow::anyhow!("Selector not found in body"))?;
-                let sha_cutoff_index = (selector_index / 64) * 64;
-                let remaining_body_length = body_bytes.len() - sha_cutoff_index;
-                noir_circuit_input.body.as_mut().unwrap().len = remaining_body_length;
-            }
         }
 
         if params.body_mask.is_some() {
@@ -148,11 +167,33 @@ pub async fn generate_noir_circuit_input(
         }
 
         if params.remove_soft_line_breaks.is_some_and(|x| x) {
-            let (cleaned_body, index_map) =
-                remove_quoted_printable_soft_breaks(body_padded.clone());
+            // Extract only actual body content (without padding) for soft line break removal
+            // When selector is used, body_storage_zero_padded contains the REMAINING body,
+            // and we need to use the remaining body length from email_circuit_inputs
+            let actual_body_len = if params.sha_precompute_selector.is_some() {
+                // Calculate remaining body length after SHA cutoff
+                // TODO: This will fail if the selector is not found in the body (i.e selector is without soft line breaks).
+                email_circuit_inputs
+                    .body_padded_len
+                    .unwrap_or(body_storage_zero_padded.len())
+            } else {
+                parsed_email.canonicalized_body.len()
+            };
+
+            let actual_body = body_storage_zero_padded[..actual_body_len].to_vec();
+
+            // Remove soft line breaks from actual content only
+            let (mut cleaned_body, index_map) = remove_quoted_printable_soft_breaks(actual_body);
+
+            // Pad cleaned body to match circuit's expected storage size
+            cleaned_body.resize(body_storage_zero_padded.len(), 0);
+
+            // Count actual cleaned bytes (not padding)
+            let actual_cleaned_len = index_map.iter().filter(|&&idx| idx != usize::MAX).count();
+
             noir_circuit_input.decoded_body = Some(BoundedVec {
                 storage: cleaned_body,
-                len: index_map.len(),
+                len: actual_cleaned_len,
             });
         }
     }

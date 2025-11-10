@@ -150,13 +150,9 @@ fn generate_circuit_inputs(params: CircuitInputParams) -> Result<CircuitInput> {
 
     // If body hash check is not ignored, include the precomputed SHA and body information
     if !params.ignore_body_hash_check {
-        // Calculate the length needed for SHA-256 padding of the body
-        let body_sha_length = ((params.body.len() + 63 + 65) / 64) * 64;
-        // Pad the body to accommodate both SHA-256 requirements and maximum length constraints
-        let (body_padded, body_sha_block_len) = sha256_pad(
-            params.body.clone(),
-            cmp::max(params.max_body_length, body_sha_length),
-        );
+        // Pass the UNPADDED body - the circuit's partial_sha256_var_end handles SHA padding
+        let body_for_sha = params.body.clone();
+        let body_original_len = body_for_sha.len();
 
         let mut adjusted_selector = params.sha_precompute_selector;
 
@@ -174,8 +170,8 @@ fn generate_circuit_inputs(params: CircuitInputParams) -> Result<CircuitInput> {
         // Ensure that the error type returned by `generate_partial_sha` is sized
         // by converting it into an `anyhow::Error` if it's not already.
         let result = generate_partial_sha(
-            body_padded,
-            body_sha_block_len,
+            body_for_sha,
+            body_original_len,
             adjusted_selector,
             params.max_body_length,
         );
