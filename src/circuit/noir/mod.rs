@@ -118,7 +118,7 @@ pub async fn generate_noir_circuit_input(
             if actual_body_bytes.len() > body_padded.len() {
                 return Err(anyhow::anyhow!(
                     "Email body length ({}) exceeds maximum body length ({}). \
-                     Please increase email_body_max_length in your blueprint configuration.",
+                     Please increase email_body_max_length in your regex configuration.",
                     actual_body_bytes.len(),
                     body_padded.len()
                 ));
