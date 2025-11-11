@@ -76,7 +76,7 @@ export function setupNoirProver(element: HTMLElement) {
               // @ts-ignore
               regex_def: p.regexDef || p.regex_def,
               // @ts-ignore
-              ...(p.isPublic && { maxLength: p.maxLength || p.max_length || 64 }),
+              ...((p.isPublic || p.is_public) && { maxLength: p.maxLength || p.max_length || 64 }),
             })),
             proving_framework: "noir",
           };
