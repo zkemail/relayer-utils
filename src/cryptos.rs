@@ -545,15 +545,8 @@ pub fn generate_partial_sha(
         )));
     }
 
-    // Ensure the remaining body is padded correctly to 64-byte blocks
-    if body_remaining.len() % 64 != 0 {
-        return Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "Remaining body was not padded correctly with int64s",
-        )));
-    }
-
     // Pad the remaining body to the maximum length with zeros
+    // Note: No need to check if it's a multiple of 64, as the circuit handles SHA padding
     while body_remaining.len() < max_remaining_body_length {
         body_remaining.push(0);
     }

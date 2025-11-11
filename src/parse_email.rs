@@ -337,8 +337,9 @@ pub fn remove_quoted_printable_soft_breaks(body: Vec<u8>) -> (Vec<u8>, Vec<usize
         }
     }
 
-    // Pad the cleaned result with zeros to match the original length
+    // Pad both arrays to original length
     cleaned.resize(original_len, 0);
+    index_map.resize(original_len, usize::MAX);
 
     (cleaned, index_map)
 }
