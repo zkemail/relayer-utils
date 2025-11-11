@@ -110,6 +110,7 @@ pub async fn generate_noir_circuit_input(
         // after the selector cutoff, not the full body. So we use it directly.
         // When no selector is used, body_padded is the full padded body.
         let body_storage_zero_padded = if params.sha_precompute_selector.is_some() {
+            // body padded is already canonicalized before generating circuit params
             // Use body_padded directly as it's already the remaining body after cutoff
             body_padded.clone()
         } else {
