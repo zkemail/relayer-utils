@@ -100,8 +100,8 @@ pub struct DecomposedRegex {
     pub name: String,               // The name of the decomposed regex
 
     // Support both old field name "maxLength" and new split fields
-    #[serde(alias = "maxLength", default)]
-    pub max_match_length: Option<usize>,    // The maximum length of the regex match
+    #[serde(alias = "maxLength")]
+    pub max_match_length: usize,    // The maximum length of the regex match
     #[serde(default)]
     pub max_haystack_length: Option<usize>, // The maximum length of the haystack
 
@@ -165,24 +165,11 @@ impl DecomposedRegex {
             .unwrap_or(false)
     }
 
-    /// Calculate max_match_length from parts if not provided
-    /// For legacy configs, use a reasonable default based on part patterns
-    pub fn get_max_match_length(&self) -> usize {
-        self.max_match_length.unwrap_or_else(|| {
-            // Sum up estimated lengths from regex patterns
-            // For simplicity, default to 64 * number of public parts
-            let public_count = self.parts.iter()
-                .filter(|p| matches!(p, RegexPart::PublicPattern(_)))
-                .count();
-            std::cmp::max(public_count * 64, 64)
-        })
-    }
-
     /// Calculate max_haystack_length from parts if not provided
     pub fn get_max_haystack_length(&self) -> usize {
         self.max_haystack_length.unwrap_or_else(|| {
             // For legacy, use the provided maxLength or default
-            self.max_match_length.unwrap_or(1024)
+            self.max_match_length
         })
     }
 }
@@ -599,7 +586,7 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
                 &NFAGraph::from_json(decomposed_regex.regex_graph_json.as_ref().unwrap())?,
                 &haystack,
                 decomposed_regex.get_max_haystack_length(),
-                decomposed_regex.get_max_match_length(),
+                decomposed_regex.max_match_length,
                 decomposed_regex.proving_framework,
             )?;
             match regex_result {
