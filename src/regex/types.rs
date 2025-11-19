@@ -30,6 +30,7 @@ pub type ExtractionResult<T> = Result<T, ExtractionError>;
 /// Legacy config struct for backward compatibility
 /// Used to convert old-style configs to new enum-based configs
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LegacyRegexPartConfig {
     pub is_public: bool,
     pub regex_def: String,

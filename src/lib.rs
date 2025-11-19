@@ -25,5 +25,6 @@ pub use regex::{
     extract_body_hash_idxes, extract_email_addr_idxes, extract_email_domain_idxes,
     extract_from_addr_idxes, extract_message_id_idxes, extract_subject_all_idxes, extract_substr,
     extract_substr_idxes, extract_timestamp_idxes, extract_to_addr_idxes, pad_bytes, pad_string,
-    DecomposedRegexConfig, ExtractionError, ExtractionResult, NFAGraph, RegexPart,
+    DecomposedRegexConfig, ExtractionError, ExtractionResult, LegacyDecomposedRegexConfig,
+    LegacyRegexPartConfig, NFAGraph, RegexPart,
 };
