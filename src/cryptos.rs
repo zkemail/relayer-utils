@@ -556,6 +556,79 @@ pub fn generate_partial_sha(
     Ok((precomputed_sha, body_remaining, body_remaining_length))
 }
 
+// TODO : Just supported for older circom compiler, since it's circuit doesn't had the padding inside, we padded them externally
+pub fn generate_partial_sha_old(
+    body: Vec<u8>,
+    body_length: usize,
+    selector_regex: Option<String>,
+    max_remaining_body_length: usize,
+) -> PartialShaResult {
+    let mut selector_index = 0;
+
+    // Check if a selector is provided
+    if let Some(selector) = selector_regex {
+        // Create a regex pattern from the selector
+        let pattern = regex::Regex::new(&selector)?;
+        let body_str = {
+            // Undo SHA padding
+            let mut trimmed_body = body.clone();
+            while !(trimmed_body.last() == Some(&10)
+                && trimmed_body.get(trimmed_body.len() - 2) == Some(&13))
+            {
+                trimmed_body.pop();
+            }
+
+            String::from_utf8(trimmed_body)?
+        };
+
+        // Find the index of the selector in the body
+        if let Some(matched) = pattern.find(&body_str) {
+            selector_index = matched.start();
+        } else {
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Selector {} not found in the body", selector),
+            )));
+        }
+    }
+
+    // Calculate the cutoff index for SHA-256 block size (64 bytes)
+    let sha_cutoff_index = (selector_index / 64) * 64;
+    let precompute_text = &body[..sha_cutoff_index];
+    // Will be padded to max_remaining_body_length
+    let mut body_remaining = body[sha_cutoff_index..].to_vec();
+
+    let body_remaining_length = body_length - precompute_text.len();
+
+    // Check if the remaining body length exceeds the maximum allowed length
+    if body_remaining_length > max_remaining_body_length {
+        return Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!(
+                "Remaining body {} after the selector is longer than max ({})",
+                body_remaining_length, max_remaining_body_length
+            ),
+        )));
+    }
+
+    // Ensure the remaining body is padded correctly to 64-byte blocks
+    if body_remaining.len() % 64 != 0 {
+        return Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "Remaining body was not padded correctly with int64s",
+        )));
+    }
+
+    // Pad the remaining body to the maximum length with zeros
+    while body_remaining.len() < max_remaining_body_length {
+        body_remaining.push(0);
+    }
+
+    // Compute the SHA-256 hash of the pre-selector part of the message
+    let precomputed_sha = partial_sha(precompute_text, sha_cutoff_index);
+    Ok((precomputed_sha, body_remaining, body_remaining_length))
+}
+
 /// Computes the Keccak-256 hash of the given data.
 ///
 /// # Arguments

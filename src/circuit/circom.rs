@@ -1,4 +1,7 @@
-use crate::regex::{DecomposedRegexConfig, RegexPart};
+use crate::{
+    circuit::generate_circuit_inputs_old,
+    regex::{DecomposedRegexConfig, RegexPart},
+};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -97,11 +100,11 @@ impl From<&RegexPart> for SerializableRegexPart {
 pub struct DecomposedRegex {
     #[serde(with = "regex_parts_serde")]
     pub parts: Vec<RegexPart>, // The parts of the regex configuration (using new RegexPart enum)
-    pub name: String,               // The name of the decomposed regex
+    pub name: String, // The name of the decomposed regex
 
     // Support both old field name "maxLength" and new split fields
     #[serde(alias = "maxLength")]
-    pub max_match_length: usize,    // The maximum length of the regex match
+    pub max_match_length: usize, // The maximum length of the regex match
     #[serde(default)]
     pub max_haystack_length: Option<usize>, // The maximum length of the haystack
 
@@ -129,7 +132,10 @@ impl std::fmt::Debug for DecomposedRegex {
             .field("max_match_length", &self.max_match_length)
             .field("max_haystack_length", &self.max_haystack_length)
             .field("haystack_location", &self.haystack_location)
-            .field("regex_graph_json", &self.regex_graph_json.as_ref().map(|_| "<json>"))
+            .field(
+                "regex_graph_json",
+                &self.regex_graph_json.as_ref().map(|_| "<json>"),
+            )
             .field("proving_framework", &self.proving_framework)
             .finish()
     }
@@ -395,16 +401,16 @@ fn generate_legacy_circuit_inputs(
     use crate::regex::{extract_substr_idxes, DecomposedRegexConfig};
 
     // Convert parts to DecomposedRegexConfig for extraction
-    let parts: Vec<RegexPart> = decomposed_regex.parts.iter().map(|part| {
-        match part {
+    let parts: Vec<RegexPart> = decomposed_regex
+        .parts
+        .iter()
+        .map(|part| match part {
             RegexPart::Pattern(s) => RegexPart::Pattern(s.clone()),
             RegexPart::PublicPattern((s, n)) => RegexPart::PublicPattern((s.clone(), *n)),
-        }
-    }).collect();
+        })
+        .collect();
 
-    let decomposed_regex_config = DecomposedRegexConfig {
-        parts,
-    };
+    let decomposed_regex_config = DecomposedRegexConfig { parts };
 
     // Extract substring indices without NFAGraph (standalone mode)
     let idxes: Vec<(usize, usize)> = extract_substr_idxes(
@@ -494,7 +500,13 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
     let circuit_input_params = CircuitInputParams::new(circuit_params, circuit_options);
 
     // Generate the circuit inputs from the parameters
-    let email_circuit_inputs = generate_circuit_inputs(circuit_input_params.clone())?;
+    let email_circuit_inputs;
+    if decomposed_regexes[0].has_nfa_graph() {
+        email_circuit_inputs = generate_circuit_inputs(circuit_input_params.clone())?;
+    } else {
+        // TODO: remove all this temperory code for supporting old one
+        email_circuit_inputs = generate_circuit_inputs_old(circuit_input_params.clone())?;
+    }
 
     // Create a JSON object to hold the circuit inputs
     let mut circuit_inputs = json!({
@@ -605,7 +617,8 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
                     // Add capture group fields if they exist
                     if let Some(capture_group_ids) = circom_inputs.capture_group_ids {
                         for (i, id) in capture_group_ids.iter().enumerate() {
-                            circuit_inputs[format!("{}CaptureGroup{}Id", decomposed_regex.name, i)] =
+                            circuit_inputs
+                                [format!("{}CaptureGroup{}Id", decomposed_regex.name, i)] =
                                 serde_json::Value::Array(
                                     id.iter()
                                         .map(|s| serde_json::Value::Number((*s as u64).into()))
@@ -627,7 +640,9 @@ pub async fn generate_circuit_inputs_with_decomposed_regexes_and_external_inputs
                         } else {
                             return Err(anyhow::anyhow!("Capture group starts are missing"));
                         }
-                        if let Some(capture_group_indices) = circom_inputs.capture_group_start_indices {
+                        if let Some(capture_group_indices) =
+                            circom_inputs.capture_group_start_indices
+                        {
                             circuit_inputs
                                 [format!("{}CaptureGroupStartIndices", decomposed_regex.name)] =
                                 serde_json::Value::Array(

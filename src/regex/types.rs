@@ -31,7 +31,9 @@ pub type ExtractionResult<T> = Result<T, ExtractionError>;
 /// Used to convert old-style configs to new enum-based configs
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LegacyRegexPartConfig {
+    #[serde(alias = "isPublic")]
     pub is_public: bool,
+    #[serde(alias = "regexDef")]
     pub regex_def: String,
 }
 

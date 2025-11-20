@@ -12,8 +12,8 @@ use serde::{Deserialize, Serialize};
 use std::cmp;
 
 use crate::{
-    generate_partial_sha, remove_quoted_printable_soft_breaks, sha256_pad, to_circom_bigint_bytes,
-    MAX_BODY_PADDED_BYTES, MAX_HEADER_PADDED_BYTES,
+    generate_partial_sha, generate_partial_sha_old, remove_quoted_printable_soft_breaks,
+    sha256_pad, to_circom_bigint_bytes, MAX_BODY_PADDED_BYTES, MAX_HEADER_PADDED_BYTES,
 };
 
 #[derive(Debug, Clone)]
@@ -172,6 +172,70 @@ fn generate_circuit_inputs(params: CircuitInputParams) -> Result<CircuitInput> {
         let result = generate_partial_sha(
             body_for_sha,
             body_original_len,
+            adjusted_selector,
+            params.max_body_length,
+        );
+
+        // Use match to handle the result and convert any error into an anyhow::Error
+        let (precomputed_sha, body_remaining_padded, body_remaining_length) = match result {
+            Ok((sha, remaining, len)) => (sha, remaining, len),
+            Err(e) => panic!("Failed to generate partial SHA: {:?}", e),
+        };
+
+        circuit_input.precomputed_sha = Some(precomputed_sha);
+        circuit_input.body_hash_idx = Some(params.body_hash_idx);
+        circuit_input.body_padded = Some(body_remaining_padded);
+        circuit_input.body_padded_len = Some(body_remaining_length);
+    }
+
+    Ok(circuit_input)
+}
+// TODO : Just suppported for older circom compiler
+fn generate_circuit_inputs_old(params: CircuitInputParams) -> Result<CircuitInput> {
+    // Pad the header to the specified maximum length or the default
+    let (header_padded, header_padded_len) =
+        sha256_pad(params.header.clone(), params.max_header_length);
+
+    // Initialize the circuit input with the padded header and RSA information
+    let mut circuit_input = CircuitInput {
+        header_padded,
+        pubkey: to_circom_bigint_bytes(params.rsa_public_key),
+        signature: to_circom_bigint_bytes(params.rsa_signature),
+        header_len_padded_bytes: header_padded_len,
+        precomputed_sha: None,
+        body_padded: None,
+        body_padded_len: None,
+        body_hash_idx: None,
+    };
+
+    // If body hash check is not ignored, include the precomputed SHA and body information
+    if !params.ignore_body_hash_check {
+        // Calculate the length needed for SHA-256 padding of the body
+        let body_sha_length = ((params.body.len() + 63 + 65) / 64) * 64;
+        // Pad the body to accommodate both SHA-256 requirements and maximum length constraints
+        let (body_padded, body_sha_block_len) = sha256_pad(
+            params.body.clone(),
+            cmp::max(params.max_body_length, body_sha_length),
+        );
+
+        let mut adjusted_selector = params.sha_precompute_selector;
+
+        if adjusted_selector.is_some() {
+            let (cleaned_body, position_map) =
+                remove_quoted_printable_soft_breaks(params.body.clone());
+            adjusted_selector = Some(get_adjusted_selector(
+                &params.body,
+                &adjusted_selector.as_ref().unwrap(),
+                &cleaned_body,
+                &position_map,
+            )?);
+        }
+
+        // Ensure that the error type returned by `generate_partial_sha` is sized
+        // by converting it into an `anyhow::Error` if it's not already.
+        let result = generate_partial_sha_old(
+            body_padded,
+            body_sha_block_len,
             adjusted_selector,
             params.max_body_length,
         );
