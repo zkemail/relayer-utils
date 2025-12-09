@@ -737,8 +737,7 @@ async fn fetch_public_keys(email_headers: EmailHeaders) -> Result<(serde_json::V
     let from_domain = from_headers[0].as_str();
     let from_re = Regex::new(r"@([^>\s]+)").unwrap();
     let from_domain = from_re
-        .captures_iter(from_domain)
-        .last()
+        .captures(from_domain)
         .and_then(|cap| cap.get(1))
         .map(|m| m.as_str().to_string())
         .ok_or_else(|| {
