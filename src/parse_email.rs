@@ -369,7 +369,7 @@ impl EmailHeaders {
         Self(headers)
     }
 
-    /// Retrieves the value(s) of a specific header.
+    /// Retrieves the value(s) of a specific header (case-insensitive lookup).
     ///
     /// # Arguments
     ///
@@ -379,6 +379,10 @@ impl EmailHeaders {
     ///
     /// An `Option` containing a `Vec<String>` of header values if the header exists, or `None` if it doesn't.
     pub fn get_header(&self, name: &str) -> Option<Vec<String>> {
-        self.0.get(name).cloned()
+        let name_lower = name.to_lowercase();
+        self.0
+            .iter()
+            .find(|(k, _)| k.to_lowercase() == name_lower)
+            .map(|(_, v)| v.clone())
     }
 }
