@@ -45,7 +45,8 @@ pub struct EmailCircuitParams {
     pub max_header_length: Option<usize>,     // The maximum length of the email header
     pub max_body_length: Option<usize>,       // The maximum length of the email body
     pub sha_precompute_selector: Option<String>, // Regex selector for SHA-256 precomputation
-    pub reveal_to_addr: Option<bool>
+    pub reveal_to_addr: Option<bool>, // Flag to reveal the to address
+    pub reveal_subject: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -390,11 +391,12 @@ pub async fn generate_email_circuit_input(
         None
     };
     let domain_idx = parsed_email.get_email_domain_idxes()?.0;
-    let subject_idx = if email_circuit_inputs.body_padded.is_none() {
+    let subject_idx = if params.as_ref().map_or(false, |p| p.reveal_subject.is_some()) {
         Some(parsed_email.get_subject_all_idxes()?.0)
     } else {
         None
     };
+
     // Handle optional indices with default fallbacks
     let mut code_idx = match parsed_email.get_invitation_code_idxes(
         params
