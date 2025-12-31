@@ -28,6 +28,8 @@ struct EmailCircuitInput {
     account_code: String,             // The account code associated with the email
     from_addr_idx: usize,             // The index of the sender's address in header
     #[serde(skip_serializing_if = "Option::is_none")]
+    to_addr_idx: Option<usize>, // The index of the email subject in header
+    #[serde(skip_serializing_if = "Option::is_none")]
     subject_idx: Option<usize>, // The index of the email subject in header
     domain_idx: usize,                // The index of the email domain in header
     timestamp_idx: usize,             // The index of the timestamp in header
@@ -43,6 +45,7 @@ pub struct EmailCircuitParams {
     pub max_header_length: Option<usize>,     // The maximum length of the email header
     pub max_body_length: Option<usize>,       // The maximum length of the email body
     pub sha_precompute_selector: Option<String>, // Regex selector for SHA-256 precomputation
+    pub reveal_to_addr: Option<bool>
 }
 
 #[derive(Serialize, Deserialize)]
@@ -381,6 +384,11 @@ pub async fn generate_email_circuit_input(
 
     // Extract indices for various email components
     let from_addr_idx = parsed_email.get_from_addr_idxes()?.0;
+    let to_addr_idx = if params.as_ref().map_or(false, |p| p.reveal_to_addr.is_some()) {
+        Some(parsed_email.get_to_addr_idxes()?.0)
+    } else {
+        None
+    };
     let domain_idx = parsed_email.get_email_domain_idxes()?.0;
     let subject_idx = if email_circuit_inputs.body_padded.is_none() {
         Some(parsed_email.get_subject_all_idxes()?.0)
@@ -438,6 +446,7 @@ pub async fn generate_email_circuit_input(
         padded_header_len: email_circuit_inputs.header_len_padded_bytes,
         account_code: field_to_hex(&account_code.0),
         from_addr_idx,
+        to_addr_idx,
         subject_idx,
         domain_idx,
         timestamp_idx,

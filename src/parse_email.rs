@@ -118,6 +118,11 @@ impl ParsedEmail {
         Ok(str)
     }
 
+     pub fn get_to_addr_idxes(&self) -> Result<(usize, usize)> {
+        let idxes = extract_to_addr_idxes(&self.canonicalized_header)?[0];
+        Ok(idxes)
+    }
+
     /// Extracts the email domain from the 'From' address in the canonicalized email header.
     pub fn get_email_domain(&self) -> Result<String> {
         let idxes = extract_from_addr_idxes(&self.canonicalized_header)?[0];
