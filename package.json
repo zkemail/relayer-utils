@@ -1,6 +1,10 @@
 {
-  "name": "@zk-email/relayer-utils",
+  "name": "@burnt-labs/zk-email-relayer-utils",
   "module": "index.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/burnt-labs/zk-email-relayer-utils.git"
+  },
   "scripts": {
     "publish-npm": "cd pkg && npm publish --access public && cd ..",
     "publish-npm-nightly": "cd pkg && npm publish --access public --tag nightly && cd ..",
@@ -10,7 +14,7 @@
     "wasm:postbuild": "node build.js",
     "build": "npm run wasm:build && npm run wasm:postbuild"
   },
-  "version": "0.4.66-16",
+  "version": "0.5.0",
   "devDependencies": {
     "@types/bun": "latest",
     "prettier": "^3.3.3"
