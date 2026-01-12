@@ -59,6 +59,8 @@ pub struct NoirInputGenerationArgs {
     pub body_mask: Option<Vec<u8>>,
     pub extract_from: Option<bool>,
     pub extract_to: Option<bool>,
+    /// RSA key size in bits (1024 or 2048). If not specified, auto-detected from public key.
+    pub rsa_key_bits: Option<usize>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
