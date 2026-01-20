@@ -35,14 +35,23 @@ pub async fn generate_noir_circuit_input(
 
     // Detect key size from public key if not specified
     // Public key bytes: 128 bytes = 1024 bits, 256 bytes = 2048 bits
-    let key_bits = params.rsa_key_bits.unwrap_or_else(|| {
-        let key_bytes = parsed_email.public_key.len();
-        if key_bytes <= 128 {
-            1024
-        } else {
-            2048
+    let key_bits = match params.rsa_key_bits {
+        Some(bits) => bits,
+        None => {
+            let key_bytes = parsed_email.public_key.len();
+            match key_bytes {
+                128 => 1024,
+                256 => 2048,
+                _ => {
+                    return Err(anyhow::anyhow!(
+                        "Unsupported RSA key size: {} bytes ({} bits). Only 1024-bit and 2048-bit keys are supported.",
+                        key_bytes,
+                        key_bytes * 8
+                    ));
+                }
+            }
         }
-    });
+    };
 
     // Clone the fields that are used by value before the move occurs
     let public_key = BigUint::from_bytes_be(&parsed_email.public_key)
