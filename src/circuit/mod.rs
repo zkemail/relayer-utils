@@ -72,6 +72,7 @@ pub struct CircuitInputWithDecomposedRegexesAndExternalInputsParams {
     pub ignore_body_hash_check: bool,       // Flag to ignore the body hash check
     pub remove_soft_line_breaks: bool,      // Flag to remove soft line breaks from the body
     pub sha_precompute_selector: Option<String>, // Optional regex selector for SHA-256 precomputation
+    pub rsa_key_bits: Option<usize>,        // RSA key size in bits (1024 or 2048), auto-detected if not specified
 }
 
 impl CircuitInputParams {

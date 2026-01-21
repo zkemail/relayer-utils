@@ -21,7 +21,8 @@ use super::{
     ExternalInput,
 };
 
-pub const MODULUS_BITS: usize = 2048;
+/// Default RSA modulus bits (used as fallback)
+pub const DEFAULT_MODULUS_BITS: usize = 2048;
 
 pub async fn generate_noir_circuit_input(
     email: &str,
@@ -31,6 +32,26 @@ pub async fn generate_noir_circuit_input(
     let parsed_email =
         ParsedEmail::new_from_raw_email(email, params.ignore_body_hash_check.unwrap_or(true))
             .await?;
+
+    // Detect key size from public key if not specified
+    // Public key bytes: 128 bytes = 1024 bits, 256 bytes = 2048 bits
+    let key_bits = match params.rsa_key_bits {
+        Some(bits) => bits,
+        None => {
+            let key_bytes = parsed_email.public_key.len();
+            match key_bytes {
+                128 => 1024,
+                256 => 2048,
+                _ => {
+                    return Err(anyhow::anyhow!(
+                        "Unsupported RSA key size: {} bytes ({} bits). Only 1024-bit and 2048-bit keys are supported.",
+                        key_bytes,
+                        key_bytes * 8
+                    ));
+                }
+            }
+        }
+    };
 
     // Clone the fields that are used by value before the move occurs
     let public_key = BigUint::from_bytes_be(&parsed_email.public_key)
@@ -65,8 +86,8 @@ pub async fn generate_noir_circuit_input(
 
     // Create the Pubkey struct for the NoirCircuitInput
     let pubkey = Pubkey {
-        modulus: bn_to_limb_str_array(&public_key, Some(MODULUS_BITS)),
-        redc: bn_to_redc_limb_str_array(&public_key, Some(MODULUS_BITS)),
+        modulus: bn_to_limb_str_array(&public_key, Some(key_bits)),
+        redc: bn_to_redc_limb_str_array(&public_key, Some(key_bits)),
     };
 
     // Get the DKIM header sequence
@@ -82,7 +103,7 @@ pub async fn generate_noir_circuit_input(
     };
 
     // Create the BoundedVec for the signature
-    let signature = bn_to_limb_str_array(&signature, Some(MODULUS_BITS));
+    let signature = bn_to_limb_str_array(&signature, Some(key_bits));
 
     // Initialize the NoirCircuitInput struct with required fields
     let mut noir_circuit_input = NoirCircuitInputs {
@@ -233,6 +254,7 @@ pub async fn generate_noir_circuit_inputs_with_regexes_and_external_inputs(
         ignore_body_hash_check: Some(params.ignore_body_hash_check),
         remove_soft_line_breaks: Some(params.remove_soft_line_breaks),
         sha_precompute_selector: params.sha_precompute_selector,
+        rsa_key_bits: params.rsa_key_bits,
         ..Default::default()
     };
     let noir_circuit_input = generate_noir_circuit_input(email, email_circuit_params).await?;
