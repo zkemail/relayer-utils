@@ -60,7 +60,9 @@ pub fn hex_to_field(input_hex: &str) -> Result<Fr> {
     };
 
     // Convert the array of bytes into a field element
-    let field = Fr::from_bytes(&bytes).expect("fail to convert bytes to a field value");
+    // CtOption doesn't have ok_or_else, so we convert it to Option first
+    let field = Option::from(Fr::from_bytes(&bytes))
+        .ok_or_else(|| anyhow!("Failed to convert bytes to a field value: invalid field element"))?;
 
     // Return the field element
     Ok(field)
@@ -87,14 +89,15 @@ pub fn field_to_hex(field: &Fr) -> String {
 /// * `bytes` - A byte slice to convert.
 ///
 /// # Returns
-/// A vector of `Fr` field elements.
-pub fn bytes_to_fields(bytes: &[u8]) -> Vec<Fr> {
+/// A Result containing a vector of `Fr` field elements or an error if conversion fails.
+pub fn bytes_to_fields(bytes: &[u8]) -> Result<Vec<Fr>> {
     bytes
         .chunks(31)
         .map(|chunk| {
             let mut extended = [0u8; 32];
             extended[..chunk.len()].copy_from_slice(chunk);
-            Fr::from_bytes(&extended).expect("fail to convert bytes to a field value")
+            Option::from(Fr::from_bytes(&extended))
+                .ok_or_else(|| anyhow!("Failed to convert bytes to a field value: invalid field element"))
         })
         .collect()
 }
@@ -430,14 +433,22 @@ pub fn uint_to_decimal_string(uint: u128, decimal: usize) -> String {
         }
         // If non-zero decimal is found, or decimal point inserted (delta == 0), copy from amount array
         else if found_non_zero_decimal || delta == 0 {
-            result[i] = uint_str.chars().nth(i - delta).unwrap();
+            let char_idx = i.checked_sub(delta)
+                .and_then(|idx| uint_str.chars().nth(idx))
+                .unwrap_or('0');
+            result[i] = char_idx;
             actual_result_len += 1;
         }
         // If we find non-zero decimal for the first time (trailing zeros are skipped)
-        else if uint_str.chars().nth(i - delta).unwrap() != '0' {
-            result[i] = uint_str.chars().nth(i - delta).unwrap();
-            actual_result_len += 1;
-            found_non_zero_decimal = true;
+        else {
+            let char_idx = i.checked_sub(delta)
+                .and_then(|idx| uint_str.chars().nth(idx))
+                .unwrap_or('0');
+            if char_idx != '0' {
+                result[i] = char_idx;
+                actual_result_len += 1;
+                found_non_zero_decimal = true;
+            }
         }
     }
 
@@ -465,18 +476,19 @@ pub fn string_to_circom_bigint_bytes(input: &str) -> Result<Vec<String>> {
     let utf8_bytes = input.as_bytes();
 
     // Convert the bytes to field elements
-    let frs = bytes_to_fields(utf8_bytes);
+    let frs = bytes_to_fields(utf8_bytes)?;
 
     // Convert each field element to a big integer string
     let num_strings: Vec<String> = frs
         .iter()
         .map(|fr| {
             // Convert the field element to a 32-byte array
-            let bytes = fr_to_bytes32(fr).expect("Failed to convert Fr to bytes");
+            let bytes = fr_to_bytes32(fr)
+                .map_err(|e| anyhow!("Failed to convert Fr to bytes: {}", e))?;
             // Convert the byte array to a big integer and then to a string
-            BigInt::from_bytes_be(num_bigint::Sign::Plus, &bytes).to_string()
+            Ok(BigInt::from_bytes_be(num_bigint::Sign::Plus, &bytes).to_string())
         })
-        .collect();
+        .collect::<Result<Vec<String>>>()?;
 
     // Return the vector of big integer strings
     Ok(num_strings)

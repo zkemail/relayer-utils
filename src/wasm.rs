@@ -503,19 +503,37 @@ pub async fn bytesToFields(bytes: JsValue) -> Promise {
 
     console_error_panic_hook::set_once();
 
-    let bytes: Vec<u8> = match from_value(bytes) {
-        Ok(bytes) => bytes,
-        Err(_) => {
-            return Promise::reject(&JsValue::from_str("Failed to convert input to bytes"));
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let bytes: Vec<u8> = from_value(bytes)
+            .map_err(|_| "Failed to convert input to bytes".to_string())?;
+        
+        let fields = bytes_to_fields(&bytes)
+            .map_err(|e| format!("Failed to convert bytes to fields: {}", e))?;
+        
+        let hex_fields: Vec<String> = fields
+            .into_iter()
+            .map(|field| field_to_hex(&field))
+            .collect_vec();
+        
+        to_value(&hex_fields).map_err(|_| "Failed to serialize fields".to_string())
+    }));
+
+    match result {
+        Ok(Ok(serialized_fields)) => Promise::resolve(&serialized_fields),
+        Ok(Err(err_msg)) => Promise::reject(&JsValue::from_str(&err_msg)),
+        Err(panic) => {
+            let panic_msg = match panic.downcast::<String>() {
+                Ok(msg) => *msg,
+                Err(panic) => match panic.downcast::<&str>() {
+                    Ok(msg) => msg.to_string(),
+                    Err(_) => "Unknown panic occurred".to_string(),
+                },
+            };
+            Promise::reject(&JsValue::from_str(&format!(
+                "Panic occurred in bytesToFields: {}",
+                panic_msg
+            )))
         }
-    };
-    let fields = bytes_to_fields(&bytes)
-        .into_iter()
-        .map(|field| field_to_hex(&field))
-        .collect_vec();
-    match to_value(&fields) {
-        Ok(serialized_fields) => Promise::resolve(&serialized_fields),
-        Err(_) => Promise::reject(&JsValue::from_str("Failed to serialize fields")),
     }
 }
 
