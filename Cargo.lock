@@ -5303,7 +5303,7 @@ dependencies = [
 [[package]]
 name = "zk-regex-apis"
 version = "2.3.2"
-source = "git+https://github.com/zkemail/zk-regex.git#f2a19e4c2e726822ebb7381353b6213ca5b4f4ad"
+source = "git+https://github.com/zkemail/zk-regex.git?tag=2.1.3#f2a19e4c2e726822ebb7381353b6213ca5b4f4ad"
 dependencies = [
  "console_error_panic_hook",
  "fancy-regex",
@@ -5320,7 +5320,7 @@ dependencies = [
 [[package]]
 name = "zk-regex-compiler"
 version = "2.3.2"
-source = "git+https://github.com/zkemail/zk-regex.git#f2a19e4c2e726822ebb7381353b6213ca5b4f4ad"
+source = "git+https://github.com/zkemail/zk-regex.git?tag=2.1.3#f2a19e4c2e726822ebb7381353b6213ca5b4f4ad"
 dependencies = [
  "ahash",
  "clap",
