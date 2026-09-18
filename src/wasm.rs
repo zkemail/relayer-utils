@@ -18,7 +18,8 @@ use crate::{
     generate_email_circuit_input, generate_noir_circuit_input,
     generate_noir_circuit_inputs_with_regexes_and_external_inputs, hex_to_field, AccountCode,
     AccountSalt, CircuitInputWithDecomposedRegexesAndExternalInputsParams, DecomposedRegex,
-    EmailCircuitParams, ExternalInput, PaddedEmailAddr, ParsedEmail, RegexInput,
+    EmailCircuitParams, ExternalInput, PaddedEmailAddr, ParsedEmail, ParsedEmailUnverified,
+    RegexInput,
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -70,6 +71,41 @@ pub async fn parseEmail(
             ))),
         },
         Err(err) => Promise::reject(&JsValue::from_str(&format!(
+            "Failed to parse email: {}",
+            err
+        ))),
+    }
+}
+
+#[wasm_bindgen]
+#[allow(non_snake_case)]
+#[cfg(target_arch = "wasm32")]
+/// Parses a raw email string into a structured `ParsedEmailUnverified` object.
+///
+/// This function utilizes the `ParsedEmail::new_from_raw_email` method to parse the email,
+/// and then serializes the result for JavaScript interoperability.
+///
+/// # Arguments
+///
+/// * `raw_email` - A `String` representing the raw email to be parsed.
+///
+/// # Returns
+///
+/// A `Result` with the serialized `ParsedEmailUnverified` or an error message.
+pub fn parseEmailUnverified(
+    raw_email: String,
+) -> Result<JsValue, JsValue> {
+    let parsed_email_result = ParsedEmailUnverified::new_from_raw_email(&raw_email);
+
+    match parsed_email_result {
+        Ok(parsed_email) => match to_value(&parsed_email) {
+            Ok(serialized_email) => Ok(serialized_email),
+            Err(err) => Err(JsValue::from_str(&format!(
+                "Failed to serialize ParsedEmail: {}",
+                err
+            ))),
+        },
+        Err(err) => Err(JsValue::from_str(&format!(
             "Failed to parse email: {}",
             err
         ))),
