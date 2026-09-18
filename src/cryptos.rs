@@ -1,5 +1,6 @@
 //! Cryptographic functions.
 
+use crate::regex::pad_string;
 use crate::EmailHeaders;
 use crate::{field_to_hex, hex_to_field};
 use anyhow::Result;
@@ -25,7 +26,6 @@ use std::{
     fmt,
     hash::{Hash, Hasher},
 };
-use zk_regex_apis::padding::pad_string;
 
 use crate::{
     converters::{
@@ -35,7 +35,7 @@ use crate::{
 };
 
 const GAPPS_DOMAIN: &str = "gappssmtp.com";
-const DKIM_API_URL: &str = "https://archive.zk.email/api/key";
+const DKIM_API_URL: &str = "https://archive.zk.email/api/key/domain";
 
 type ShaResult = Vec<u8>; // The result of a SHA-256 hash operation.
 type RemainingBody = Vec<u8>; // The remaining part of a message after a SHA-256 hash operation.
@@ -100,14 +100,31 @@ impl PaddedEmailAddr {
     ///
     /// # Returns
     ///
-    /// A new instance of `PaddedEmailAddr`.
-    pub fn from_email_addr(email_addr: &str) -> Self {
+    /// A `Result` containing a new instance of `PaddedEmailAddr` or an error if the email address
+    /// exceeds the maximum length of 256 bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the email address length exceeds `MAX_EMAIL_ADDR_BYTES` (256 bytes).
+    /// This validation prevents potential security issues where different email addresses could
+    /// produce identical padded representations due to silent truncation.
+    pub fn from_email_addr(email_addr: &str) -> Result<Self> {
         let email_addr_len = email_addr.as_bytes().len();
+
+        // Validate that the email address does not exceed the maximum allowed length
+        if email_addr_len > MAX_EMAIL_ADDR_BYTES {
+            return Err(anyhow::anyhow!(
+                "Email address length ({} bytes) exceeds maximum allowed length ({} bytes)",
+                email_addr_len,
+                MAX_EMAIL_ADDR_BYTES
+            ));
+        }
+
         let padded_bytes = pad_string(email_addr, MAX_EMAIL_ADDR_BYTES);
-        Self {
+        Ok(Self {
             padded_bytes,
             email_addr_len,
-        }
+        })
     }
 
     /// Converts the padded email address into a vector of field elements.
@@ -485,7 +502,7 @@ pub fn generate_partial_sha(
     // Check if a selector is provided
     if let Some(selector) = selector_regex {
         // Create a regex pattern from the selector
-        let pattern = regex::Regex::new(&selector).unwrap();
+        let pattern = regex::Regex::new(&selector)?;
         let body_str = {
             // Undo SHA padding
             let mut trimmed_body = body.clone();
@@ -495,7 +512,7 @@ pub fn generate_partial_sha(
                 trimmed_body.pop();
             }
 
-            String::from_utf8(trimmed_body).unwrap()
+            String::from_utf8(trimmed_body)?
         };
 
         // Find the index of the selector in the body
@@ -512,6 +529,73 @@ pub fn generate_partial_sha(
     // Calculate the cutoff index for SHA-256 block size (64 bytes)
     let sha_cutoff_index = (selector_index / 64) * 64;
     let precompute_text = &body[..sha_cutoff_index];
+    // Will be padded to max_remaining_body_length
+    let mut body_remaining = body[sha_cutoff_index..].to_vec();
+
+    let body_remaining_length = body_length - precompute_text.len();
+
+    // Check if the remaining body length exceeds the maximum allowed length
+    if body_remaining_length > max_remaining_body_length {
+        return Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!(
+                "Remaining body {} after the selector is longer than max ({})",
+                body_remaining_length, max_remaining_body_length
+            ),
+        )));
+    }
+
+    // Pad the remaining body to the maximum length with zeros
+    // Note: No need to check if it's a multiple of 64, as the circuit handles SHA padding
+    while body_remaining.len() < max_remaining_body_length {
+        body_remaining.push(0);
+    }
+
+    // Compute the SHA-256 hash of the pre-selector part of the message
+    let precomputed_sha = partial_sha(precompute_text, sha_cutoff_index);
+    Ok((precomputed_sha, body_remaining, body_remaining_length))
+}
+
+// TODO : Just supported for older circom compiler, since it's circuit doesn't had the padding inside, we padded them externally
+pub fn generate_partial_sha_old(
+    body: Vec<u8>,
+    body_length: usize,
+    selector_regex: Option<String>,
+    max_remaining_body_length: usize,
+) -> PartialShaResult {
+    let mut selector_index = 0;
+
+    // Check if a selector is provided
+    if let Some(selector) = selector_regex {
+        // Create a regex pattern from the selector
+        let pattern = regex::Regex::new(&selector)?;
+        let body_str = {
+            // Undo SHA padding
+            let mut trimmed_body = body.clone();
+            while !(trimmed_body.last() == Some(&10)
+                && trimmed_body.get(trimmed_body.len() - 2) == Some(&13))
+            {
+                trimmed_body.pop();
+            }
+
+            String::from_utf8(trimmed_body)?
+        };
+
+        // Find the index of the selector in the body
+        if let Some(matched) = pattern.find(&body_str) {
+            selector_index = matched.start();
+        } else {
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Selector {} not found in the body", selector),
+            )));
+        }
+    }
+
+    // Calculate the cutoff index for SHA-256 block size (64 bytes)
+    let sha_cutoff_index = (selector_index / 64) * 64;
+    let precompute_text = &body[..sha_cutoff_index];
+    // Will be padded to max_remaining_body_length
     let mut body_remaining = body[sha_cutoff_index..].to_vec();
 
     let body_remaining_length = body_length - precompute_text.len();
@@ -585,6 +669,104 @@ mod tests {
             ])
         );
         assert_eq!(field_to_hex(&hash_field), expected_hash);
+    }
+
+    #[test]
+    fn test_padded_email_addr_valid() {
+        // Test with a valid email address
+        let email = "test@example.com";
+        let result = PaddedEmailAddr::from_email_addr(email);
+        assert!(result.is_ok());
+
+        let padded = result.unwrap();
+        assert_eq!(padded.email_addr_len, email.len());
+        assert_eq!(padded.padded_bytes.len(), MAX_EMAIL_ADDR_BYTES);
+        assert_eq!(&padded.padded_bytes[..email.len()], email.as_bytes());
+
+        // Verify padding is zeros
+        for i in email.len()..MAX_EMAIL_ADDR_BYTES {
+            assert_eq!(padded.padded_bytes[i], 0);
+        }
+    }
+
+    #[test]
+    fn test_padded_email_addr_exactly_256_bytes() {
+        // Test with an email address that is exactly 256 bytes (boundary case)
+        let email = "a".repeat(256);
+        let result = PaddedEmailAddr::from_email_addr(&email);
+        assert!(result.is_ok());
+
+        let padded = result.unwrap();
+        assert_eq!(padded.email_addr_len, 256);
+        assert_eq!(padded.padded_bytes.len(), MAX_EMAIL_ADDR_BYTES);
+    }
+
+    #[test]
+    fn test_padded_email_addr_exceeds_max_length() {
+        // Test with an email address that exceeds 256 bytes
+        let email = "a".repeat(257);
+        let result = PaddedEmailAddr::from_email_addr(&email);
+        assert!(result.is_err());
+
+        let error = result.unwrap_err();
+        let error_msg = error.to_string();
+        assert!(
+            error_msg.contains("exceeds maximum allowed length"),
+            "Expected error message about exceeding max length, got: {}",
+            error_msg
+        );
+    }
+
+    #[test]
+    fn test_padded_email_addr_collision_prevention() {
+        // Test that two different emails exceeding 256 bytes would have been rejected
+        // This demonstrates the security fix preventing collision attacks
+        let email1 = format!("{}@example.com", "a".repeat(250));
+        let email2 = format!("{}@different.com", "a".repeat(250));
+
+        // Both should be rejected since they exceed 256 bytes
+        assert!(PaddedEmailAddr::from_email_addr(&email1).is_err());
+        assert!(PaddedEmailAddr::from_email_addr(&email2).is_err());
+    }
+
+    #[test]
+    fn test_padded_email_addr_long_but_valid() {
+        // Test with a long but valid email (under 256 bytes)
+        let local_part = "a".repeat(200);
+        let email = format!("{}@example.com", local_part);
+        assert!(email.len() < MAX_EMAIL_ADDR_BYTES);
+
+        let result = PaddedEmailAddr::from_email_addr(&email);
+        assert!(result.is_ok());
+
+        let padded = result.unwrap();
+        assert_eq!(padded.email_addr_len, email.len());
+    }
+
+    #[test]
+    fn test_calculate_account_salt_with_valid_email() {
+        // Test calculate_account_salt with valid email
+        let email = "test@example.com";
+        // Use a valid 32-byte hex string (64 hex chars) for field element
+        let account_code = "0x0000000000000000000000000000000000000000000000000000000000000001";
+        let result = calculate_account_salt(email, account_code);
+        assert!(
+            result.is_ok(),
+            "Expected Ok, got Err: {:?}",
+            result.unwrap_err()
+        );
+    }
+
+    #[test]
+    fn test_calculate_account_salt_with_invalid_email() {
+        // Test calculate_account_salt with email exceeding max length
+        let email = "a".repeat(300);
+        let account_code = "0x1234567890abcdef";
+        let result = calculate_account_salt(&email, account_code);
+        assert!(result.is_err());
+
+        let error = result.unwrap_err();
+        assert!(error.to_string().contains("exceeds maximum allowed length"));
     }
 
     #[tokio::test]
@@ -687,24 +869,24 @@ pub fn calculate_default_hash(input: &str) -> String {
 ///
 /// # Returns
 ///
-/// A string representation of the calculated account salt.
-pub fn calculate_account_salt(email_addr: &str, account_code: &str) -> String {
-    // Pad the email address
-    let padded_email_addr = PaddedEmailAddr::from_email_addr(email_addr);
+/// A `Result` containing the string representation of the calculated account salt or an error.
+pub fn calculate_account_salt(email_addr: &str, account_code: &str) -> Result<String> {
+    // Pad the email address (now returns Result)
+    let padded_email_addr = PaddedEmailAddr::from_email_addr(email_addr)?;
 
     // Convert account code to field element
     let account_code = if account_code.starts_with("0x") {
-        hex_to_field(account_code).unwrap()
+        hex_to_field(account_code)?
     } else {
-        hex_to_field(&format!("0x{}", account_code)).unwrap()
+        hex_to_field(&format!("0x{}", account_code))?
     };
     let account_code = AccountCode::from(account_code);
 
     // Generate account salt
-    let account_salt = AccountSalt::new(&padded_email_addr, account_code).unwrap();
+    let account_salt = AccountSalt::new(&padded_email_addr, account_code)?;
 
     // Convert account salt to hexadecimal representation
-    field_to_hex(&account_salt.0)
+    Ok(field_to_hex(&account_salt.0))
 }
 
 /// Fetches the public key from DNS records using the DKIM signature in the email headers.
@@ -720,6 +902,7 @@ async fn fetch_public_keys(email_headers: EmailHeaders) -> Result<(serde_json::V
     // Extract From header with better error handling
     let from_headers = email_headers
         .get_header("From")
+        .or_else(|| email_headers.get_header("from"))
         .ok_or_else(|| anyhow::anyhow!("From header not found"))?;
 
     if from_headers.is_empty() {

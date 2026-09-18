@@ -31,7 +31,7 @@ describe("generateCircuitInputsWithDecomposedRegexesAndExternalInputs test suite
       maxHeaderLength: 2816,
       maxBodyLength: 1024,
       ignoreBodyHashCheck: false,
-      removeSoftLinesBreaks: true,
+      removeSoftLineBreaks: true,
       // sha_precompute_selector
     };
 
@@ -76,7 +76,7 @@ describe("generateCircuitInputsWithDecomposedRegexesAndExternalInputs test suite
       maxHeaderLength: 2816,
       maxBodyLength: 1024,
       ignoreBodyHashCheck: false,
-      removeSoftLinesBreaks: true,
+      removeSoftLineBreaks: true,
       // sha_precompute_selector
     };
 
@@ -150,7 +150,7 @@ describe("generateCircuitInputsWithDecomposedRegexesAndExternalInputs test suite
       maxHeaderLength: 1024,
       maxBodyLength: 0,
       ignoreBodyHashCheck: true,
-      removeSoftLinesBreaks: true,
+      removeSoftLineBreaks: true,
       // sha_precompute_selector
     };
 

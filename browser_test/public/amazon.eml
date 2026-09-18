@@ -1,0 +1,1000 @@
+Delivered-To: aayushgupta05@gmail.com
+Received: by 2002:a05:6520:4d11:b0:298:de86:b196 with SMTP id cy17csp1851324lkb;
+        Thu, 15 Aug 2024 18:01:48 -0700 (PDT)
+X-Forwarded-Encrypted: i=3; AJvYcCWCx1Cb3kEOBBorrIS5l2e6GCzKJxzBxybTlA6eTJnE+qGUWcW3x0U2DbMEuuE94csCWxFvt47ftW92zpoSTnvWP+8Mc1JAPw==
+X-Google-Smtp-Source: AGHT+IFy7itmDPuDlSHhbsl0mXcp4WaIqPBhoxgtMIUJ4rixUL/hmu7Y7lNb/3SE/waaKnYbynS7
+X-Received: by 2002:a05:6000:a8b:b0:36b:8f94:e206 with SMTP id ffacd0b85a97d-37194315781mr855253f8f.5.1723770107871;
+        Thu, 15 Aug 2024 18:01:47 -0700 (PDT)
+ARC-Seal: i=2; a=rsa-sha256; t=1723770107; cv=pass;
+        d=google.com; s=arc-20240605;
+        b=L4ifZud+phJJXmpjp/GJ3cSjA1D4Uhl604pR5GCQDZy4O/9FpFTTyQrlajv20a3CLA
+         LDohZyTwGvxXuUGOp4AnE3lb/GAeb9AQ3dfKQ5NRnBbbC5j01ow9/3hi/CQUG3K3uRxG
+         pCJKwe65M0PZryicz8+ZB1It0JoWHN9b9rWhTUesMV60vRLKHa76jBdrS3n5ykx6u+Hg
+         nDR/S+g3/qmdmopzKC4T5rKleVpLdBmBBfnpURBhyrbzR4YRAYrxHh6/Xmfxm2CXnP1G
+         BngzD5RfJcQJVBe2Hl7hTsPXNgDIW8Ng+G1w1sU12uUFdLUNMFL3Hmp0YXx52NGCsAxM
+         HjSg==
+ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;
+        h=feedback-id:bounces-to:mime-version:subject:message-id:to:from:date
+         :dkim-signature:dkim-signature;
+        bh=a+iNAUuMllM38rUYf1E0PCsZMSzHqdP5Rs6lXnKmcp4=;
+        fh=aslmXTwzSzJ1CMviWDZT1UuXOGBFyKTE9qzq5T44VcQ=;
+        b=Obl6fTQjJwbp1Z313OnnWM2NPRbOCUSY9p+6WdIDaWpqRQ0scS/tkVJPHyocDMPOFy
+         JxFpFA85L6u+XEVp249LYKd2p7z9z+uQaSW/sp0CrL5NPWk/jQcY37eLzlz9UDRVY0OR
+         Z8CxOzIiBJtsYGgMN594/rlliZQMEv7+EE7/bp4p0rEMweLeWmS73aT5JjmYvS6D0DrH
+         /shB9jMo5zS6qUNR8v8REiTJzcnN+yJ6iZ35c8Bg1rOu94hgJmnWNFLiiC47FEn5bzo9
+         VvuVRFPJh/F8c3pEHTWLfNfjjzzZZA4PvQJS8YJ0isrIoCzeuqJMV0dOs2U8mc+H39Y5
+         IGFg==;
+        dara=google.com
+ARC-Authentication-Results: i=2; mx.google.com;
+       dkim=pass header.i=@amazon.com header.s=yg4mwqurec7fkhzutopddd3ytuaqrvuz header.b="sk0yWvc/";
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=lUY1ph+6;
+       arc=pass (i=1 dkim=pass dkdomain=amazon.com dkim=pass dkdomain=amazonses.com);
+       spf=pass (google.com: domain of aayushg@mit.edu designates 18.9.21.22 as permitted sender) smtp.mailfrom=aayushg@mit.edu;
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=amazon.com
+Return-Path: <aayushg@mit.edu>
+Received: from exchange-forwarding-2.mit.edu (exchange-forwarding-2.mit.edu. [18.9.21.22])
+        by mx.google.com with ESMTPS id 5b1f17b1804b1-429ded70f98si27296005e9.143.2024.08.15.18.01.47
+        for <aayushgupta05@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-ECDSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Aug 2024 18:01:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aayushg@mit.edu designates 18.9.21.22 as permitted sender) client-ip=18.9.21.22;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@amazon.com header.s=yg4mwqurec7fkhzutopddd3ytuaqrvuz header.b="sk0yWvc/";
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=lUY1ph+6;
+       arc=pass (i=1 dkim=pass dkdomain=amazon.com dkim=pass dkdomain=amazonses.com);
+       spf=pass (google.com: domain of aayushg@mit.edu designates 18.9.21.22 as permitted sender) smtp.mailfrom=aayushg@mit.edu;
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=amazon.com
+Received: from mailhub-dmz-4.mit.edu (MAILHUB-DMZ-4.MIT.EDU [18.7.62.38])
+        by exchange-forwarding-2.mit.edu (8.14.7/8.12.4) with ESMTP id 47G11hAQ014612
+        for <aayushg@EXCHANGE-FORWARDING.MIT.EDU>; Thu, 15 Aug 2024 21:01:45 -0400
+Authentication-Results: mit.edu; dmarc=pass (p=quarantine dis=none) header.from=amazon.com
+Authentication-Results: mit.edu; arc=none smtp.remote-ip=18.7.62.38
+ARC-Seal: i=1; a=rsa-sha256; d=mit.edu; s=arc; t=1723770105; cv=none; b=I3uoniJRBjPCLIEB3xP3hVBkvc+i2uRrt/Qa98Z9Pew6S0B9YMYkhfyoEzqG9SAM9Me5KO0YAvZMbfMtIqtaDh99KBS+iv77kBhEsx5OqUpzb3Wl2zIM+VbewBxhPFUae85UUUYlc3FcomH+e3BYp3s0M+3tU+UeXxMu+BbkcdomHRwIHAPNE4122eo78KPjc0cWQSrX/fL+/v0Z8PY7f99hN5Rqmv15JNhgWDpyrQ7S8UZ2YwzEzN6T8pRH7VhxZDNnwP6JRhylWcaeVEOZt9/x8YaVXBxAxmzz/+mt0J19JRLghzrzbLeUJyiR2M2uqzhH2koHQFf4r5N4/zmXBA==
+ARC-Message-Signature: i=1; a=rsa-sha256; d=mit.edu; s=arc; t=1723770105;
+	c=relaxed/relaxed; bh=a+iNAUuMllM38rUYf1E0PCsZMSzHqdP5Rs6lXnKmcp4=;
+	h=Date:From:Message-ID:Subject:MIME-Version:Content-Type; b=qB8UXISZyqJo1Cu2Oca57DPK/fwTk63YJ3gOT3iewE5H9ZuhwLDffJOtj+5oTIpeuPsDtEJPfxMP6K3466KjPIhHycLkjJqM1qKZM5XGjcXE2YaWVdeZvFLtPdXAbuxBc98x0GuqXpWkQUuXuDHsOMpGxeIoD0x395i4XQF6JOKCJhqf6airXGRVQ0TvLgOc1sKAsUCiy8LVFxTZIFc959rHxSCd6KN+xomr+QVCELUtwwujGEz/0d2Py7Sf6GmvpDi1Csg8B9VeLWX+vyJ08XheWzGKu7lLRZvJ9KXOTnGskQCwTXs5Melz/84G8ewhiOrHEz4sUW5fx1ksFKJmlw==
+ARC-Authentication-Results: i=1; mit.edu; dkim=pass (1024-bit key; unprotected) header.d=amazon.com header.i=@amazon.com header.a=rsa-sha256 header.s=yg4mwqurec7fkhzutopddd3ytuaqrvuz header.b=sk0yWvc/; dkim=pass (1024-bit key; unprotected) header.d=amazonses.com header.i=@amazonses.com header.a=rsa-sha256 header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=lUY1ph+6
+Authentication-Results: mit.edu;
+	dkim=pass (1024-bit key; unprotected) header.d=amazon.com header.i=@amazon.com header.a=rsa-sha256 header.s=yg4mwqurec7fkhzutopddd3ytuaqrvuz header.b=sk0yWvc/;
+	dkim=pass (1024-bit key; unprotected) header.d=amazonses.com header.i=@amazonses.com header.a=rsa-sha256 header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=lUY1ph+6
+Received: from mailhub-dmz-4.mit.edu (mailhub-dmz-4.mit.edu [127.0.0.1])
+	by mailhub-dmz-4.mit.edu (8.14.7/8.9.2) with ESMTP id 47G11hGU006354
+	for <aayushg@exchange-forwarding.mit.edu>; Thu, 15 Aug 2024 21:01:43 -0400
+Received: (from mdefang@localhost)
+	by mailhub-dmz-4.mit.edu (8.14.7/8.13.8/Submit) id 47G11di4006343
+	for aayushg@exchange-forwarding.mit.edu; Thu, 15 Aug 2024 21:01:39 -0400
+Received: from BYAPR05CU005.outbound.protection.outlook.com (mail-westusazlp17010006.outbound.protection.outlook.com [40.93.1.6])
+	by MAILHUB-DMZ-4.MIT.EDU (envelope-sender <20240816010133af409d4398414b769006b814f360p0na-C1MH0WGB67NIL9@bounces.amazon.com>) (MIMEDefang) with ESMTP id 47G11bAg006339
+	for <aayushg@mit.edu>; Thu, 15 Aug 2024 21:01:39 -0400
+Received: from SA9PR11CA0015.namprd11.prod.outlook.com (2603:10b6:806:6e::20)
+ by SA0PR01MB6188.prod.exchangelabs.com (2603:10b6:806:da::21) with Microsoft
+ SMTP Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.7875.18; Fri, 16 Aug 2024 01:01:34 +0000
+Received: from SA2PEPF00003F61.namprd04.prod.outlook.com
+ (2603:10b6:806:6e:cafe::b0) by SA9PR11CA0015.outlook.office365.com
+ (2603:10b6:806:6e::20) with Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.7828.33 via Frontend
+ Transport; Fri, 16 Aug 2024 01:01:34 +0000
+Authentication-Results: spf=pass (sender IP is 54.240.13.78)
+ smtp.mailfrom=bounces.amazon.com; dkim=pass (signature was verified)
+ header.d=amazon.com;dmarc=pass action=none
+ header.from=amazon.com;compauth=pass reason=100
+Received-SPF: Pass (protection.outlook.com: domain of bounces.amazon.com
+ designates 54.240.13.78 as permitted sender) receiver=protection.outlook.com;
+ client-ip=54.240.13.78; helo=a13-78.smtp-out.amazonses.com; pr=C
+Received: from a13-78.smtp-out.amazonses.com (54.240.13.78) by
+ SA2PEPF00003F61.mail.protection.outlook.com (10.167.248.36) with Microsoft
+ SMTP Server (version=TLS1_3, cipher=TLS_AES_256_GCM_SHA384) id 15.20.7849.8
+ via Frontend Transport; Fri, 16 Aug 2024 01:01:34 +0000
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=yg4mwqurec7fkhzutopddd3ytuaqrvuz; d=amazon.com; t=1723770094;
+	h=Date:From:To:Message-ID:Subject:MIME-Version:Content-Type;
+	bh=fHIH8oc4fnqEfBc2yA88CwZjgGRwbXrwhe87j4ItCcQ=;
+	b=sk0yWvc/xR48M8krmQkjZbwkeIFlDIHr96+9q2KY0UxYchD4Usu4LurSXTq0YF/8
+	oXyRB0j9ocgDkpl6ASsyHrQJUn/Vy1nqvmJOAFRTV9v4NJyCquwME/hanRWmyDV8AJC
+	SpsrDeISMzFsQMvX3/BZ09/wAO+XPKNPx3iYrwfg=
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1723770094;
+	h=Date:From:To:Message-ID:Subject:MIME-Version:Content-Type:Feedback-ID;
+	bh=fHIH8oc4fnqEfBc2yA88CwZjgGRwbXrwhe87j4ItCcQ=;
+	b=lUY1ph+6Hec4F2znvRMGzsMh87R1d8Zm/OiEqyOJdcoaC7SxQgTyiCqlG09+4OH6
+	fH1GNOI1pZmXZ3eBxbRLf0r9wpTn+VpX7PkwvW6qZK4bDuEXGWcD7BOCL49qiDYgQ5E
+	WYWaB24Gp9ZuGr+aB8mX1q7X0tkjSQPh+SPwdWGA=
+Date: Fri, 16 Aug 2024 01:01:34 +0000
+From: "Amazon.com" <order-update@amazon.com>
+To: aayushg@mit.edu
+Message-ID: <0100019158b441de-d0733a8e-e37c-4906-9fc0-59a546ba46cc-000000@email.amazonses.com>
+Subject: Delivered: Your Amazon.com order #111-3061760-5513056
+MIME-Version: 1.0
+Content-Type: multipart/alternative; 
+	boundary="----=_Part_533333_1464710557.1723770094034"
+X-AMAZON-MAIL-RELAY-TYPE: notification
+Bounces-to: 20240816010133af409d4398414b769006b814f360p0na-C1MH0WGB67NIL9@bounces.amazon.com
+X-AMAZON-METADATA: CA=C1MH0WGB67NIL9-CU=A2WSYR24L0Q7DI
+X-Original-MessageID: <urn.rtn.msg.20240816010133af409d4398414b769006b814f360p0na@1723770094035.>
+Feedback-ID: 917195550::1.us-east-1.ZHcGJK6s+x+i9lRHKog4RW3tECwWIf1xzTYCZyUaiec=:AmazonSES
+X-SES-Outgoing: 2024.08.16-54.240.13.78
+X-EOPAttributedMessage: 0
+X-EOPTenantAttributedMessage: 64afd9ba-0ecf-4acf-bc36-935f6235ba8b:0
+X-MS-PublicTrafficType: Email
+X-MS-TrafficTypeDiagnostic: SA2PEPF00003F61:EE_|SA0PR01MB6188:EE_
+X-MS-Office365-Filtering-Correlation-Id: 8b39e185-a9d4-4bc2-4904-08dcbd8ef988
+X-MS-Exchange-AtpMessageProperties: SA|SL
+X-MIT-ForwardedCount: 1
+X-Microsoft-Antispam: 
+	BCL:0;ARA:13230040|1032899013|12012899012|3092899012|6062899009|5062899012|5082899009|3072899012|32142699015|2092899012|69100299015|4092899012|13102899012|13012899012;
+X-Microsoft-Antispam-Message-Info: 
+	=?utf-8?B?dDA1dE50U1hkbFJkQVd3dzF0dzZoSk53clFKYU1JTmFkY2pWQ3FvZ2poQWpM?=
+ =?utf-8?B?NHZNR2pkWFpDQTc4dFYzUWRQTWdwSlZNRFBLdmMwZ1NoYXd6K21sQ25VTjha?=
+ =?utf-8?B?Y3hvdStXM0V6WDFZc1JxaGxKYXEyZnRvOFlhREN2LzZuVzVHS09CNjBQUDA3?=
+ =?utf-8?B?eTgrekxSUllJWm9lMVBiV1FSME1HMHhZUkdKZkNIWG92ZzdUZ09pNDYzRGVi?=
+ =?utf-8?B?L001VmVhbkhJWWR4L3p5NjRLNnM3Qlc1bitEWkh5dkx2VlVGNG5NRnJGa3Yz?=
+ =?utf-8?B?YklZVnhVaVFkM1VjR3BBZnIvU3Q3dXQ0SndNZmMyMnNNSThtN2FnUzNyNFVh?=
+ =?utf-8?B?SS9VZFJ2RVdrS2RjV2pNeG1iTUYvaXFJaXdaUWJSanJ4dEJqMUcyNGo5c0wz?=
+ =?utf-8?B?YnVLUUM4NHNsOVpkekFqSTlHbWpqQjdWWVBBeDMxL0VLdGRiekNiL3UxZlds?=
+ =?utf-8?B?cGZnakJmUzJQTHdHaXp0QVkrVnpVNGFXN2ZTRW4wMEtiblR6ODUvcUxoWG5H?=
+ =?utf-8?B?WTVoei9kbS9yVTBJOWk1RnVzL2cvL3JadEVtNUNFVktORnlJL1FMM2dWRFVv?=
+ =?utf-8?B?WGdydlFDRjRaMHRBZHVpTnVrMjBpZnplcHE0MGpISHErczJRYVRrMS9Lb1BQ?=
+ =?utf-8?B?eWFZU1ZiVzZhbDhScFNpb0czOUU3dkNVWXdTOXQ1M3BFNmw2eDNLNjU1UnRW?=
+ =?utf-8?B?ZDZLZDY0b1FVWkxoeVlqTSswbmwrc09tMzdjSk1FSEZ4d3R6dWRtT1NNRnc0?=
+ =?utf-8?B?VUp2Y01KN3pEbHJKUXYxdTRDak5zaE1QMDh1akg4NGxOUmNodTVydVErL2J4?=
+ =?utf-8?B?RksvdTlROFgyUjlDbzlkZXBMYjFhUC8wcDJHR0FIYVFuZmhadmEvUjhJcC9I?=
+ =?utf-8?B?UERhR3VxTEFBVzBaV01weDhLWjlUZVZseVN0cytlYmtTcnNQMTFDdGsyd2sr?=
+ =?utf-8?B?Zk9GaXFiWmE3d2lWREc0Q3NqOXRNTlE3K29DdHJuK1NsdFB2NldVbTQ5M0Ri?=
+ =?utf-8?B?L1ZHTWtSTlNYZmhVbVc5WUtITVlITHJ2aWo4dmY4ZG5FTGZSNUh6a0dEdTR4?=
+ =?utf-8?B?TDVuS2RmT1p3bElKSFc1Z3JPSVlYM0J5YXVyOUJGKzNCbERLK3dydlk0TnV1?=
+ =?utf-8?B?dHJlTU1HQktidEF5ajkvd29yUEtSSmt2SDMvejY5dU9XYzZzTUhKczdGTU9j?=
+ =?utf-8?B?QnZQSlBVT3RtcDF5NkxEeThNaGFrRG1pdlFhWUVSSXZmYnRkTEpsenJuQy91?=
+ =?utf-8?B?ZnRBQ21abC9NV2pscUFZQ1JGTStOUFZSOWZNdEIzcWYvTStiQ01OUE1hazVh?=
+ =?utf-8?B?enN6b25qbDN5OTZmVS9sUDBXQTVXWDhoNjFxS1o1S0FjYmVxQUFneFh6QkJJ?=
+ =?utf-8?B?K1dVUW1nTW5PbGF2MlNiNi9rRjhvbUMxWDNXZnBvQXhDZ0FWNFRjSi93RG9I?=
+ =?utf-8?B?SVdIc01aSVhqMEhnRmxQdlA4MmVBYWtQdXFFcGxZTnZ4Tk5hZVdsTnRoNDlk?=
+ =?utf-8?B?MWthWVUxZTArYUtOSUN5MVpxWjdQbmRpSHJ6VFJUYUt1VEV0WmdsWFRtNWIv?=
+ =?utf-8?B?T3ZXaTVtWGM2bzJlMkN5Z0pmRGoxQ2I0MjBYUGt6WkUzSkhwZHplMjVYY1Fn?=
+ =?utf-8?B?RG04bTBEQXJ1NmlMVi9rN3R2NDdvSTZ0RGVrNE42dGtSNVdWZXpjaUNFaGgx?=
+ =?utf-8?B?V2Jja3h1WXZVaktNdm1sSjBxTVVqTGdoMTlMbTVSVjVlbk9IR3NtVlFPRzhP?=
+ =?utf-8?B?TWhZMkluZGllNzJqRFhKNG1sMnBpLy9nTnc0WVdzbE1DNHNzbVZFTTlvRTc2?=
+ =?utf-8?B?Vi8vcVdSbmRUaDJNclY0a2QxM2NTNmljR01JNHF0SjBQUklkeEllYU1wNERl?=
+ =?utf-8?B?ekdJVlNpa09iWkZlbEJqMXR6b1dWWHE1aWpZK3JpaXlROFJtSDRFZHZjRHp3?=
+ =?utf-8?B?R29COXZpN2I3ajljaGlRRjkyZDIyenA4R0dIb2xBZkFLY1FJMU1kR3J3SG1U?=
+ =?utf-8?B?QmNMQnYzRnNqVHdQYmtlbzdES0xtRkExZE84d3FxelRYV3gyUjBySmZjdUM3?=
+ =?utf-8?B?QzNWVzZUKzdaL3hVb0ZvLzZ2MFFmcEM0VHNjaVZWUjE0MDlZR3dIQnc1bkIx?=
+ =?utf-8?B?N2VOUlZoSnF2RGYyZzgyWWZEeXJHSHlDakNIUFJhZmU1d1VXMlBUYzZTVFcw?=
+ =?utf-8?B?Uk5aMit5Q3ZCNzg2eFEwNTJBT3VIZlFuYlVhRnozZGoyajNhc2dVemo0SXNN?=
+ =?utf-8?B?RVp2RHQ1SHcvOG5ZWC93QnpQbFMycWYzUzErM0VMeGxmUnIzcnB0OThVS1VZ?=
+ =?utf-8?B?bk9kNk1PNS9kSFpmU2ZxUXRhWVJkTzN5ZWFqOVN1c2lDZVhaN0VjZW56cGE4?=
+ =?utf-8?B?eUVlNUtWTXNMVWZxVHFydzVEVDNIUjRmc3ltWVMxU3BXUFBlSnZTeEZ5SHZJ?=
+ =?utf-8?B?UUVHTTA4RVR3NjFYOWlGbVp1eU1FN0NDL2F6RzROanEzMEMyQzhhd3I4enh0?=
+ =?utf-8?Q?y43yNOONjO+?=
+X-Forefront-Antispam-Report: 
+	CIP:54.240.13.78;CTRY:US;LANG:en;SCL:1;SRV:;IPV:NLI;SFV:NSPM;H:a13-78.smtp-out.amazonses.com;PTR:a13-78.smtp-out.amazonses.com;CAT:NONE;SFS:(13230040)(1032899013)(12012899012)(3092899012)(6062899009)(5062899012)(5082899009)(3072899012)(32142699015)(2092899012)(69100299015)(4092899012)(13102899012)(13012899012);DIR:INB;
+X-MS-Exchange-AntiSpam-ExternalHop-MessageData-ChunkCount: 1
+X-MS-Exchange-AntiSpam-ExternalHop-MessageData-0: 
+	z1rzeYVa+P7w3Uut5PZY4XFxKFVPPMoRlChKSBEkqD70if+MiDWrj2kOzicowSH5/Ryv/yUxMBE5phZvD5onyE/TRH0DlXbWQHsVZq/ckPMOoPW60O70g7+Xp+ugQamDxA9jkDTgheWYPKDqTWmDgIAXrXe+gvQMpon+9pX4OvOUeIvap679lvHzOG7B3yR46+gn1J40mD9blXsZKSE+iDvWuc36A1bTZ8LPrpO4aWQP8UvqI8U+EebELungZppda6de5Si6ilLMSkckWRbqY/9LP9t+EUw6v9vh0GA2ExA/9TLvC/O9ARvbd4Yi2ZETUNj2awhkwVCrChWM05WWbbLXT1MqMzR1ErJxnDGIcs0jQ32ITjTNdC0zR4icAc72+gVhXdW8hdP5smLE1aD2h2zTGBo9nBHRterNuL1H1Cidl0rIjL3AA+5bgi01KTZNIatilr5DG9prwfrHNNkM2w/FT95g8nslWM2nEwu02YnP+XJEHHrxFXPPhJJHuGnqOI/dRGZ3YqEeO8VJMeC/dEqdsQMkVp8WR4TSd/rUgt46esSmEVXuMxpxaAMvcltPbFp9IFrfSz7JUCmxmgNAw6uGmPyiX1mFIA3PpRPODOpe2y/Bo/kJZul19eejoX2i
+X-OriginatorOrg: mitprod.onmicrosoft.com
+X-MS-Exchange-CrossTenant-OriginalArrivalTime: 16 Aug 2024 01:01:34.7825
+ (UTC)
+X-MS-Exchange-CrossTenant-Network-Message-Id: 8b39e185-a9d4-4bc2-4904-08dcbd8ef988
+X-MS-Exchange-CrossTenant-Id: 64afd9ba-0ecf-4acf-bc36-935f6235ba8b
+X-MS-Exchange-CrossTenant-AuthSource: 
+	SA2PEPF00003F61.namprd04.prod.outlook.com
+X-MS-Exchange-CrossTenant-AuthAs: Anonymous
+X-MS-Exchange-CrossTenant-FromEntityHeader: Internet
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: SA0PR01MB6188
+X-MS-Exchange-CrossPremises-OriginalClientIPAddress: 54.240.13.78
+X-MS-Exchange-CrossPremises-TransportTrafficType: Email
+X-MS-Exchange-CrossPremises-AuthSource: 
+	SA2PEPF00003F61.namprd04.prod.outlook.com
+X-MS-Exchange-CrossPremises-AuthAs: Anonymous
+X-MS-Exchange-CrossPremises-Antispam-ScanContext: 
+	DIR:Incoming;SFV:NSPM;SKIP:0;
+X-MS-Exchange-CrossPremises-SCL: 1
+X-MS-Exchange-CrossPremises-Processed-By-Journaling: Journal Agent
+X-OrganizationHeadersPreserved: SA0PR01MB6188.prod.exchangelabs.com
+
+------=_Part_533333_1464710557.1723770094034
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+
+ =20
+
+
+Hi Aayush,
+Your package has been delivered to reception.
+
+
+
+
+
+How was your delivery?
+It was great https://www.amazon.com/progress-tracker/package?_encoding=3DUT=
+F8&itemId=3D&orderId=3D111-3061760-5513056&packageIndex=3D0&shipmentId=3D30=
+0612189807301&ingress=3Demail&intent=3Dfeedback_happy&ref_=3Dpdc_f_h
+Not so great https://www.amazon.com/progress-tracker/package?_encoding=3DUT=
+F8&itemId=3D&orderId=3D111-3061760-5513056&packageIndex=3D0&shipmentId=3D30=
+0612189807301&ingress=3Demail&intent=3Dfeedback_unhappy&ref_=3Dpdc_f_s
+
+Track package
+https://www.amazon.com/gp/your-account/ship-track?ie=3DUTF8&itemId=3D&order=
+Id=3D111-3061760-5513056&packageIndex=3D0&shipmentId=3DGhsHRNhnG&ref_=3Dpdc=
+_pt_track
+
+Order # 111-3061760-5513056
+
+
+
+
+
+Return or replace items in [Your Orders](https://www.amazon.com/your-orders=
+/orders?ref_=3Dpdc_yo).
+
+
+
+=C2=A92024 Amazon.com, Inc. or its affiliates. Amazon and all related marks=
+ are trademarks of Amazon.com, Inc. or its affiliates, Amazon.com, Inc. 410=
+ Terry Avenue N., Seattle, WA 98109.
+
+Amazon.com
+------=_Part_533333_1464710557.1723770094034
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<!doctype html><html lang=3D"en" dir=3D"auto" xmlns=3D"http://www.w3.org/19=
+99/xhtml" xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:o=3D"urn:schemas-=
+microsoft-com:office:office"><head><title></title><!--[if !mso]><!--><meta =
+http-equiv=3D"X-UA-Compatible" content=3D"IE=3Dedge"><!--<![endif]--><meta =
+http-equiv=3D"Content-Type" content=3D"text/html; charset=3DUTF-8"><meta na=
+me=3D"viewport" content=3D"width=3Ddevice-width,initial-scale=3D1"><style t=
+ype=3D"text/css">#outlook a{padding:0}body{margin:0;padding:0;-webkit-text-=
+size-adjust:100%;-ms-text-size-adjust:100%}table,td{border-collapse:collaps=
+e;mso-table-lspace:0pt;mso-table-rspace:0pt}img{border:0;height:auto;line-h=
+eight:100%;outline:0;text-decoration:none;-ms-interpolation-mode:bicubic}p{=
+display:block;margin:13px 0}</style><!--[if mso]>
+    <noscript>
+    <xml>
+    <o:OfficeDocumentSettings>
+      <o:AllowPNG/>
+      <o:PixelsPerInch>96</o:PixelsPerInch>
+    </o:OfficeDocumentSettings>
+    </xml>
+    </noscript>
+    <![endif]--><!--[if lte mso 11]>
+    <style type=3D"text/css">.mj-outlook-group-fix{width:100%!important}</s=
+tyle>
+    <![endif]--><style type=3D"text/css">@media only screen and (min-width:=
+600px){.mj-column-per-100{width:100%!important;max-width:100%}.mj-column-pe=
+r-50{width:50%!important;max-width:50%}.mj-column-per-33{width:33%!importan=
+t;max-width:33%}.mj-column-per-67{width:67%!important;max-width:67%}}</styl=
+e><style media=3D"screen and (min-width:600px)">.moz-text-html .mj-column-p=
+er-100 { width:100% !important; max-width: 100%; }
+.moz-text-html .mj-column-per-50 { width:50% !important; max-width: 50%; }
+.moz-text-html .mj-column-per-33 { width:33% !important; max-width: 33%; }
+.moz-text-html .mj-column-per-67 { width:67% !important; max-width: 67%; }<=
+/style><style type=3D"text/css">.rio-card-70 p+p{margin-top:1.2em}@media (p=
+refers-color-scheme:dark){.rio-header-64,.rio-header-64 *{color:#fff!import=
+ant}}@media (prefers-color-scheme:dark){.rio-header-65,.rio-header-65 *{col=
+or:#fff!important}}@media (prefers-color-scheme:dark){.rio-text-121{color:#=
+fff}}@media (prefers-color-scheme:dark){.rio-text-122{color:#fff}}@media (p=
+refers-color-scheme:dark){.rio-text-123{color:#fff}}@media (prefers-color-s=
+cheme:dark){.rio-text-124{color:#fff}}@media (prefers-color-scheme:dark){.r=
+io-text-125{color:#fff}}@media (prefers-color-scheme:dark){.rio-text-126{co=
+lor:#fff}}@media only screen and (min-width:600px){.rio-asin-image-1NSmq2Ns=
+zkzYrLmYYAndnK .productImageTd{height:165px!important}.rio-asin-image-1NSmq=
+2NszkzYrLmYYAndnK .productImage{max-height:165px!important;max-width:165px!=
+important}}@media (prefers-color-scheme:dark){.rio-text-127{color:#fff}}@me=
+dia (prefers-color-scheme:dark){.rio-text-128{color:#fff}}.rio-card-72 p+p{=
+margin-top:1.2em}@media (prefers-color-scheme:dark){.rio-header-66,.rio-hea=
+der-66 *{color:#fff!important}}@media (prefers-color-scheme:dark){.rio-head=
+er-67,.rio-header-67 *{color:#fff!important}}@media (prefers-color-scheme:d=
+ark){.rio-text-129{color:#fff}}@media (prefers-color-scheme:dark){.rio-card=
+,.rio-card>table{background-color:#181a1a!important}}[data-ogsc] .rio-card,=
+[data-ogsc] .rio-card>table{background-color:#181a1a!important}.rio-header =
+strong{color:#067d62}@media (prefers-color-scheme:dark){.rio-header a{color=
+:#6ed6e6!important}.rio-header strong{color:#13bd96!important}}[data-ogsc] =
+.rio-header,[data-ogsc] .rio-header *{color:#fff!important}[data-ogsc] .rio=
+-header a{color:#6ed6e6!important}[data-ogsc] .rio-header strong{color:#13b=
+d96!important}@media only screen and (max-width:599px){table.mj-full-width-=
+mobile{width:100%!important}td.mj-full-width-mobile{width:auto!important}}.=
+rio-text strong{color:#067d62}.rio-text img{width:100%;height:auto}@media (=
+prefers-color-scheme:dark){.rio-text *{color:#fff!important}.rio-text a,.ri=
+o-text a>*{color:#6ed6e6!important}.rio-text strong{color:#13bd96!important=
+}}[data-ogsc] .rio-text *{color:#fff!important}[data-ogsc] .rio-text a,[dat=
+a-ogsc] .rio-text a>*{color:#6ed6e6!important}[data-ogsc] .rio-text strong{=
+color:#13bd96!important}@media (prefers-color-scheme:dark){.rio-button-seco=
+ndary *{color:#0f1111!important;background:#fefefe!important;background-col=
+or:linear-gradient(#fefefe,#fefefe)!important}}[data-ogsc] .rio-button-seco=
+ndary *{color:#0f1111!important;background:#fefefe!important;background-col=
+or:linear-gradient(#fefefe,#fefefe)!important}.rio-asin-image .productImage=
+{mix-blend-mode:multiply}u+.body .rio-asin-image .productImage{mix-blend-mo=
+de:initial!important}@media (prefers-color-scheme:dark){.rio-asin-image .pr=
+oductImageTd{background-image:linear-gradient(#fff,#fff)!important}.rio-asi=
+n-image .productImage{mix-blend-mode:initial!important}}[data-ogsc] .rio-as=
+in-image .productImageTd{background-image:linear-gradient(#fff,#fff)!import=
+ant}[data-ogsc] .rio-asin-image .productImage{mix-blend-mode:initial!import=
+ant}@media only screen and (min-width:600px){u+.body .rio-asin-image .produ=
+ctImage{mix-blend-mode:multiply!important}}.footerCard li,.footerCard p{col=
+or:inherit}.footerCard p+p{margin-top:1.2em}@media (prefers-color-scheme:da=
+rk){.footerCard div{background-color:#303333!important}.footerLink div{colo=
+r:#6ed6e6!important}.footerText div{color:#c8cccc!important}.lightFooterImg=
+{display:none!important}.darkFooterImg{display:block!important}}[data-ogsb]=
+ .footerCard div{background-color:#303333!important}[data-ogsc] .footerLink=
+ div{color:#6ed6e6!important}[data-ogsc] .footerText div{color:#c8cccc!impo=
+rtant}[data-ogsc] .lightFooterImg{display:none!important}[data-ogsc] .darkF=
+ooterImg{display:block!important}</style><style type=3D"text/css">@font-fac=
+e{font-family:Ember;font-weight:700;src:local("Ember"),url(https://m.media-=
+amazon.com/images/G/01/outbound/AmazonEmber_Bd._CB1515450239_.WOFF) format(=
+"woff");mso-generic-font-family:swiss;mso-font-alt:"Arial"}@font-face{font-=
+family:Ember;font-weight:600;src:local("Ember"),url(https://m.media-amazon.=
+com/images/G/01/outbound/AmazonEmber_Bd._CB1515450239_.WOFF) format("woff")=
+;mso-generic-font-family:swiss;mso-font-alt:"Arial"}@font-face{font-family:=
+Ember;font-weight:500;src:local("Ember"),url(https://m.media-amazon.com/ima=
+ges/G/01/outbound/AmazonEmber_Md._CB1515450239_.WOFF) format("woff");mso-ge=
+neric-font-family:swiss;mso-font-alt:"Arial"}@font-face{font-family:Ember;f=
+ont-weight:400;font-style:normal;src:local("Ember"),url(https://m.media-ama=
+zon.com/images/G/01/outbound/AmazonEmber_Rg._CB1515450239_.WOFF) format("wo=
+ff");mso-generic-font-family:swiss;mso-font-alt:"Arial"}@font-face{font-fam=
+ily:Ember;font-weight:200;src:local("Ember"),url(https://m.media-amazon.com=
+/images/G/01/outbound/AmazonEmber_Lt._CB1515450239_.WOFF) format("woff");ms=
+o-generic-font-family:swiss;mso-font-alt:"Arial"}@font-face{font-family:"Am=
+azon Ember";font-weight:700;src:local("Amazon Ember"),url(https://m.media-a=
+mazon.com/images/G/01/outbound/AmazonEmber_Bd._CB1515450239_.WOFF) format("=
+woff");mso-generic-font-family:swiss;mso-font-alt:"Arial"}@font-face{font-f=
+amily:"Amazon Ember";font-weight:600;src:local("Amazon Ember"),url(https://=
+m.media-amazon.com/images/G/01/outbound/AmazonEmber_Bd._CB1515450239_.WOFF)=
+ format("woff");mso-generic-font-family:swiss;mso-font-alt:"Arial"}@font-fa=
+ce{font-family:"Amazon Ember";font-weight:500;src:local("Amazon Ember"),url=
+(https://m.media-amazon.com/images/G/01/outbound/AmazonEmber_Md._CB15154502=
+39_.WOFF) format("woff");mso-generic-font-family:swiss;mso-font-alt:"Arial"=
+}@font-face{font-family:"Amazon Ember";font-style:normal;font-weight:400;sr=
+c:local("Amazon Ember"),url(https://m.media-amazon.com/images/G/01/outbound=
+/AmazonEmber_Rg._CB1515450239_.WOFF) format("woff");mso-generic-font-family=
+:swiss;mso-font-alt:"Arial"}@font-face{font-family:"Amazon Ember";font-weig=
+ht:200;src:local("Amazon Ember"),url(https://m.media-amazon.com/images/G/01=
+/outbound/AmazonEmber_Lt._CB1515450239_.WOFF) format("woff");mso-generic-fo=
+nt-family:swiss;mso-font-alt:"Arial"}*{font-family:Ember,'Amazon Ember',Ari=
+al,sans-serif;border-spacing:0;margin:0;padding:0}[data-ogsc] :root{--body-=
+bg:#181A1A;--body-color:#ffffff}.rootContent{background:#d5d9d9!important}.=
+fonts,.sans,h1,h2,h3,h4,h5,li,p,table,td,th{color:#0f1111}a{color:#007185;t=
+ext-decoration:none}@media screen and (max-width:599px){.mobile-only{displa=
+y:initial!important}.desktop-only{display:none!important;mso-hide:all!impor=
+tant}}@media screen and (min-width:600px){.mobile-only{display:none!importa=
+nt;mso-hide:all!important}}@media (prefers-color-scheme:light){:root{--body=
+-bg:#ffffff;--body-color:#000000}}@media (prefers-color-scheme:dark){:root{=
+--body-bg:#181A1A;--body-color:#ffffff}body{background-color:#181a1a!import=
+ant}.fonts,.sans,h1,h2,h3,h4,h5,li,p,table,td,th{color:#fff}a{color:#6ed6e6=
+}.rootContent,.rootContent>table{background:#181a1a!important}}[data-ogsc] =
+.fonts,[data-ogsc] .sans,[data-ogsc] h1,[data-ogsc] h2,[data-ogsc] h3,[data=
+-ogsc] h4,[data-ogsc] h5,[data-ogsc] li,[data-ogsc] p{color:#fff}[data-ogsc=
+] a{color:#6ed6e6}[data-ogsc] .rootContent,[data-ogsc] .rootContent>table{b=
+ackground:#181a1a!important}body{background-color:var(--body-bg)!important;=
+color:var(--body-color)!important;margin:0!important;padding:0}body>img{pos=
+ition:absolute}table{border-spacing:0}h3,h4,h5,p,table th{font-weight:400;m=
+argin:0;padding:0}td{padding:0}img{border:0}a,span,td{word-break:break-word=
+!important}ol,ul{margin-left:32px!important}.button{background-color:#ffd81=
+4;color:#0f1111!important;border-radius:24px;padding:1px 16px;display:inlin=
+e-block;box-shadow:1px 2px 4px rgba(153,153,153,.2);font-size:13px;line-hei=
+ght:29px;white-space:nowrap;text-decoration:none;margin-top:4px}.box-shadow=
+ a{box-shadow:1px 2px 4px rgba(153,153,153,.2)}a,body,table,td{-ms-text-siz=
+e-adjust:100%;-webkit-text-size-adjust:100%}.appleBody a,.appleFooter a{col=
+or:#007185!important;text-decoration:none}a[x-apple-data-detectors]{color:#=
+007185!important;font-family:inherit!important;font-size:inherit!important;=
+font-weight:inherit!important;line-height:inherit!important}u+#body a{color=
+:#007185!important;font-family:inherit!important;font-size:inherit!importan=
+t;font-weight:inherit!important;line-height:inherit!important}#MessageViewB=
+ody a{color:#007185!important;font-family:inherit!important;font-size:inher=
+it!important;font-weight:inherit!important;line-height:inherit!important}</=
+style><meta content=3D"text/html; charset=3DUTF-8" http-equiv=3D"Content-Ty=
+pe"><meta content=3D"telephone=3Dno" name=3D"format-detection"><meta conten=
+t=3D"width=3Ddevice-width,initial-scale=3D1;user-scalable=3Dno;" name=3D"vi=
+ewport"><meta content=3D"IE=3D9; IE=3D8; IE=3D7; IE=3DEDGE" http-equiv=3D"X=
+-UA-Compatible"><meta name=3D"x-apple-disable-message-reformatting"><meta c=
+ontent=3D"light dark" name=3D"color-scheme"><meta content=3D"light dark" na=
+me=3D"supported-color-schemes"><!--
+             =20
+             =20
+             =20
+              --><style type=3D"text/css">.productListPrice{color:#565959}.=
+productDiscount{color:#cc0c39}.productPrice{color:#0f1111}@media (prefers-c=
+olor-scheme:dark){.productListPrice{color:#fff!important}.productDiscount{c=
+olor:#ff8c8c!important}.productPrice{color:#fff!important}}[data-ogsc] .pro=
+ductListPrice{color:#fff!important}[data-ogsc] .productDiscount{color:#ff8c=
+8c!important}[data-ogsc] .productPrice{color:#fff!important}</style><style =
+type=3D"text/css">.dealBadge{background-color:#cc0c39;color:#fff}.dealText{=
+color:#cc0c39}@media (prefers-color-scheme:dark){.dealBadge{background-colo=
+r:#ff8c8c!important;color:#000!important}.dealText{color:#ff8c8c!important}=
+}[data-ogsc] .dealBadge{background-color:#ff8c8c!important;color:#000!impor=
+tant}[data-ogsc] .dealText{color:#ff8c8c!important}</style><style type=3D"t=
+ext/css">#amazonLogo6ifDMeVChiamBC39CTSZBx.full{max-width:100%!important;pa=
+dding-left:0!important;padding-right:0!important;width:100%!important}#amaz=
+onLogo6ifDMeVChiamBC39CTSZBx.zeroBorder{border:0;border-collapse:collapse;b=
+order-spacing:0}#amazonLogo6ifDMeVChiamBC39CTSZBx .full{max-width:100%!impo=
+rtant;padding-left:0!important;padding-right:0!important;width:100%!importa=
+nt}#amazonLogo6ifDMeVChiamBC39CTSZBx .zeroBorder{border:0;border-collapse:c=
+ollapse;border-spacing:0}#amazonLogo6ifDMeVChiamBC39CTSZBx .light-img{backg=
+round-color:#fff;background-image:linear-gradient(#fff,#fff)}@media (prefer=
+s-color-scheme:light){#amazonLogo6ifDMeVChiamBC39CTSZBx .light-img{display:=
+block!important}#amazonLogo6ifDMeVChiamBC39CTSZBx .dark-img{display:none!im=
+portant}}@media (prefers-color-scheme:dark){#amazonLogo6ifDMeVChiamBC39CTSZ=
+Bx .content{background-color:#181a1a!important}#amazonLogo6ifDMeVChiamBC39C=
+TSZBx .light-img{display:none!important}#amazonLogo6ifDMeVChiamBC39CTSZBx .=
+dark-img{display:block!important}}[data-ogsc] #amazonLogo6ifDMeVChiamBC39CT=
+SZBx .content{background-color:#181a1a!important}[data-ogsc] #amazonLogo6if=
+DMeVChiamBC39CTSZBx .light-img{display:none!important}[data-ogsc] #amazonLo=
+go6ifDMeVChiamBC39CTSZBx .dark-img{display:block!important}</style><!--[if =
+gte mso 9]>
+    <xml>
+        <o:OfficeDocumentSettings>
+            <o:AllowPNG />
+            <o:PixelsPerInch>96</o:PixelsPerInch>
+        </o:OfficeDocumentSettings>
+    </xml>
+    <style>
+        body, h1, h2, h3, h4, table, th, td, p, li, a, .sans, .fonts {
+            font-family: Helvetica, Arial, sans-serif !important;
+        }
+        [data-ogsc] .rootContent, [data-ogsc] .rootContent > table{
+          background: #181A1A !important;
+        }
+    </style>
+    <![endif]--></head><body class=3D"body" style=3D"word-spacing:normal;">=
+<img width=3D"1" height=3D"1" src=3D"https://www.amazon.com/gp/r.html?C=3D1=
+Z6HAGN0Q74SS&K=3D1PCIPA854472X&M=3Durn:rtn:msg:20240816010133af409d4398414b=
+769006b814f360p0na&R=3DE5DJPKCG5QDU&T=3DO&U=3Dhttps%3A%2F%2Fimages-na.ssl-i=
+mages-amazon.com%2Fimages%2FG%2F01%2Fnav%2Ftransp.gif&H=3DF2PRANDPDWFKMJP01=
+PAQRSV6UISA&ref_=3Dpe_108877690_917195550_opens" /><div style=3D"display:no=
+ne;font-size:1px;color:#ffffff;line-height:1px;max-height:0px;max-width:0px=
+;opacity:0;overflow:hidden;">Delivered: Your Amazon.com order #111-3061760-=
+5513056&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;=
+&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; =
+&zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; =
+&nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; =
+&#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199;=
+ &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&=
+#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &=
+zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &=
+nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &=
+#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; =
+&shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#=
+847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &z=
+wnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &n=
+bsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#=
+8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &=
+shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#8=
+47; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zw=
+nj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nb=
+sp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8=
+199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &s=
+hy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#84=
+7; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwn=
+j; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbs=
+p; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#81=
+99; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &sh=
+y;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847=
+; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj=
+; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp=
+; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#819=
+9; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy=
+;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847;=
+ &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj;=
+ &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp;=
+ &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199=
+; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;=
+&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; =
+&zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; =
+&nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; =
+&#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199;=
+ &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&=
+#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &=
+zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &=
+nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &=
+#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; =
+&shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#=
+847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &z=
+wnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &n=
+bsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#=
+8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &=
+shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#8=
+47; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zw=
+nj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nb=
+sp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8=
+199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &s=
+hy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#84=
+7; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwn=
+j; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbs=
+p; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#81=
+99; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &sh=
+y;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847=
+; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj=
+; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp=
+; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#819=
+9; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy=
+;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847;=
+ &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj;=
+ &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp;=
+ &#8199; &shy;&#847; &zwnj; &nbsp; &#8199; &shy;&#847; &zwnj; &nbsp; &#8199=
+; &shy;</div><div class=3D"body" lang=3D"en" dir=3D"auto"><!--[if mso | IE]=
+><table align=3D"center" border=3D"0" cellpadding=3D"0" cellspacing=3D"0" c=
+lass=3D"rootContent-outlook" role=3D"presentation" style=3D"width:600px;" w=
+idth=3D"600" bgcolor=3D"#D5D9D9" ><tr><td style=3D"line-height:0px;font-siz=
+e:0px;mso-line-height-rule:exactly;"><![endif]--><div class=3D"rootContent"=
+ style=3D"background:#D5D9D9;background-color:#D5D9D9;margin:0px auto;max-w=
+idth:600px;"><table align=3D"center" border=3D"0" cellpadding=3D"0" cellspa=
+cing=3D"0" role=3D"presentation" style=3D"background:#D5D9D9;background-col=
+or:#D5D9D9;width:100%;"><tbody><tr><td style=3D"direction:ltr;font-size:0px=
+;padding:0px 0px 4px 0px;text-align:left;"><!--[if mso | IE]><table role=3D=
+"presentation" border=3D"0" cellpadding=3D"0" cellspacing=3D"0"><![endif]--=
+> <!-- PRIME LOGO --><!-- ALEXA LOGO --><!-- AMAZON BUSINESS LOGO --><!-- A=
+ll European Union marketplaces need to use dma compliant logo -->      <tab=
+le id=3D"amazonLogo6ifDMeVChiamBC39CTSZBx" class=3D"full zeroBorder" style=
+=3D"width: 100%;" role=3D"presentation"><tbody><tr><td class=3D"content" st=
+yle=3D"padding:0; text-align:left; background-color: #FFFFFF"><!--[if gte m=
+so 9]><table width=3D"600"><tr><td><![endif]--><a href=3D"https://www.amazo=
+n.com/gp/r.html?C=3D1Z6HAGN0Q74SS&K=3D1PCIPA854472X&M=3Durn:rtn:msg:2024081=
+6010133af409d4398414b769006b814f360p0na&R=3D9WJYLFG12W1E&T=3DC&U=3Dhttps%3A=
+%2F%2Fwww.amazon.com%3Fref_%3Dpe_108877690_917195550_LG0001IMG&H=3DJGWECUYR=
+AY0HTEB3KEJCZQPE9H4A&ref_=3Dpe_108877690_917195550_LG0001IMG" target=3D"_bl=
+ank"><img class=3D"light-img" height=3D"58" role=3D"presentation" src=3D"ht=
+tps://m.media-amazon.com/images/G/01/outbound/OutboundTemplates/Amazon_logo=
+_US._BG255,255,255_.png" style=3D" display:block;background-color: #ffffff;=
+width:auto; height:58px; max-height:58px; max-width:100%; border:0; float:l=
+eft;" alt=3D""> <!--[if !mso]><! --><img class=3D"dark-img" height=3D"58" r=
+ole=3D"presentation" src=3D"https://m.media-amazon.com/images/G/01/outbound=
+/OutboundTemplates/Amazon_logo_whiterev_US.png" style=3D"display:none; widt=
+h:auto; height:58px; max-height:58px; max-width:100%; border:0; float:left;=
+" alt=3D""><!--<![endif]--> </a><!--[if gte mso 9]></td></tr></table><![end=
+if]--></td></tr></tbody></table><!--[if mso | IE]></table><![endif]--></td>=
+</tr></tbody></table></div><!--[if mso | IE]></td></tr></table><![endif]-->=
+<!--[if mso | IE]><table align=3D"center" border=3D"0" cellpadding=3D"0" ce=
+llspacing=3D"0" class=3D"rootContent-outlook" role=3D"presentation" style=
+=3D"width:600px;" width=3D"600" bgcolor=3D"#D5D9D9" ><tr><td style=3D"line-=
+height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]--><div cl=
+ass=3D"rootContent" style=3D"background:#D5D9D9;background-color:#D5D9D9;ma=
+rgin:0px auto;max-width:600px;"><table align=3D"center" border=3D"0" cellpa=
+dding=3D"0" cellspacing=3D"0" role=3D"presentation" style=3D"background:#D5=
+D9D9;background-color:#D5D9D9;width:100%;"><tbody><tr><td style=3D"directio=
+n:ltr;font-size:0px;padding:4px 8px 4px 8px;text-align:left;"><!--[if mso |=
+ IE]><table role=3D"presentation" border=3D"0" cellpadding=3D"0" cellspacin=
+g=3D"0"><![endif]-->       <!--[if mso | IE]><tr><td align=3D"left" class=
+=3D"sonar-informational-outlook sonar-informational-v1-outlook" width=3D"60=
+0px" ><table align=3D"center" border=3D"0" cellpadding=3D"0" cellspacing=3D=
+"0" class=3D"rio-card-outlook rio-card-70-outlook" role=3D"presentation" st=
+yle=3D"width:584px;" width=3D"584" bgcolor=3D"#ffffff" ><tr><td style=3D"li=
+ne-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]--><div=
+ class=3D"rio-card rio-card-70" style=3D"background:#ffffff;background-colo=
+r:#ffffff;margin:0px auto;border-radius:4px;max-width:584px;"><table align=
+=3D"center" border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D"presen=
+tation" style=3D"background:#ffffff;background-color:#ffffff;width:100%;bor=
+der-radius:4px;"><tbody><tr><td style=3D"direction:ltr;font-size:0px;paddin=
+g:12px 8px 12px 8px;text-align:left;"><!--[if mso | IE]><table role=3D"pres=
+entation" border=3D"0" cellpadding=3D"0" cellspacing=3D"0"><tr><td align=3D=
+"left" class=3D"" width=3D"584px" ><table align=3D"center" border=3D"0" cel=
+lpadding=3D"0" cellspacing=3D"0" class=3D"" role=3D"presentation" style=3D"=
+width:568px;" width=3D"568" ><tr><td style=3D"line-height:0px;font-size:0px=
+;mso-line-height-rule:exactly;"><![endif]--><div style=3D"margin:0px auto;m=
+ax-width:568px;"><table align=3D"center" border=3D"0" cellpadding=3D"0" cel=
+lspacing=3D"0" role=3D"presentation" style=3D"width:100%;"><tbody><tr><td s=
+tyle=3D"direction:ltr;font-size:0px;padding:0;text-align:left;"><!--[if mso=
+ | IE]><table role=3D"presentation" border=3D"0" cellpadding=3D"0" cellspac=
+ing=3D"0"><tr><td align=3D"left" class=3D"" style=3D"vertical-align:top;wid=
+th:568px;" ><![endif]--><div class=3D"mj-column-per-100 mj-outlook-group-fi=
+x" style=3D"font-size:0px;text-align:left;direction:ltr;display:inline-bloc=
+k;vertical-align:top;width:100%;"><table border=3D"0" cellpadding=3D"0" cel=
+lspacing=3D"0" role=3D"presentation" width=3D"100%"><tbody><tr><td style=3D=
+"vertical-align:top;padding:0;"><table border=3D"0" cellpadding=3D"0" cells=
+pacing=3D"0" role=3D"presentation" width=3D"100%"><tbody> <tr><td align=3D"=
+left" style=3D"font-size:0px;padding:0;word-break:break-word;"><div style=
+=3D"font-family:Ember,'Amazon Ember',Arial,sans-serif;font-size:15px;line-h=
+eight:1;text-align:left;color:#000000;"><h2 style=3D"margin:0;padding:0;fon=
+t-family:Ember,'Amazon Ember',Arial,sans-serif;font-weight:700;font-size:22=
+px;line-height:28px;color:#0F1111;" class=3D"rio-header rio-header-64">Hi A=
+ayush,</h2></div></td></tr></tbody></table></td></tr></tbody></table></div>=
+<!--[if mso | IE]></td></tr></table><![endif]--></td></tr></tbody></table><=
+/div><!--[if mso | IE]></td></tr></table></td></tr><tr><td align=3D"left" c=
+lass=3D"" width=3D"584px" ><![endif]-->      <!--[if mso | IE]><table align=
+=3D"center" border=3D"0" cellpadding=3D"0" cellspacing=3D"0" class=3D"" rol=
+e=3D"presentation" style=3D"width:568px;" width=3D"568" ><tr><td style=3D"l=
+ine-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]--><di=
+v style=3D"margin:0px auto;max-width:568px;"><table align=3D"center" border=
+=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D"presentation" style=3D"w=
+idth:100%;"><tbody><tr><td style=3D"direction:ltr;font-size:0px;padding:0;t=
+ext-align:left;"><!--[if mso | IE]><table role=3D"presentation" border=3D"0=
+" cellpadding=3D"0" cellspacing=3D"0"><tr><td align=3D"left" class=3D"" sty=
+le=3D"vertical-align:top;width:568px;" ><![endif]--><div class=3D"mj-column=
+-per-100 mj-outlook-group-fix" style=3D"font-size:0px;text-align:left;direc=
+tion:ltr;display:inline-block;vertical-align:top;width:100%;"><table border=
+=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D"presentation" width=3D"1=
+00%"><tbody><tr><td style=3D"vertical-align:top;padding:0;"><table border=
+=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D"presentation" width=3D"1=
+00%"><tbody><tr><td align=3D"left" style=3D"font-size:0px;padding:0;word-br=
+eak:break-word;"><div style=3D"font-family:Ember,'Amazon Ember',Arial,sans-=
+serif;font-size:15px;font-weight:400;line-height:20px;text-align:left;color=
+:#0F1111;"><span class=3D"rio-text rio-text-121">Your package has been deli=
+vered to reception.</span></div></td></tr></tbody></table></td></tr></tbody=
+></table></div><!--[if mso | IE]></td></tr></table><![endif]--></td></tr></=
+tbody></table></div><!--[if mso | IE]></td></tr></table><![endif]-->       =
+ <!--[if mso | IE]></td></tr></table><![endif]--></td></tr></tbody></table>=
+</div><!--[if mso | IE]></td></tr></table></td></tr><![endif]-->  <!--[if m=
+so | IE]></table><![endif]--></td></tr></tbody></table></div><!--[if mso | =
+IE]></td></tr></table><![endif]--><!--[if mso | IE]><table align=3D"center"=
+ border=3D"0" cellpadding=3D"0" cellspacing=3D"0" class=3D"rootContent-outl=
+ook" role=3D"presentation" style=3D"width:600px;" width=3D"600" bgcolor=3D"=
+#D5D9D9" ><tr><td style=3D"line-height:0px;font-size:0px;mso-line-height-ru=
+le:exactly;"><![endif]--><div class=3D"rootContent" style=3D"background:#D5=
+D9D9;background-color:#D5D9D9;margin:0px auto;max-width:600px;"><table alig=
+n=3D"center" border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D"prese=
+ntation" style=3D"background:#D5D9D9;background-color:#D5D9D9;width:100%;">=
+<tbody><tr><td style=3D"direction:ltr;font-size:0px;padding:4px 8px 4px 8px=
+;text-align:left;"><!--[if mso | IE]><table role=3D"presentation" border=3D=
+"0" cellpadding=3D"0" cellspacing=3D"0"><![endif]--> <!--[if mso | IE]><tr>=
+<td align=3D"left" class=3D"rex-order-card-outlook rex-order-card-v1-outloo=
+k" width=3D"600px" ><table align=3D"center" border=3D"0" cellpadding=3D"0" =
+cellspacing=3D"0" class=3D"rio-card-outlook rio-card-71-outlook" role=3D"pr=
+esentation" style=3D"width:584px;" width=3D"584" bgcolor=3D"#ffffff" ><tr><=
+td style=3D"line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><!=
+[endif]--><div class=3D"rio-card rio-card-71" style=3D"background:#ffffff;b=
+ackground-color:#ffffff;margin:0px auto;border-radius:4px;max-width:584px;"=
+><table align=3D"center" border=3D"0" cellpadding=3D"0" cellspacing=3D"0" r=
+ole=3D"presentation" style=3D"background:#ffffff;background-color:#ffffff;w=
+idth:100%;border-radius:4px;"><tbody><tr><td style=3D"direction:ltr;font-si=
+ze:0px;padding:12px 8px 16px 8px;text-align:left;"><!--[if mso | IE]><table=
+ role=3D"presentation" border=3D"0" cellpadding=3D"0" cellspacing=3D"0"><![=
+endif]-->        <!--[if mso | IE]><tr><td align=3D"left" class=3D"" width=
+=3D"584px" ><table align=3D"center" border=3D"0" cellpadding=3D"0" cellspac=
+ing=3D"0" class=3D"" role=3D"presentation" style=3D"width:568px;" width=3D"=
+568" ><tr><td style=3D"line-height:0px;font-size:0px;mso-line-height-rule:e=
+xactly;"><![endif]--><div style=3D"margin:0px auto;max-width:568px;"><table=
+ align=3D"center" border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D"=
+presentation" style=3D"width:100%;"><tbody><tr><td style=3D"direction:ltr;f=
+ont-size:0px;padding:0;text-align:left;"><!--[if mso | IE]><table role=3D"p=
+resentation" border=3D"0" cellpadding=3D"0" cellspacing=3D"0"><tr><td align=
+=3D"left" class=3D"" style=3D"vertical-align:middle;width:568px;" ><![endif=
+]--><div class=3D"mj-column-per-100 mj-outlook-group-fix" style=3D"font-siz=
+e:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:mid=
+dle;width:100%;"><table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" ro=
+le=3D"presentation" width=3D"100%"><tbody><tr><td style=3D"vertical-align:m=
+iddle;padding:0;"><table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" r=
+ole=3D"presentation" width=3D"100%"><tbody><tr><td align=3D"left" style=3D"=
+font-size:0px;padding:0;word-break:break-word;"><div style=3D"font-family:E=
+mber,'Amazon Ember',Arial,sans-serif;font-size:18px;font-weight:700;line-he=
+ight:22px;text-align:left;color:#0F1111;"><span class=3D"rio-text rio-text-=
+122">How was your delivery?</span></div></td></tr><tr><td align=3D"left" cl=
+ass=3D"rio-spacer" style=3D"font-size:0px;padding:0;word-break:break-word;"=
+><div style=3D"height:12px;line-height:12px;">&#8202;</div></td></tr></tbod=
+y></table></td></tr></tbody></table></div><!--[if mso | IE]></td></tr></tab=
+le><![endif]--></td></tr></tbody></table></div><!--[if mso | IE]></td></tr>=
+</table><table align=3D"center" border=3D"0" cellpadding=3D"0" cellspacing=
+=3D"0" class=3D"" role=3D"presentation" style=3D"width:568px;" width=3D"568=
+" ><tr><td style=3D"line-height:0px;font-size:0px;mso-line-height-rule:exac=
+tly;"><![endif]--><div style=3D"margin:0px auto;max-width:568px;"><table al=
+ign=3D"center" border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D"pre=
+sentation" style=3D"width:100%;"><tbody><tr><td style=3D"direction:ltr;font=
+-size:0px;padding:0;text-align:left;"><!--[if mso | IE]><table role=3D"pres=
+entation" border=3D"0" cellpadding=3D"0" cellspacing=3D"0"><tr><td align=3D=
+"left" class=3D"" style=3D"width:568px;" ><![endif]--><div class=3D"mj-colu=
+mn-per-100 mj-outlook-group-fix" style=3D"font-size:0;line-height:0;text-al=
+ign:left;display:inline-block;width:100%;direction:ltr;"><!--[if mso | IE]>=
+<table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D"presentatio=
+n" ><tr><td style=3D"align:left;vertical-align:middle;width:284px;" ><![end=
+if]--><div class=3D"mj-column-per-50 mj-outlook-group-fix" style=3D"font-si=
+ze:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:mi=
+ddle;width:50%;"><table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" ro=
+le=3D"presentation" width=3D"100%"><tbody><tr><td style=3D"vertical-align:m=
+iddle;padding:0;padding-right:4px;padding-left:0;"><table border=3D"0" cell=
+padding=3D"0" cellspacing=3D"0" role=3D"presentation" width=3D"100%"><tbody=
+><tr><td align=3D"left" style=3D"font-size:0px;padding:0;word-break:break-w=
+ord;"><!--[if mso | IE]><table align=3D"center" border=3D"0" cellpadding=3D=
+"0" cellspacing=3D"0" class=3D"" role=3D"presentation" style=3D"width:280px=
+;" width=3D"280" ><tr><td style=3D"line-height:0px;font-size:0px;mso-line-h=
+eight-rule:exactly;"><![endif]--><div style=3D"margin:0px auto;max-width:28=
+0px;"><table align=3D"center" border=3D"0" cellpadding=3D"0" cellspacing=3D=
+"0" role=3D"presentation" style=3D"width:100%;"><tbody><tr><td style=3D"dir=
+ection:ltr;font-size:0px;padding:0;text-align:left;"><!--[if mso | IE]><tab=
+le role=3D"presentation" border=3D"0" cellpadding=3D"0" cellspacing=3D"0"><=
+tr><td align=3D"left" class=3D"" style=3D"vertical-align:top;width:280px;" =
+><![endif]--><div class=3D"mj-column-per-100 mj-outlook-group-fix" style=3D=
+"font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-=
+align:top;width:100%;"><table border=3D"0" cellpadding=3D"0" cellspacing=3D=
+"0" role=3D"presentation" width=3D"100%"><tbody><tr><td style=3D"background=
+-color:#F0F2F2;border-radius:4px;vertical-align:top;padding:0;"><table bord=
+er=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D"presentation" width=3D=
+"100%"><tbody><tr><td align=3D"left" style=3D"font-size:0px;padding:0;word-=
+break:break-word;"><div style=3D"font-family:Ember,'Amazon Ember',Arial,san=
+s-serif;font-size:13px;font-weight:400;line-height:18px;text-align:center;c=
+olor:#0F1111;"><span class=3D"rio-text rio-text-123"><a href=3D"https://www=
+.amazon.com/gp/r.html?C=3D1Z6HAGN0Q74SS&K=3D1PCIPA854472X&M=3Durn:rtn:msg:2=
+0240816010133af409d4398414b769006b814f360p0na&R=3DSIRM1R078GGM&T=3DC&U=3Dht=
+tps%3A%2F%2Fwww.amazon.com%2Fprogress-tracker%2Fpackage%3F_encoding%3DUTF8%=
+26itemId%3D%26orderId%3D111-3061760-5513056%26packageIndex%3D0%26shipmentId=
+%3D300612189807301%26ingress%3Demail%26intent%3Dfeedback_happy%26ref_%3Dpe_=
+108877690_917195550_pdc_f_h&H=3DC5X8OQYHSNU4HZWASVBUOHCGVGGA&ref_=3Dpe_1088=
+77690_917195550_pdc_f_h" target=3D"_blank" style=3D"mso-margin-top-alt: 16p=
+x;"><img href=3D"https://www.amazon.com/progress-tracker/package?_encoding=
+=3DUTF8&amp;itemId=3D&amp;orderId=3D111-3061760-5513056&amp;packageIndex=3D=
+0&amp;shipmentId=3D300612189807301&amp;ingress=3Demail&amp;intent=3Dfeedbac=
+k_happy&amp;ref_=3Dpdc_f_h" src=3D"https://m.media-amazon.com/images/G/01/T=
+xNotifications/Rio/thumbs_up.png" alt=3D"It was great" width=3D"24" height=
+=3D"24" style=3D"margin: auto; padding: 8px; mso-padding-alt: 0; display: b=
+lock; width: 24px"><p style=3D"padding-bottom: 8px; margin: 0; mso-margin-b=
+ottom-alt: 8px">It was great</p></a></span></div></td></tr></tbody></table>=
+</td></tr></tbody></table></div><!--[if mso | IE]></td></tr></table><![endi=
+f]--></td></tr></tbody></table></div><!--[if mso | IE]></td></tr></table><!=
+[endif]--></td></tr></tbody></table></td></tr></tbody></table></div><!--[if=
+ mso | IE]></td><td style=3D"align:left;vertical-align:middle;width:284px;"=
+ ><![endif]--><div class=3D"mj-column-per-50 mj-outlook-group-fix" style=3D=
+"font-size:0px;text-align:left;direction:ltr;display:inline-block;vertical-=
+align:middle;width:50%;"><table border=3D"0" cellpadding=3D"0" cellspacing=
+=3D"0" role=3D"presentation" width=3D"100%"><tbody><tr><td style=3D"vertica=
+l-align:middle;padding:0;padding-right:0;padding-left:4px;"><table border=
+=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D"presentation" width=3D"1=
+00%"><tbody><tr><td align=3D"left" style=3D"font-size:0px;padding:0;word-br=
+eak:break-word;"><!--[if mso | IE]><table align=3D"center" border=3D"0" cel=
+lpadding=3D"0" cellspacing=3D"0" class=3D"" role=3D"presentation" style=3D"=
+width:280px;" width=3D"280" ><tr><td style=3D"line-height:0px;font-size:0px=
+;mso-line-height-rule:exactly;"><![endif]--><div style=3D"margin:0px auto;m=
+ax-width:280px;"><table align=3D"center" border=3D"0" cellpadding=3D"0" cel=
+lspacing=3D"0" role=3D"presentation" style=3D"width:100%;"><tbody><tr><td s=
+tyle=3D"direction:ltr;font-size:0px;padding:0;text-align:left;"><!--[if mso=
+ | IE]><table role=3D"presentation" border=3D"0" cellpadding=3D"0" cellspac=
+ing=3D"0"><tr><td align=3D"left" class=3D"" style=3D"vertical-align:top;wid=
+th:280px;" ><![endif]--><div class=3D"mj-column-per-100 mj-outlook-group-fi=
+x" style=3D"font-size:0px;text-align:left;direction:ltr;display:inline-bloc=
+k;vertical-align:top;width:100%;"><table border=3D"0" cellpadding=3D"0" cel=
+lspacing=3D"0" role=3D"presentation" width=3D"100%"><tbody><tr><td style=3D=
+"background-color:#F0F2F2;border-radius:4px;vertical-align:top;padding:0;">=
+<table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D"presentatio=
+n" width=3D"100%"><tbody><tr><td align=3D"left" style=3D"font-size:0px;padd=
+ing:0;word-break:break-word;"><div style=3D"font-family:Ember,'Amazon Ember=
+',Arial,sans-serif;font-size:13px;font-weight:400;line-height:18px;text-ali=
+gn:center;color:#0F1111;"><span class=3D"rio-text rio-text-124"><a href=3D"=
+https://www.amazon.com/gp/r.html?C=3D1Z6HAGN0Q74SS&K=3D1PCIPA854472X&M=3Dur=
+n:rtn:msg:20240816010133af409d4398414b769006b814f360p0na&R=3DMJGP66VISZXC&T=
+=3DC&U=3Dhttps%3A%2F%2Fwww.amazon.com%2Fprogress-tracker%2Fpackage%3F_encod=
+ing%3DUTF8%26itemId%3D%26orderId%3D111-3061760-5513056%26packageIndex%3D0%2=
+6shipmentId%3D300612189807301%26ingress%3Demail%26intent%3Dfeedback_unhappy=
+%26ref_%3Dpe_108877690_917195550_pdc_f_s&H=3DGWG8R3TO7P0CBBABRRGLVRPQV9YA&r=
+ef_=3Dpe_108877690_917195550_pdc_f_s" target=3D"_blank" style=3D"mso-margin=
+-top-alt: 16px;"><img href=3D"https://www.amazon.com/progress-tracker/packa=
+ge?_encoding=3DUTF8&amp;itemId=3D&amp;orderId=3D111-3061760-5513056&amp;pac=
+kageIndex=3D0&amp;shipmentId=3D300612189807301&amp;ingress=3Demail&amp;inte=
+nt=3Dfeedback_unhappy&amp;ref_=3Dpdc_f_s" src=3D"https://m.media-amazon.com=
+/images/G/01/TxNotifications/Rio/thumbs_down.png" alt=3D"Not so great" widt=
+h=3D"24" height=3D"24" style=3D"margin: auto; padding: 8px; mso-padding-alt=
+: 0; display: block; width: 24px"><p style=3D"padding-bottom: 8px; margin: =
+0; mso-margin-bottom-alt: 8px">Not so great</p></a></span></div></td></tr><=
+/tbody></table></td></tr></tbody></table></div><!--[if mso | IE]></td></tr>=
+</table><![endif]--></td></tr></tbody></table></div><!--[if mso | IE]></td>=
+</tr></table><![endif]--></td></tr></tbody></table></td></tr></tbody></tabl=
+e></div><!--[if mso | IE]></td></tr></table><![endif]--></div><!--[if mso |=
+ IE]></td></tr></table><![endif]--></td></tr></tbody></table></div><!--[if =
+mso | IE]></td></tr></table></td></tr><![endif]--> <!--[if mso | IE]><tr><t=
+d align=3D"left" class=3D"rio-spacer-outlook" width=3D"584px" ><![endif]-->=
+<div style=3D"height:20px;line-height:20px;">&#8202;</div><!--[if mso | IE]=
+></td></tr><![endif]--> <!--[if mso | IE]><tr><td align=3D"left" class=3D""=
+ width=3D"584px" ><table align=3D"center" border=3D"0" cellpadding=3D"0" ce=
+llspacing=3D"0" class=3D"" role=3D"presentation" style=3D"width:568px;" wid=
+th=3D"568" ><tr><td style=3D"line-height:0px;font-size:0px;mso-line-height-=
+rule:exactly;"><![endif]--><div style=3D"margin:0px auto;max-width:568px;">=
+<table align=3D"center" border=3D"0" cellpadding=3D"0" cellspacing=3D"0" ro=
+le=3D"presentation" style=3D"width:100%;"><tbody><tr><td style=3D"direction=
+:ltr;font-size:0px;padding:0;text-align:left;"><!--[if mso | IE]><table rol=
+e=3D"presentation" border=3D"0" cellpadding=3D"0" cellspacing=3D"0"><tr><td=
+ align=3D"left" class=3D"" style=3D"vertical-align:top;width:568px;" ><![en=
+dif]--><div class=3D"mj-column-per-100 mj-outlook-group-fix" style=3D"font-=
+size:0px;text-align:left;direction:ltr;display:inline-block;vertical-align:=
+top;width:100%;"><table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" ro=
+le=3D"presentation" width=3D"100%"><tbody><tr><td style=3D"vertical-align:t=
+op;padding:0;"><table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=
+=3D"presentation" width=3D"100%"><tbody><tr><td align=3D"left" style=3D"fon=
+t-size:0px;padding:0;word-break:break-word;"><div style=3D"font-family:Embe=
+r,'Amazon Ember',Arial,sans-serif;font-size:15px;font-weight:400;line-heigh=
+t:21px;text-align:left;color:#565959;"><span class=3D"rio-text rio-text-125=
+">Order #</span></div></td></tr><tr><td align=3D"left" style=3D"font-size:0=
+px;padding:0;word-break:break-word;"><div style=3D"font-family:Ember,'Amazo=
+n Ember',Arial,sans-serif;font-size:15px;font-weight:700;line-height:21px;t=
+ext-align:left;color:#0F1111;"><span class=3D"rio-text rio-text-126">111-30=
+61760-5513056</span></div></td></tr></tbody></table></td></tr></tbody></tab=
+le></div><!--[if mso | IE]></td></tr></table><![endif]--></td></tr></tbody>=
+</table></div><!--[if mso | IE]></td></tr></table></td></tr><tr><td align=
+=3D"left" class=3D"" width=3D"584px" ><table align=3D"center" border=3D"0" =
+cellpadding=3D"0" cellspacing=3D"0" class=3D"" role=3D"presentation" style=
+=3D"width:568px;" width=3D"568" ><tr><td style=3D"line-height:0px;font-size=
+:0px;mso-line-height-rule:exactly;"><![endif]--><div style=3D"margin:0px au=
+to;max-width:568px;"><table align=3D"center" border=3D"0" cellpadding=3D"0"=
+ cellspacing=3D"0" role=3D"presentation" style=3D"width:100%;"><tbody><tr><=
+td style=3D"direction:ltr;font-size:0px;padding:0;text-align:left;"><!--[if=
+ mso | IE]><table role=3D"presentation" border=3D"0" cellpadding=3D"0" cell=
+spacing=3D"0"><tr><td align=3D"left" class=3D"" style=3D"width:568px;" ><![=
+endif]--><div class=3D"mj-column-per-100 mj-outlook-group-fix" style=3D"fon=
+t-size:0;line-height:0;text-align:left;display:inline-block;width:100%;dire=
+ction:ltr;"><!--[if mso | IE]><table border=3D"0" cellpadding=3D"0" cellspa=
+cing=3D"0" role=3D"presentation" ><tr><td style=3D"align:left;vertical-alig=
+n:top;width:284px;" ><![endif]--><div class=3D"mj-column-per-50 mj-outlook-=
+group-fix" style=3D"font-size:0px;text-align:left;direction:ltr;display:inl=
+ine-block;vertical-align:top;width:50%;"><table border=3D"0" cellpadding=3D=
+"0" cellspacing=3D"0" role=3D"presentation" width=3D"100%"><tbody><tr><td s=
+tyle=3D"vertical-align:top;padding:0;"><table border=3D"0" cellpadding=3D"0=
+" cellspacing=3D"0" role=3D"presentation" width=3D"100%"><tbody>   <tr><td =
+align=3D"left" class=3D"rio-spacer" style=3D"font-size:0px;padding:0;word-b=
+reak:break-word;"><div style=3D"height:20px;line-height:20px;">&#8202;</div=
+></td></tr><tr><td align=3D"left" style=3D"font-size:0px;padding:0;word-bre=
+ak:break-word;"><!--[if gte mso 9]><style type=3D"text/css">.rio-button-cta=
+-primary{background-color:#ffd814!important;border:1px solid #fcd200!import=
+ant;padding:6px 16px!important;text-align:center;border-collapse:collapse!i=
+mportant}.rio-button-primary{border:none!important}</style><![endif]--><tab=
+le cellpadding=3D"0" cellspacing=3D"0" border=3D"0" role=3D"presentation"><=
+tr><td class=3D"rio-button-cta-primary" style=3D"text-align: center"><a tar=
+get=3D"_blank" aria-describedby=3D"Track package" class=3D"rio-button-prima=
+ry" href=3D"https://www.amazon.com/gp/r.html?C=3D1Z6HAGN0Q74SS&K=3D1PCIPA85=
+4472X&M=3Durn:rtn:msg:20240816010133af409d4398414b769006b814f360p0na&R=3DBU=
+2DG84QM77R&T=3DC&U=3Dhttps%3A%2F%2Fwww.amazon.com%2Fgp%2Fyour-account%2Fshi=
+p-track%3Fie%3DUTF8%26itemId%3D%26orderId%3D111-3061760-5513056%26packageIn=
+dex%3D0%26shipmentId%3DGhsHRNhnG%26ref_%3Dpe_108877690_917195550_pdc_pt_tra=
+ck&H=3DKVPMEEQKDCKNEZFWYBLC3E75A84A&ref_=3Dpe_108877690_917195550_pdc_pt_tr=
+ack" style=3D"background-color: #FFD814; border: 1px solid #FCD200; color: =
+#0f1111; text-decoration: none; border-radius: 24px;padding: 6px 16px;displ=
+ay: inline-block;box-shadow: 1px 2px 4px rgba(153, 153, 153, 0.2);font-size=
+: 13px;line-height: 18px;white-space: nowrap;"><span style=3D"text-decorati=
+on: none">Track package</span></a></td></tr></table></td></tr></tbody></tab=
+le></td></tr></tbody></table></div><!--[if mso | IE]></td><td style=3D"alig=
+n:left;width:284px;" ><![endif]--><div class=3D"mj-column-per-50 mj-outlook=
+-group-fix" style=3D"font-size:0;line-height:0;text-align:left;display:inli=
+ne-block;width:100%;direction:ltr;"><!--[if mso | IE]><table border=3D"0" c=
+ellpadding=3D"0" cellspacing=3D"0" role=3D"presentation" ><tr></tr></table>=
+<![endif]--></div><!--[if mso | IE]></td></tr></table><![endif]--></div><!-=
+-[if mso | IE]></td></tr></table><![endif]--></td></tr></tbody></table></di=
+v><!--[if mso | IE]></td></tr></table></td></tr><![endif]--> <!--[if mso | =
+IE]></table><![endif]--></td></tr></tbody></table></div><!--[if mso | IE]><=
+/td></tr></table></td></tr><![endif]--> <!--[if mso | IE]></table><![endif]=
+--></td></tr></tbody></table></div><!--[if mso | IE]></td></tr></table><![e=
+ndif]--><!--[if mso | IE]><table align=3D"center" border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" class=3D"rootContent-outlook" role=3D"presentation=
+" style=3D"width:600px;" width=3D"600" bgcolor=3D"#D5D9D9" ><tr><td style=
+=3D"line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-=
+-><div class=3D"rootContent" style=3D"background:#D5D9D9;background-color:#=
+D5D9D9;margin:0px auto;max-width:600px;"><table align=3D"center" border=3D"=
+0" cellpadding=3D"0" cellspacing=3D"0" role=3D"presentation" style=3D"backg=
+round:#D5D9D9;background-color:#D5D9D9;width:100%;"><tbody><tr><td style=3D=
+"direction:ltr;font-size:0px;padding:4px 8px 4px 8px;text-align:left;"><!--=
+[if mso | IE]><table role=3D"presentation" border=3D"0" cellpadding=3D"0" c=
+ellspacing=3D"0"><![endif]-->       <!--[if mso | IE]><tr><td align=3D"left=
+" class=3D"sonar-informational-outlook sonar-informational-v1-outlook" widt=
+h=3D"600px" ><table align=3D"center" border=3D"0" cellpadding=3D"0" cellspa=
+cing=3D"0" class=3D"rio-card-outlook rio-card-72-outlook" role=3D"presentat=
+ion" style=3D"width:584px;" width=3D"584" bgcolor=3D"#ffffff" ><tr><td styl=
+e=3D"line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]=
+--><div class=3D"rio-card rio-card-72" style=3D"background:#ffffff;backgrou=
+nd-color:#ffffff;margin:0px auto;border-radius:4px;max-width:584px;"><table=
+ align=3D"center" border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D"=
+presentation" style=3D"background:#ffffff;background-color:#ffffff;width:10=
+0%;border-radius:4px;"><tbody><tr><td style=3D"direction:ltr;font-size:0px;=
+padding:12px 8px 12px 8px;text-align:left;"><!--[if mso | IE]><table role=
+=3D"presentation" border=3D"0" cellpadding=3D"0" cellspacing=3D"0"><tr><td =
+align=3D"left" class=3D"" width=3D"584px" ><table align=3D"center" border=
+=3D"0" cellpadding=3D"0" cellspacing=3D"0" class=3D"" role=3D"presentation"=
+ style=3D"width:568px;" width=3D"568" ><tr><td style=3D"line-height:0px;fon=
+t-size:0px;mso-line-height-rule:exactly;"><![endif]--><div style=3D"margin:=
+0px auto;max-width:568px;"><table align=3D"center" border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" role=3D"presentation" style=3D"width:100%;"><tbody=
+><tr><td style=3D"direction:ltr;font-size:0px;padding:0;text-align:left;"><=
+!--[if mso | IE]><table role=3D"presentation" border=3D"0" cellpadding=3D"0=
+" cellspacing=3D"0"><tr><td align=3D"left" class=3D"" style=3D"vertical-ali=
+gn:top;width:568px;" ><![endif]--><div class=3D"mj-column-per-100 mj-outloo=
+k-group-fix" style=3D"font-size:0px;text-align:left;direction:ltr;display:i=
+nline-block;vertical-align:top;width:100%;"><table border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" role=3D"presentation" width=3D"100%"><tbody><tr><t=
+d style=3D"vertical-align:top;padding:0;"><table border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" role=3D"presentation" width=3D"100%"><tbody> </tbo=
+dy></table></td></tr></tbody></table></div><!--[if mso | IE]></td></tr></ta=
+ble><![endif]--></td></tr></tbody></table></div><!--[if mso | IE]></td></tr=
+></table></td></tr><tr><td align=3D"left" class=3D"" width=3D"584px" ><![en=
+dif]-->      <!--[if mso | IE]><table align=3D"center" border=3D"0" cellpad=
+ding=3D"0" cellspacing=3D"0" class=3D"" role=3D"presentation" style=3D"widt=
+h:568px;" width=3D"568" ><tr><td style=3D"line-height:0px;font-size:0px;mso=
+-line-height-rule:exactly;"><![endif]--><div style=3D"margin:0px auto;max-w=
+idth:568px;"><table align=3D"center" border=3D"0" cellpadding=3D"0" cellspa=
+cing=3D"0" role=3D"presentation" style=3D"width:100%;"><tbody><tr><td style=
+=3D"direction:ltr;font-size:0px;padding:0;text-align:left;"><!--[if mso | I=
+E]><table role=3D"presentation" border=3D"0" cellpadding=3D"0" cellspacing=
+=3D"0"><tr><td align=3D"left" class=3D"" style=3D"vertical-align:top;width:=
+568px;" ><![endif]--><div class=3D"mj-column-per-100 mj-outlook-group-fix" =
+style=3D"font-size:0px;text-align:left;direction:ltr;display:inline-block;v=
+ertical-align:top;width:100%;"><table border=3D"0" cellpadding=3D"0" cellsp=
+acing=3D"0" role=3D"presentation" width=3D"100%"><tbody><tr><td style=3D"ve=
+rtical-align:top;padding:0;"><table border=3D"0" cellpadding=3D"0" cellspac=
+ing=3D"0" role=3D"presentation" width=3D"100%"><tbody><tr><td align=3D"left=
+" style=3D"font-size:0px;padding:0;word-break:break-word;"><div style=3D"fo=
+nt-family:Ember,'Amazon Ember',Arial,sans-serif;font-size:15px;font-weight:=
+400;line-height:20px;text-align:left;color:#0F1111;"><span class=3D"rio-tex=
+t rio-text-129">Return or replace items in=20
+<a href=3D"https://www.amazon.com/gp/r.html?C=3D1Z6HAGN0Q74SS&K=3D1PCIPA854=
+472X&M=3Durn:rtn:msg:20240816010133af409d4398414b769006b814f360p0na&R=3D2U7=
+FVGB1HZ63S&T=3DC&U=3Dhttps%3A%2F%2Fwww.amazon.com%2Fyour-orders%2Forders%3F=
+ref_%3Dpe_108877690_917195550_pdc_yo&H=3DMRR6NURCHGXV0VKPAM2B9LRNHGKA&ref_=
+=3Dpe_108877690_917195550_pdc_yo" rel=3D"nofollow">Your Orders</a>.</span><=
+/div></td></tr></tbody></table></td></tr></tbody></table></div><!--[if mso =
+| IE]></td></tr></table><![endif]--></td></tr></tbody></table></div><!--[if=
+ mso | IE]></td></tr></table><![endif]-->        <!--[if mso | IE]></td></t=
+r></table><![endif]--></td></tr></tbody></table></div><!--[if mso | IE]></t=
+d></tr></table></td></tr><![endif]-->  <!--[if mso | IE]></table><![endif]-=
+-></td></tr></tbody></table></div><!--[if mso | IE]></td></tr></table><![en=
+dif]--><!--[if mso | IE]><table align=3D"center" border=3D"0" cellpadding=
+=3D"0" cellspacing=3D"0" class=3D"rootContent-outlook" role=3D"presentation=
+" style=3D"width:600px;" width=3D"600" bgcolor=3D"#D5D9D9" ><tr><td style=
+=3D"line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-=
+-><div class=3D"rootContent" style=3D"background:#D5D9D9;background-color:#=
+D5D9D9;margin:0px auto;max-width:600px;"><table align=3D"center" border=3D"=
+0" cellpadding=3D"0" cellspacing=3D"0" role=3D"presentation" style=3D"backg=
+round:#D5D9D9;background-color:#D5D9D9;width:100%;"><tbody><tr><td style=3D=
+"direction:ltr;font-size:0px;padding:4px 0px 0px 0px;text-align:left;"><!--=
+[if mso | IE]><table role=3D"presentation" border=3D"0" cellpadding=3D"0" c=
+ellspacing=3D"0"><![endif]--> <!--[if mso | IE]><tr><td align=3D"left" clas=
+s=3D"sonar-footer-outlook sonar-footer-v1-outlook" width=3D"600px" ><table =
+align=3D"center" border=3D"0" cellpadding=3D"0" cellspacing=3D"0" class=3D"=
+footerCard-outlook" role=3D"presentation" style=3D"width:600px;" width=3D"6=
+00" bgcolor=3D"#F0F2F2" ><tr><td style=3D"line-height:0px;font-size:0px;mso=
+-line-height-rule:exactly;"><![endif]--><div class=3D"footerCard" style=3D"=
+background:#F0F2F2;background-color:#F0F2F2;margin:0px auto;max-width:600px=
+;"><table align=3D"center" border=3D"0" cellpadding=3D"0" cellspacing=3D"0"=
+ role=3D"presentation" style=3D"background:#F0F2F2;background-color:#F0F2F2=
+;width:100%;"><tbody><tr><td style=3D"direction:ltr;font-size:0px;padding:0=
+;text-align:left;"><!--[if mso | IE]><table role=3D"presentation" border=3D=
+"0" cellpadding=3D"0" cellspacing=3D"0"><tr><td align=3D"left" class=3D"foo=
+terText-outlook" width=3D"600px" ><table align=3D"center" border=3D"0" cell=
+padding=3D"0" cellspacing=3D"0" class=3D"footerText-outlook" role=3D"presen=
+tation" style=3D"width:600px;" width=3D"600" ><tr><td style=3D"line-height:=
+0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]--><div class=3D"=
+footerText" style=3D"margin:0px auto;max-width:600px;"><table align=3D"cent=
+er" border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D"presentation" =
+style=3D"width:100%;"><tbody><tr><td style=3D"direction:ltr;font-size:0px;p=
+adding:20px 16px 0;text-align:left;"><!--[if mso | IE]><table role=3D"prese=
+ntation" border=3D"0" cellpadding=3D"0" cellspacing=3D"0"><tr><td align=3D"=
+left" class=3D"" style=3D"vertical-align:top;width:568px;" ><![endif]--><di=
+v class=3D"mj-column-per-100 mj-outlook-group-fix" style=3D"font-size:0px;t=
+ext-align:left;direction:ltr;display:inline-block;vertical-align:top;width:=
+100%;"><table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D"pres=
+entation" width=3D"100%"><tbody><tr><td style=3D"vertical-align:top;padding=
+:0;"><table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D"presen=
+tation" width=3D"100%"><tbody><tr><td align=3D"left" style=3D"font-size:0px=
+;padding:0;word-break:break-word;"><div style=3D"font-family:Ember,'Amazon =
+Ember',Arial,sans-serif;font-size:14px;font-weight:400;line-height:20px;tex=
+t-align:left;color:#494D4D;">=C2=A92024 Amazon.com, Inc. or its affiliates.=
+ Amazon and all related marks are trademarks of Amazon.com, Inc. or its aff=
+iliates, Amazon.com, Inc. 410 Terry Avenue N., Seattle, WA 98109.</div></td=
+></tr></tbody></table></td></tr></tbody></table></div><!--[if mso | IE]></t=
+d></tr></table><![endif]--></td></tr></tbody></table></div><!--[if mso | IE=
+]></td></tr></table></td></tr><![endif]-->  <!--[if mso | IE]><tr><td align=
+=3D"left" class=3D"" width=3D"600px" ><table align=3D"center" border=3D"0" =
+cellpadding=3D"0" cellspacing=3D"0" class=3D"" role=3D"presentation" style=
+=3D"width:600px;" width=3D"600" ><tr><td style=3D"line-height:0px;font-size=
+:0px;mso-line-height-rule:exactly;"><![endif]--><div style=3D"margin:0px au=
+to;max-width:600px;"><table align=3D"center" border=3D"0" cellpadding=3D"0"=
+ cellspacing=3D"0" role=3D"presentation" style=3D"width:100%;"><tbody><tr><=
+td style=3D"direction:ltr;font-size:0px;padding:14px 16px 4px 0;text-align:=
+left;"><!--[if mso | IE]><table role=3D"presentation" border=3D"0" cellpadd=
+ing=3D"0" cellspacing=3D"0"><tr><td align=3D"left" class=3D"" style=3D"vert=
+ical-align:top;width:584px;" ><![endif]--><div class=3D"mj-column-per-100 m=
+j-outlook-group-fix" style=3D"font-size:0px;text-align:left;direction:ltr;d=
+isplay:inline-block;vertical-align:top;width:100%;"><table border=3D"0" cel=
+lpadding=3D"0" cellspacing=3D"0" role=3D"presentation" width=3D"100%"><tbod=
+y><tr><td style=3D"vertical-align:top;padding:0;"><table border=3D"0" cellp=
+adding=3D"0" cellspacing=3D"0" role=3D"presentation" width=3D"100%"><tbody>=
+<table class=3D"lightFooterImg" style=3D"height:43px;width:86px;"><tr><td><=
+img src=3D"https://m.media-amazon.com/images/G/01/outbound/OutboundTemplate=
+s/Smile_Logo_Light._BG240,242,242_.png" alt=3D"Amazon.com" height=3D"43" wi=
+dth=3D"86" align=3D"left"></td></tr></table><!--[if !mso]><!--><table class=
+=3D"darkFooterImg" style=3D"height:43px;width:86px;display:none;"><tr><td><=
+img src=3D"https://m.media-amazon.com/images/G/01/outbound/OutboundTemplate=
+s/Smile_Logo_Dark.png" alt=3D"Amazon.com" height=3D"43" width=3D"86" align=
+=3D"left"></td></tr></table><!--<![endif]--></tbody></table></td></tr></tbo=
+dy></table></div><!--[if mso | IE]></td></tr></table><![endif]--></td></tr>=
+</tbody></table></div><!--[if mso | IE]></td></tr></table></td></tr></table=
+><![endif]--></td></tr></tbody></table></div><!--[if mso | IE]></td></tr></=
+table></td></tr><![endif]--> <!--[if mso | IE]></table><![endif]--></td></t=
+r></tbody></table></div><!--[if mso | IE]></td></tr></table><![endif]--></d=
+iv><img width=3D"1" height=3D"1" src=3D"https://www.amazon.com/gp/r.html?C=
+=3D1Z6HAGN0Q74SS&K=3D1PCIPA854472X&M=3Durn:rtn:msg:20240816010133af409d4398=
+414b769006b814f360p0na&R=3D1RGIUEL0NLUB0&T=3DE&U=3Dhttps%3A%2F%2Fimages-na.=
+ssl-images-amazon.com%2Fimages%2FG%2F01%2Fnav%2Ftransp.gif&H=3DHTTPRSBYHYPR=
+XR0HOLWRVI18LHCA&ref_=3Dpe_108877690_917195550_open" /></body></html>
+------=_Part_533333_1464710557.1723770094034--

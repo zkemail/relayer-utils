@@ -6,3 +6,7 @@ pkg
 
 tests/outputs
 tests/fixtures/confidential*
+
+
+.claude
+thoughts/

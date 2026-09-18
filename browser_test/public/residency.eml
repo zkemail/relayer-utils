@@ -1,0 +1,127 @@
+Delivered-To: adityabisht64@gmail.com
+Received: by 2002:a05:6504:1313:b0:279:6670:9162 with SMTP id s19csp1104512lto;
+        Thu, 5 Sep 2024 14:04:50 -0700 (PDT)
+X-Forwarded-Encrypted: i=2; AJvYcCXmuTgC70UQT5Ts4OfBGnVnadr0JW74IPaiOJ5gDpOACNVP8eAJFJP4SA3ch7rvoG+htp/hPClBdbQKTZEu@gmail.com
+X-Google-Smtp-Source: AGHT+IH76QMWC15Dg/+ThxNbcE5CDLb7cpojHoNsy/oAHrJx5dOAKtaNl1myXNjuD8Du2en5yyVL
+X-Received: by 2002:a05:6870:63a9:b0:261:19a6:41ae with SMTP id 586e51a60fabf-27b82fab31bmr675802fac.30.1725570290222;
+        Thu, 05 Sep 2024 14:04:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1725570290; cv=none;
+        d=google.com; s=arc-20160816;
+        b=LdXMuzrUNuNI+nDJ2bE4y4i/UNkay6ACfqFs51rtQOgUxDIYAuGZhqPw/monlbxkoN
+         NGihGo/EItYDoFyz2YenzxBQjpdSic9/g7qp6xz2O00PkGS43a1yOpd+ZVPlGaK5WZx1
+         LhKdW5Fk7Jx/xJtl5rKnhBgH1SaWkv2pECv5SGasqct9PROtQeg+MMv1kwGqxFBHZ8d9
+         4ZrRPsKrp04FiG8hbMLUEV5xd1qwsdmDSqHLvmjhX82mN/ohEM4p/laq1OGzqMnM9SuC
+         5vSNPUEx1wO49BEEqdQGVZ0qu8RQbAg6njk4bKUZoWSbDW1l/WU3Im+WbuCynOi8JMVw
+         pP6w==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=cc:subject:message-id:date:from:mime-version:dkim-signature;
+        bh=ZPnp2Ot4Oq1yml0gwfVCa+vOkRh/AoPZcUFDo94M5cA=;
+        fh=rt5+XsSKgJXCbjLkZz2YEwXmYMAytcEAXMTatOTpOfs=;
+        b=qVd1nk6MrHSij4tsjZ6Lr+Ymptz0OlsUw3AMcXtBlrNhD0U+HLQPSTScNrBaX0i3uX
+         or7VZjCPegexDy+ovr56hI6M0878rRWyBvW8LRJVn2IsLmImIsePhDPYjU+8YGyHnJ9T
+         DPz0QtdM6Tzu/WeyWeYsA+B/ab+lIfZ910dtUmOjokCSa2JxGgLaTD/x75L91FpG4KSb
+         T+FumRRMXfEFx5I6uwMcHQmR1LE22Krkk9D/fs7WyqmNfSBL2eruURXcjOku3zjqK3Hs
+         mnOqjSUXqEeJLvI+DTPcZ6xqywiq5Pq8I1sCyBi4EVprdq06eDlB7yz+L4ECLB97offc
+         4byg==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@succinct.xyz header.s=google header.b=PbaIBUZo;
+       spf=pass (google.com: domain of leland@succinct.xyz designates 209.85.220.41 as permitted sender) smtp.mailfrom=leland@succinct.xyz;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=succinct.xyz;
+       dara=pass header.i=@gmail.com
+Return-Path: <leland@succinct.xyz>
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 586e51a60fabf-277c34333casor4311308fac.9.2024.09.05.14.04.49
+        for <adityabisht64@gmail.com>
+        (Google Transport Security);
+        Thu, 05 Sep 2024 14:04:50 -0700 (PDT)
+Received-SPF: pass (google.com: domain of leland@succinct.xyz designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@succinct.xyz header.s=google header.b=PbaIBUZo;
+       spf=pass (google.com: domain of leland@succinct.xyz designates 209.85.220.41 as permitted sender) smtp.mailfrom=leland@succinct.xyz;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=succinct.xyz;
+       dara=pass header.i=@gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=succinct.xyz; s=google; t=1725570289; x=1726175089; dara=google.com;
+        h=cc:subject:message-id:date:from:mime-version:from:to:cc:subject
+         :date:message-id:reply-to;
+        bh=ZPnp2Ot4Oq1yml0gwfVCa+vOkRh/AoPZcUFDo94M5cA=;
+        b=PbaIBUZod+MtWJh6mm0xQWE6KEJbub66abuVn6S+JQySDWT1c/wbaWs+Fe39s1svy3
+         GTiD7JdDSgJ0XOQxdeO6vTbyFLI8lFp5UknjFxhIi9TecwN/oBgCVQpjXaQ8hdIh5fA2
+         rZLURZB6/XnRnc1/I2DTrdegCDztjVty94pNZjKP1iRVCBQTfURoM4/r7ke1ez7P+qKG
+         uhKrt0XlPsEIbgeViKZpzlcjgfsbwEN0syimGnt+ccfmBx5r5lU9wG7HfW2i+EMOgOiu
+         +D4cX6uTOfYmBhCtH+HeErPenwgcQ0mTHxzcnAgPipVqTXA9VcQbgaCWB4hQtriMhYNU
+         B0ZA==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20230601; t=1725570289; x=1726175089;
+        h=cc:subject:message-id:date:from:mime-version:x-gm-message-state
+         :from:to:cc:subject:date:message-id:reply-to;
+        bh=ZPnp2Ot4Oq1yml0gwfVCa+vOkRh/AoPZcUFDo94M5cA=;
+        b=kSvDsE08OCPix+MrHQsGps+9FNVPep2YruDdHlAU9kN7KHlWYFEunPmEqxghhqMMqW
+         vR2nT+a+FgXLidImEorIK+DEdoIIAEPJwHnuY7C4jsTgqktXSQvYBrNqGgl0e7oEgs3X
+         X4OQdV/U9zQkXRF1MTBxy+OJMX1e9MQmm2Pv1FyfqWJA2x3wFo1dtmCocvjjJU7mzgl9
+         2t4ijcPtdZxsW8U9CRvwN3KzFPtdbT6c6uzUVNGhBmBSFi7HfGKbW3V2+uzRZIBAfoR9
+         4sqmGVYf5ycQAN2e5r2QwUT6oEca47vEB5IDMRadOM3caymamT2+SLR3sq5JrKm/2/j1
+         C3kQ==
+X-Forwarded-Encrypted: i=1; AJvYcCXxd8p4U8kra+dRtLXrArCb0RI+tf/okMTeOygvHmONJnKDrNbiVCZPinPL4j7RNT8h7+HhiwSoWhuKI1Mb@gmail.com
+X-Gm-Message-State: AOJu0YxZgyTji/ChYSYLy8R8e+cfUgPmc5ZnDATk5epwZp5EqaRpnZzP
+	wXv1FS+cySFJJTaopk69+6+98CWXZ2JzXBqWFpLnGwLKkW6aEp7DwMSz2oXlDBdYXt+xWXULZ96
+	pL4fvwj3nWBaCvEQc1dHauElTv9Bqq4rH8EwEYg==
+X-Received: by 2002:a05:6870:af47:b0:278:8b:57b1 with SMTP id
+ 586e51a60fabf-27b82fab4a7mt675702fac.35.1725570289543; Thu, 05 Sep 2024
+ 14:04:49 -0700 (PDT)
+MIME-Version: 1.0
+From: Leland Lee <leland@succinct.xyz>
+Date: Thu, 5 Sep 2024 14:04:38 -0700
+Message-ID: <CAPPv_w=DjyLg38_-aUvy7Lk-KP-YUaJROWForsmR6iaAgZCUVw@mail.gmail.com>
+Subject: Welcome to the Succinct ZK Residency!
+Cc: Uma Roy <uma@succinct.xyz>, Eli Yang <eli@succinct.xyz>
+Content-Type: multipart/alternative; boundary="000000000000263095062165a40c"
+Bcc: adityabisht64@gmail.com
+
+--000000000000263095062165a40c
+Content-Type: text/plain; charset="UTF-8"
+
+Hi All,
+
+We're thrilled to collaborate with you at the Succinct ZK residency in
+three weeks. We can't wait to build together on a daily basis and bounce
+ideas off each other.
+
+To help us support your journey, please *complete the attached form
+<https://docs.google.com/forms/d/e/1FAIpQLSfszQDE3DY5Tg4k3r-v9y3z8wnJy0g_mJKaB_4TRAEx-PnlpQ/viewform>*
+with details about your project and a brief bio. Every resident must
+complete the form. Your project information and bio will be shared with
+other residents as we encourage collaboration and building in the open.
+
+*Logistics*
+
+   - Please join residency telegram (https://t.me/+GHNdBiwW89VhOTkx)
+
+We'll be sharing more information soon regarding logistics and schedules
+through both email and telegram!
+
+See you soon,
+Succinct Team
+
+--000000000000263095062165a40c
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div>Hi All,</div><div><br></div><div>We&#39;re thrilled t=
+o collaborate with you at the Succinct ZK residency in three weeks. We can&=
+#39;t wait to build together on a daily basis and bounce ideas off each oth=
+er.</div><div><br></div><div>To help us support your journey, please <b><a =
+href=3D"https://docs.google.com/forms/d/e/1FAIpQLSfszQDE3DY5Tg4k3r-v9y3z8wn=
+Jy0g_mJKaB_4TRAEx-PnlpQ/viewform" target=3D"_blank">complete the attached f=
+orm</a></b> with details about your project and a brief bio. Every resident=
+ must complete the form. Your project information and bio will be shared wi=
+th other residents as we encourage collaboration and building in the open.<=
+br></div><div><p><b>Logistics</b><br></p></div><div><ul><li>Please join res=
+idency telegram (<a href=3D"https://t.me/+GHNdBiwW89VhOTkx" target=3D"_blan=
+k">https://t.me/+GHNdBiwW89VhOTkx</a>)</li></ul><div>We&#39;ll be sharing m=
+ore information soon regarding logistics and schedules through both email a=
+nd telegram!</div><div><br></div><div>See you soon,<br></div></div><div>Suc=
+cinct=C2=A0Team</div></div>
+
+--000000000000263095062165a40c--
