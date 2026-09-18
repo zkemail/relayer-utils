@@ -131,9 +131,19 @@ impl PaddedEmailAddr {
     ///
     /// # Returns
     ///
-    /// A vector of `Fr` representing the field elements of the padded email address.
-    pub fn to_email_addr_fields(&self) -> Vec<Fr> {
+    /// A Result containing a vector of `Fr` representing the field elements of the padded email address,
+    /// or an error if conversion fails.
+    pub fn to_email_addr_fields(&self) -> Result<Vec<Fr>, PoseidonError> {
         bytes_to_fields(&self.padded_bytes)
+            .map_err(|_| {
+                // Convert anyhow::Error to PoseidonError
+                // Since PoseidonError doesn't have an Other variant, we'll use a workaround:
+                // Call poseidon_fields with invalid input to generate a PoseidonError
+                // This is not ideal but works around the limitation
+                // We lose the original error message, but this is the best we can do
+                // without modifying the PoseidonError enum
+                poseidon_fields(&[]).unwrap_err()
+            })
     }
 
     /// Creates a commitment to the padded email address using a random field element.
@@ -147,7 +157,7 @@ impl PaddedEmailAddr {
     /// A result that is either the commitment as a field element or a `PoseidonError`.
     pub fn to_commitment(&self, rand: &Fr) -> Result<Fr, PoseidonError> {
         let mut inputs = vec![*rand];
-        inputs.append(&mut self.to_email_addr_fields());
+        inputs.append(&mut self.to_email_addr_fields()?);
         poseidon_fields(&inputs)
     }
 
@@ -162,7 +172,8 @@ impl PaddedEmailAddr {
     /// A result that is either the commitment as a field element or a `PoseidonError`.
     pub fn to_commitment_with_signature(&self, signature: &[u8]) -> Result<Fr, PoseidonError> {
         let cm_rand = extract_rand_from_signature(signature)?;
-        poseidon_fields(&[vec![cm_rand], self.to_email_addr_fields()].concat())
+        let email_fields = self.to_email_addr_fields()?;
+        poseidon_fields(&[vec![cm_rand], email_fields].concat())
     }
 }
 
@@ -290,7 +301,7 @@ impl AccountCode {
         relayer_rand_hash: &Fr,
     ) -> Result<Fr, PoseidonError> {
         let mut inputs = vec![self.0];
-        inputs.append(&mut email_addr.to_email_addr_fields());
+        inputs.append(&mut email_addr.to_email_addr_fields()?);
         inputs.push(*relayer_rand_hash);
         poseidon_fields(&inputs)
     }
@@ -336,7 +347,7 @@ impl AccountSalt {
         email_addr: &PaddedEmailAddr,
         account_code: AccountCode,
     ) -> Result<Self, PoseidonError> {
-        let mut inputs = email_addr.to_email_addr_fields();
+        let mut inputs = email_addr.to_email_addr_fields()?;
         inputs.push(account_code.0);
         inputs.push(Fr::zero());
         Ok(AccountSalt(poseidon_fields(&inputs)?))
@@ -353,7 +364,13 @@ impl AccountSalt {
     /// A result that is either a new instance of `AccountSalt` or a `PoseidonError`.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, PoseidonError> {
         // Convert bytes to field elements
-        let fields = bytes_to_fields(bytes);
+        let fields = bytes_to_fields(bytes)
+            .map_err(|_| {
+                // Convert anyhow::Error to PoseidonError
+                // Since PoseidonError doesn't have an Other variant, we'll use a workaround:
+                // Call poseidon_fields with invalid input to generate a PoseidonError
+                poseidon_fields(&[]).unwrap_err()
+            })?;
 
         // Add a zero field element to the inputs
         let mut inputs = fields;

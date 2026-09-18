@@ -157,12 +157,12 @@ fn generate_circuit_inputs(params: CircuitInputParams) -> Result<CircuitInput> {
 
         let mut adjusted_selector = params.sha_precompute_selector;
 
-        if adjusted_selector.is_some() {
+        if let Some(ref selector) = adjusted_selector {
             let (cleaned_body, position_map) =
                 remove_quoted_printable_soft_breaks(params.body.clone());
             adjusted_selector = Some(get_adjusted_selector(
                 &params.body,
-                &adjusted_selector.as_ref().unwrap(),
+                selector,
                 &cleaned_body,
                 &position_map,
             )?);
@@ -178,10 +178,8 @@ fn generate_circuit_inputs(params: CircuitInputParams) -> Result<CircuitInput> {
         );
 
         // Use match to handle the result and convert any error into an anyhow::Error
-        let (precomputed_sha, body_remaining_padded, body_remaining_length) = match result {
-            Ok((sha, remaining, len)) => (sha, remaining, len),
-            Err(e) => panic!("Failed to generate partial SHA: {:?}", e),
-        };
+        let (precomputed_sha, body_remaining_padded, body_remaining_length) = result
+            .map_err(|e| anyhow::anyhow!("Failed to generate partial SHA: {:?}", e))?;
 
         circuit_input.precomputed_sha = Some(precomputed_sha);
         circuit_input.body_hash_idx = Some(params.body_hash_idx);
@@ -221,12 +219,12 @@ fn generate_circuit_inputs_old(params: CircuitInputParams) -> Result<CircuitInpu
 
         let mut adjusted_selector = params.sha_precompute_selector;
 
-        if adjusted_selector.is_some() {
+        if let Some(ref selector) = adjusted_selector {
             let (cleaned_body, position_map) =
                 remove_quoted_printable_soft_breaks(params.body.clone());
             adjusted_selector = Some(get_adjusted_selector(
                 &params.body,
-                &adjusted_selector.as_ref().unwrap(),
+                selector,
                 &cleaned_body,
                 &position_map,
             )?);
@@ -242,10 +240,8 @@ fn generate_circuit_inputs_old(params: CircuitInputParams) -> Result<CircuitInpu
         );
 
         // Use match to handle the result and convert any error into an anyhow::Error
-        let (precomputed_sha, body_remaining_padded, body_remaining_length) = match result {
-            Ok((sha, remaining, len)) => (sha, remaining, len),
-            Err(e) => panic!("Failed to generate partial SHA: {:?}", e),
-        };
+        let (precomputed_sha, body_remaining_padded, body_remaining_length) = result
+            .map_err(|e| anyhow::anyhow!("Failed to generate partial SHA: {:?}", e))?;
 
         circuit_input.precomputed_sha = Some(precomputed_sha);
         circuit_input.body_hash_idx = Some(params.body_hash_idx);
