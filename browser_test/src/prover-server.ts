@@ -22,7 +22,7 @@ async function main() {
   console.log("WASM initialized");
 
   const sdk = zkeSdk({
-    baseUrl: "https://dev-conductor.zk.email",
+    baseUrl: "https://staging-conductor.zk.email",
     logging: { enabled: true, level: "debug" },
   });
 

@@ -56,10 +56,10 @@ pub async fn generate_noir_circuit_input(
     // Clone the fields that are used by value before the move occurs
     let public_key = BigUint::from_bytes_be(&parsed_email.public_key)
         .to_bigint()
-        .unwrap();
+        .ok_or_else(|| anyhow::anyhow!("Failed to convert public key to BigInt"))?;
     let signature = BigUint::from_bytes_be(&parsed_email.signature)
         .to_bigint()
-        .unwrap();
+        .ok_or_else(|| anyhow::anyhow!("Failed to convert signature to BigInt"))?;
 
     // Create a CircuitParams struct from the parsed email
     let circuit_params = CircuitParams {
@@ -86,8 +86,8 @@ pub async fn generate_noir_circuit_input(
 
     // Create the Pubkey struct for the NoirCircuitInput
     let pubkey = Pubkey {
-        modulus: bn_to_limb_str_array(&public_key, Some(key_bits)),
-        redc: bn_to_redc_limb_str_array(&public_key, Some(key_bits)),
+        modulus: bn_to_limb_str_array(&public_key, Some(key_bits))?,
+        redc: bn_to_redc_limb_str_array(&public_key, Some(key_bits))?,
     };
 
     // Get the DKIM header sequence
@@ -103,7 +103,7 @@ pub async fn generate_noir_circuit_input(
     };
 
     // Create the BoundedVec for the signature
-    let signature = bn_to_limb_str_array(&signature, Some(key_bits));
+    let signature = bn_to_limb_str_array(&signature, Some(key_bits))?;
 
     // Initialize the NoirCircuitInput struct with required fields
     let mut noir_circuit_input = NoirCircuitInputs {
@@ -124,8 +124,7 @@ pub async fn generate_noir_circuit_input(
         to_address_sequence: None,
     };
 
-    if email_circuit_inputs.body_padded.is_some() {
-        let body_padded = email_circuit_inputs.body_padded.clone().unwrap();
+    if let Some(body_padded) = email_circuit_inputs.body_padded.clone() {
 
         // When sha_precompute_selector is used, body_padded is already the REMAINING body
         // after the selector cutoff, not the full body. So we use it directly.
@@ -180,7 +179,9 @@ pub async fn generate_noir_circuit_input(
         if params.ignore_body_hash_check.is_some_and(|x| !x) {
             noir_circuit_input.partial_body_real_length =
                 Some(parsed_email.canonicalized_body.len());
-            let partial_hash = u8_to_u32(email_circuit_inputs.precomputed_sha.unwrap().as_slice())?;
+            let precomputed_sha = email_circuit_inputs.precomputed_sha
+                .ok_or_else(|| anyhow::anyhow!("Precomputed SHA is missing but body hash check is enabled"))?;
+            let partial_hash = u8_to_u32(precomputed_sha.as_slice())?;
             noir_circuit_input.partial_body_hash = Some(partial_hash);
         }
 
@@ -311,9 +312,11 @@ pub async fn generate_noir_circuit_inputs_with_regexes_and_external_inputs(
             }
             HaystackLocation::Body => {
                 let body = if params.remove_soft_line_breaks {
-                    noir_circuit_input.decoded_body.as_ref().unwrap()
+                    noir_circuit_input.decoded_body.as_ref()
+                        .ok_or_else(|| anyhow::anyhow!("decoded_body is missing but remove_soft_line_breaks is enabled"))?
                 } else {
-                    noir_circuit_input.body.as_ref().unwrap()
+                    noir_circuit_input.body.as_ref()
+                        .ok_or_else(|| anyhow::anyhow!("body is missing but body hash check is enabled"))?
                 };
 
                 let original_bytes = &body.storage[..body.len];

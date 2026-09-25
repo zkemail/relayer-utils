@@ -22,14 +22,13 @@ init()
 export function setupCircomProver(element: HTMLElement) {
   // const sdk = zkeSdk();
   const sdk = zkeSdk({
-    baseUrl: "https://dev-conductor.zk.email",
+    baseUrl: "https://staging-conductor.zk.email",
     logging: { enabled: true, level: "debug" },
   });
   // const sdk = zkeSdk({
   //   baseUrl: "http://127.0.0.1:8080",
   //   logging: { enabled: true, level: "debug" },
   // });
-  // const sdk = zkeSdk({ baseUrl: "https://dev-conductor.zk.email" });
 
   const proveButton = element.querySelector("button");
   if (proveButton) {

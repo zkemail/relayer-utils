@@ -14,14 +14,18 @@ use super::structs::Sequence;
 ///
 /// # Returns
 ///
-/// The Barrett reduction parameter as a BigInt
-pub fn compute_barrett_reduction_parameter(input: &BigInt, num_bits: Option<usize>) -> BigInt {
+/// A Result containing the Barrett reduction parameter as a BigInt or an error
+pub fn compute_barrett_reduction_parameter(input: &BigInt, num_bits: Option<usize>) -> Result<BigInt> {
     // Determine the bit length if not provided
     let bits = match num_bits {
         Some(bits) => {
             let actual_bits = input.bits() as usize;
             if actual_bits > bits {
-                panic!("Given bits for bignum limbs is too small");
+                return Err(anyhow::anyhow!(
+                    "Given bits ({}) for bignum limbs is too small, actual bits: {}",
+                    bits,
+                    actual_bits
+                ));
             }
             bits
         }
@@ -35,7 +39,7 @@ pub fn compute_barrett_reduction_parameter(input: &BigInt, num_bits: Option<usiz
     let multiplicand = BigInt::from(1) << (2 * bits + overflow_bits);
 
     // Compute the Barrett reduction parameter
-    multiplicand / input
+    Ok(multiplicand / input)
 }
 
 /// Splits a BigInt into an array of 120-bit slices.
@@ -98,13 +102,17 @@ fn hex_to_bigint(hex_str: &str) -> Result<BigInt> {
 /// # Returns
 ///
 /// A Result containing a vector of strings, each representing a 120-bit limb in "0x..." format
-pub fn bn_to_limb_str_array(input: &BigInt, num_bits: Option<usize>) -> Vec<String> {
+pub fn bn_to_limb_str_array(input: &BigInt, num_bits: Option<usize>) -> Result<Vec<String>> {
     // Determine the bit length if not provided
     let bits = match num_bits {
         Some(bits) => {
             let actual_bits = input.bits() as usize;
             if actual_bits > bits {
-                panic!("Given bits for bignum limbs is too small");
+                return Err(anyhow::anyhow!(
+                    "Given bits ({}) for bignum limbs is too small, actual bits: {}",
+                    bits,
+                    actual_bits
+                ));
             }
             bits
         }
@@ -115,7 +123,7 @@ pub fn bn_to_limb_str_array(input: &BigInt, num_bits: Option<usize>) -> Vec<Stri
     let limbs = split_into_120bit_limbs(input.clone(), bits);
 
     // Convert each limb to a "0x..." hexadecimal string
-    limbs
+    Ok(limbs
         .into_iter()
         .map(|limb| {
             // Get the hex representation without the "0x" prefix
@@ -130,7 +138,7 @@ pub fn bn_to_limb_str_array(input: &BigInt, num_bits: Option<usize>) -> Vec<Stri
 
             format!("0x{}", padded_hex)
         })
-        .collect()
+        .collect())
 }
 
 /// Converts a hex string to a BigInt and then to limb strings.
@@ -145,7 +153,7 @@ pub fn bn_to_limb_str_array(input: &BigInt, num_bits: Option<usize>) -> Vec<Stri
 /// A Result containing a vector of limb strings
 pub fn hex_str_to_limb_str_array(hex_str: &str, num_bits: Option<usize>) -> Result<Vec<String>> {
     let bn = hex_to_bigint(hex_str)?;
-    Ok(bn_to_limb_str_array(&bn, num_bits))
+    bn_to_limb_str_array(&bn, num_bits)
 }
 
 /// Compute the Barrett reduction parameter and convert it to an array of 120-bit limbs.
@@ -157,9 +165,9 @@ pub fn hex_str_to_limb_str_array(hex_str: &str, num_bits: Option<usize>) -> Resu
 ///
 /// # Returns
 ///
-/// A vector of strings, each representing a 120-bit limb in "0x..." format
-pub fn bn_to_redc_limb_str_array(input: &BigInt, num_bits: Option<usize>) -> Vec<String> {
-    let redc = compute_barrett_reduction_parameter(input, num_bits);
+/// A Result containing a vector of strings, each representing a 120-bit limb in "0x..." format
+pub fn bn_to_redc_limb_str_array(input: &BigInt, num_bits: Option<usize>) -> Result<Vec<String>> {
+    let redc = compute_barrett_reduction_parameter(input, num_bits)?;
     bn_to_limb_str_array(&redc, None)
 }
 
@@ -178,8 +186,7 @@ pub fn hex_str_to_redc_limb_str_array(
     num_bits: Option<usize>,
 ) -> Result<Vec<String>> {
     let bn = hex_to_bigint(hex_str)?;
-    let limbs = bn_to_redc_limb_str_array(&bn, num_bits);
-    Ok(limbs)
+    bn_to_redc_limb_str_array(&bn, num_bits)
 }
 
 /// Get the index and length of a header field.
@@ -332,7 +339,7 @@ pub fn trim_sha256_padding(data: &[u8]) -> &[u8] {
     // Fallback: find the last non-zero byte that isn't part of length encoding
     // SHA256 padding ends with 8-byte length, so check if last 8 bytes look like length
     if data.len() >= 8 {
-        let (content, potential_length) = data.split_at(data.len() - 8);
+        let (content, _potential_length) = data.split_at(data.len() - 8);
         // If last 8 bytes represent a reasonable length, trim from there
         if let Some(last_nonzero) = content.iter().rposition(|&b| b != 0) {
             if content[last_nonzero] == 0x80 {
