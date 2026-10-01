@@ -24,7 +24,9 @@ rand_core = { version = "0.6", default-features = false }
 num-bigint = "0.4.4"
 num-traits = "0.2.19"
 rsa = { version = "0.9.6", features = ["serde"] }
-cfdkim = { git = "https://github.com/zkemail/cfdkim.git" }
+# NOTE: pinned to zkemail/cfdkim#3 (canonicalize_verified_signed_email); switch back to the
+# default branch once it is merged.
+cfdkim = { git = "https://github.com/zkemail/cfdkim.git", rev = "405e9c25253face93e3503330a8a6453e21f7342" }
 hmac-sha256 = { git = "https://github.com/zkemail/rust-hmac-sha256.git" }
 ethers = "2.0.14"
 reqwest = "0.11.22"
@@ -52,5 +54,10 @@ digest = "0.10"
 ed25519-dalek = "2"
 sp1-verifier = { version = "=6.1.0", default-features = false }
 
+# NOTE: only for the archive 429 retry delay (no timer is available in the wasm build).
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { version = "1", features = ["time"] }
+
 [dev-dependencies]
+httpmock = "0.7"
 tokio = { version = "1.41", features = ["full"] }

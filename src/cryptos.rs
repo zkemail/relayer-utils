@@ -4,22 +4,15 @@ use crate::regex::pad_string;
 use crate::EmailHeaders;
 use crate::{field_to_hex, hex_to_field};
 use anyhow::Result;
-use base64::{self, engine::general_purpose, Engine as _};
-use cfdkim::{self, verify_email_with_key, DKIMError, DkimPublicKey};
 use ethers::types::Bytes;
 use halo2curves::ff::Field;
 use mailparse::ParsedMail;
 use poseidon_rs::{poseidon_bytes, poseidon_fields, Fr, PoseidonError};
 use rand_core::RngCore;
-use regex::Regex;
-use rsa::pkcs8::DecodePublicKey;
-use rsa::traits::PublicKeyParts;
-use rsa::{pkcs1::DecodeRsaPublicKey, RsaPublicKey};
 use serde::{
     de::{self, Visitor},
     Deserialize, Deserializer, Serialize, Serializer,
 };
-use std::collections::HashMap;
 use std::{
     collections::hash_map::DefaultHasher,
     error::Error,
@@ -34,8 +27,6 @@ use crate::{
     MAX_EMAIL_ADDR_BYTES,
 };
 
-const GAPPS_DOMAIN: &str = "gappssmtp.com";
-const DKIM_API_URL: &str = "https://archive.zk.email/api/key/domain";
 
 type ShaResult = Vec<u8>; // The result of a SHA-256 hash operation.
 type RemainingBody = Vec<u8>; // The remaining part of a message after a SHA-256 hash operation.
@@ -889,240 +880,28 @@ pub fn calculate_account_salt(email_addr: &str, account_code: &str) -> Result<St
     Ok(field_to_hex(&account_salt.0))
 }
 
-/// Fetches the public key from DNS records using the DKIM signature in the email headers.
+/// Verifies the email's DKIM signature and returns the RSA modulus (big-endian) of the key
+/// that verified it.
+///
+/// Every DKIM-Signature aligned with the From: domain (or from gappssmtp.com) is tried with the
+/// current DNS key and, if none verifies, every archived key; see [`crate::dkim::verify_dkim`].
 ///
 /// # Arguments
 ///
-/// * `email_headers` - An `EmailHeaders` object containing the headers of the email.
-///
-/// # Returns
-///
-/// A `Result` containing a vector of bytes representing the public key, or an error if the key is not found.
-async fn fetch_public_keys(email_headers: EmailHeaders) -> Result<(serde_json::Value, String)> {
-    // Extract From header with better error handling
-    let from_headers = email_headers
-        .get_header("From")
-        .or_else(|| email_headers.get_header("from"))
-        .ok_or_else(|| anyhow::anyhow!("From header not found"))?;
-
-    if from_headers.is_empty() {
-        return Err(anyhow::anyhow!("From header is empty"));
-    }
-
-    if from_headers.len() > 1 {
-        return Err(anyhow::anyhow!(
-            "From header contains multiple addresses: {:?}",
-            from_headers
-        ));
-    }
-
-    // Extract domain from From header
-    let from_domain = from_headers[0].as_str();
-    let from_re = Regex::new(r"@([^>\s]+)").unwrap();
-    let from_domain = from_re
-        .captures_iter(from_domain)
-        .last()
-        .and_then(|cap| cap.get(1))
-        .map(|m| m.as_str().to_string())
-        .ok_or_else(|| {
-            anyhow::anyhow!("Could not extract domain from From header: {}", from_domain)
-        })?;
-
-    // Extract DKIM headers
-    let dkim_headers = email_headers
-        .get_header("DKIM-Signature")
-        .or_else(|| email_headers.get_header("Dkim-Signature"))
-        .ok_or_else(|| anyhow::anyhow!("No DKIM signature found"))?;
-
-    if dkim_headers.is_empty() {
-        return Err(anyhow::anyhow!("DKIM-Signature header is empty"));
-    }
-
-    // Build domain-selector map
-    let mut domain_selector_map = HashMap::<String, String>::new();
-    let s_re = Regex::new(r"s=([^;]+);").unwrap();
-    let d_re = Regex::new(r"d=([^;]+);").unwrap();
-
-    for (i, header) in dkim_headers.iter().enumerate() {
-        let domain = d_re
-            .captures(header)
-            .and_then(|cap| cap.get(1))
-            .map(|m| m.as_str().to_string())
-            .ok_or_else(|| {
-                anyhow::anyhow!("Could not extract domain from DKIM signature #{}", i + 1)
-            })?;
-
-        let selector = s_re
-            .captures(header)
-            .and_then(|cap| cap.get(1))
-            .map(|m| m.as_str().to_string())
-            .ok_or_else(|| {
-                anyhow::anyhow!("Could not extract selector from DKIM signature #{}", i + 1)
-            })?;
-
-        domain_selector_map.insert(domain, selector);
-    }
-
-    // First try direct match, then fall back to GApps domain if needed
-    let result = domain_selector_map
-        .iter()
-        .find(|(domain, _)| {
-            from_domain == **domain || domain.ends_with(&format!(".{}", from_domain))
-        })
-        .map(|(k, v)| (k.clone(), v.clone()))
-        .or_else(|| {
-            domain_selector_map
-                .iter()
-                .find(|(domain, _)| domain.contains(GAPPS_DOMAIN))
-                .map(|(k, v)| (k.clone(), v.clone()))
-        })
-        .ok_or_else(|| {
-            let available_domains = domain_selector_map
-                .keys()
-                .cloned()
-                .collect::<Vec<_>>()
-                .join(", ");
-            anyhow::anyhow!(
-                "No matching DKIM signature found for sender domain '{}'. Available domains: [{}]",
-                from_domain,
-                available_domains
-            )
-        })?;
-
-    let (matching_domain, selector) = result;
-
-    // Try to fetch the public key
-    let url = format!(
-        "{}?domain={}&selector={}",
-        DKIM_API_URL, matching_domain, selector
-    );
-
-    let response = reqwest::get(&url)
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to fetch DNS record from {}: {}", url, e))?;
-
-    if !response.status().is_success() {
-        return Err(anyhow::anyhow!(
-            "DNS lookup failed with status {}: {}",
-            response.status(),
-            response.text().await.unwrap_or_default()
-        ));
-    }
-
-    let data: serde_json::Value = response
-        .json()
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to parse DNS response as JSON: {}", e))?;
-
-    Ok((data, from_domain))
-}
-
-/// Fetches the public key from DNS records using the DKIM signature in the email headers,
-/// and verifies the public key.
-///
-/// # Arguments
-///
-/// * `parsed_email` - A `ParsedMail`.
-///
-/// # Returns
-///
-/// A `Result` containing a vector of bytes representing the valid public key, or an error if the key is not found.
+/// * `parsed_email` - The parsed email.
+/// * `_email_headers` - Unused; kept for API compatibility.
+/// * `ignore_body_hash` - Skip the body hash check (this parameter was previously named
+///   `check_body_hash` but was always used as "ignore").
 pub async fn fetch_public_key_and_verify(
     parsed_email: ParsedMail<'_>,
-    email_headers: EmailHeaders,
-    check_body_hash: bool,
+    _email_headers: EmailHeaders,
+    ignore_body_hash: bool,
 ) -> Result<Vec<u8>> {
-    let (data, domain) = fetch_public_keys(email_headers).await?;
-
-    let p_values: Vec<String> = data
-        .as_array()
-        .ok_or_else(|| anyhow::anyhow!("API response is not an array"))?
-        .iter()
-        .filter_map(|record| record.get("value"))
-        .filter_map(|value| value.as_str())
-        .flat_map(|data| {
-            data.split(';')
-                .filter(|part| part.trim().starts_with("p="))
-                .map(|part| part.trim()[2..].to_string())
-        })
-        .collect();
-
-    if p_values.is_empty() {
-        return Err(anyhow::anyhow!(
-            "No public keys (p= values) found in DNS records"
-        ));
-    }
-
-    let mut verification_errors = Vec::new();
-
-    for (i, p_value) in p_values.iter().enumerate() {
-        let dkim_public_key = match create_dkim_public_key(p_value) {
-            Ok(key) => key,
-            Err(e) => {
-                verification_errors.push(format!(
-                    "Key #{}: Invalid public key format: {}",
-                    i + 1,
-                    e
-                ));
-                continue;
-            }
-        };
-
-        let logger = slog::Logger::root(slog::Discard, slog::o!());
-        match verify_email_with_key(
-            &logger,
-            &domain,
-            &parsed_email,
-            dkim_public_key,
-            check_body_hash,
-        ) {
-            Ok(_) => {
-                let public_key_bytes = match general_purpose::STANDARD.decode(p_value) {
-                    Ok(bytes) => bytes,
-                    Err(e) => {
-                        return Err(anyhow::anyhow!(
-                            "Failed to decode verified public key: {}",
-                            e
-                        ));
-                    }
-                };
-
-                let public_key = match rsa::RsaPublicKey::from_public_key_der(&public_key_bytes) {
-                    Ok(key) => key,
-                    Err(e) => {
-                        return Err(anyhow::anyhow!(
-                            "Failed to parse verified public key: {}",
-                            e
-                        ));
-                    }
-                };
-
-                let modulus = public_key.n();
-                let modulus_bytes: Vec<u8> = modulus.to_bytes_be();
-                return Ok(modulus_bytes);
-            }
-            Err(e) => {
-                verification_errors.push(format!("Key #{}: Verification failed: {}", i + 1, e));
-            }
-        }
-    }
-
-    Err(anyhow::anyhow!(
-        "Failed to verify email with any public key: {}",
-        verification_errors.join("; ")
-    ))
-}
-
-fn create_dkim_public_key(public_key_b64: &str) -> Result<DkimPublicKey, DKIMError> {
-    // Decode the base64 public key
-    let public_key_der = general_purpose::STANDARD
-        .decode(public_key_b64)
-        .map_err(|e| DKIMError::SignatureSyntaxError(e.to_string()))?;
-
-    // Try to parse as PKCS#8 first, fall back to PKCS#1 DER if needed
-    let rsa_public_key = RsaPublicKey::from_public_key_der(&public_key_der)
-        .or_else(|_| RsaPublicKey::from_pkcs1_der(&public_key_der))
-        .map_err(|e| DKIMError::SignatureSyntaxError(e.to_string()))?;
-
-    Ok(DkimPublicKey::Rsa(rsa_public_key))
+    let verified = crate::dkim::verify_dkim(
+        parsed_email.raw_bytes,
+        ignore_body_hash,
+        &crate::dkim::NetworkKeyResolver,
+    )
+    .await?;
+    Ok(verified.public_key)
 }
