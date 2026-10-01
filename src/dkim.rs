@@ -172,6 +172,15 @@ pub async fn verify_dkim<R: KeyResolver>(
 
 /// `(d=, s=)` of every well-formed DKIM-Signature that may be used for `from_domain`, in the
 /// order they should be tried: aligned with the From: domain first, then gappssmtp.com.
+///
+/// NOTE: the accepted set is unchanged from the previous lookup (zkemail/relayer-utils#21,
+/// #25): d= equal to the From: domain or a subdomain of it, or any `*.gappssmtp.com` domain.
+/// Google Workspace domains without their own DKIM key sign as
+/// `d=<from-domain-with-dashes>.<selector>.gappssmtp.com`, and the ICP DNS oracle that fills
+/// the DKIM registry looks keys up under that name for the From: domain, so this mail must
+/// keep working. What changed is that these signatures are now actually verified under their
+/// own d= (before, verification was asked for the From: domain, found no such signature, and
+/// the resulting "neutral" result was accepted).
 pub fn dkim_signature_candidates(parsed: &ParsedMail, from_domain: &str) -> Vec<(String, String)> {
     let mut aligned = Vec::new();
     let mut gapps = Vec::new();
@@ -597,6 +606,40 @@ mod tests {
         )
         .await
         .is_err());
+    }
+
+    #[tokio::test]
+    async fn google_workspace_gappssmtp_signature_verifies() {
+        let key = new_key();
+        // Workspace default signing domain for example.com (selector-dated gappssmtp name).
+        let gapps = "example-com.20230601.gappssmtp.com";
+        let signed = sign(BASE, &key, gapps, "20230601");
+        let got = verify_dkim(signed.as_bytes(), false, &dns(&[(gapps, "20230601", &key)]))
+            .await
+            .unwrap();
+        assert_eq!(got.domain, gapps);
+        // ...but only with the key published for that gappssmtp name.
+        assert!(verify_dkim(
+            signed.as_bytes(),
+            false,
+            &dns(&[(gapps, "20230601", &new_key())])
+        )
+        .await
+        .is_err());
+    }
+
+    #[tokio::test]
+    async fn unrelated_signer_domain_is_not_accepted_for_the_from_domain() {
+        // Unchanged policy: a d= that is neither the From: domain (or a subdomain) nor
+        // gappssmtp.com (e.g. a Microsoft 365 tenant.onmicrosoft.com signature) is not used.
+        let key = new_key();
+        let tenant = "contoso.onmicrosoft.com";
+        let signed = sign(BASE, &key, tenant, "selector1");
+        let parsed = mailparse::parse_mail(signed.as_bytes()).unwrap();
+        assert!(dkim_signature_candidates(&parsed, "example.com").is_empty());
+        assert!(verify_dkim(signed.as_bytes(), false, &dns(&[(tenant, "selector1", &key)]))
+            .await
+            .is_err());
     }
 
     #[tokio::test]

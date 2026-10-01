@@ -26,7 +26,7 @@ num-traits = "0.2.19"
 rsa = { version = "0.9.6", features = ["serde"] }
 # NOTE: pinned to zkemail/cfdkim#3 (canonicalize_verified_signed_email); switch back to the
 # default branch once it is merged.
-cfdkim = { git = "https://github.com/zkemail/cfdkim.git", rev = "405e9c25253face93e3503330a8a6453e21f7342" }
+cfdkim = { git = "https://github.com/zkemail/cfdkim.git", rev = "68f0164237a027d27898a8230ef3f8b7e0087385" }
 hmac-sha256 = { git = "https://github.com/zkemail/rust-hmac-sha256.git" }
 ethers = "2.0.14"
 reqwest = "0.11.22"
