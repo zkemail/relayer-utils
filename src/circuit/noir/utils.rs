@@ -4,6 +4,7 @@ use num_traits::Num;
 use regex::Regex;
 
 use super::structs::Sequence;
+use crate::dkim::header_field_spans;
 
 /// Computes the Barrett reduction parameter used in Barrett reduction.
 ///
@@ -184,6 +185,12 @@ pub fn hex_str_to_redc_limb_str_array(
 
 /// Get the index and length of a header field.
 ///
+/// The field name must start a header field (ASCII case-insensitive). For "dkim-signature"
+/// the LAST such field is used, since the signature being verified is appended last to the
+/// canonicalized header; for other fields the first. The sequence covers the field up to, not
+/// including, its terminating CRLF, which is what zkemail.nr's `constrain_header_field`
+/// checks (the byte at the end index must be CR unless the field ends the header).
+///
 /// # Arguments
 ///
 /// * `header` - The header bytes to search for the field in
@@ -193,44 +200,29 @@ pub fn hex_str_to_redc_limb_str_array(
 ///
 /// A Sequence containing the index and length of the field
 pub fn get_header_sequence(header: &[u8], header_field: &str) -> Result<Sequence> {
-    // Convert header to string
     let header_str =
         std::str::from_utf8(header).map_err(|e| anyhow!("Invalid UTF-8 in header: {}", e))?;
-
-    // Create regex pattern matching the TS implementation
-    let first_char = header_field
-        .chars()
-        .next()
-        .ok_or_else(|| anyhow!("Empty header field name"))?;
-
-    let first_upper = first_char.to_uppercase().collect::<String>();
-    let first_lower = first_char.to_lowercase().collect::<String>();
-
-    let pattern = format!(
-        r"[{}{}]{}:.*(?:\r?\n)?",
-        first_upper,
-        first_lower,
-        &header_field[first_char.len_utf8()..].to_lowercase()
-    );
-
-    let regex = Regex::new(&pattern).map_err(|e| anyhow!("Invalid regex pattern: {}", e))?;
-
-    // Find the match
-    let captures = regex
-        .find(header_str)
-        .ok_or_else(|| anyhow!("Field \"{}\" not found in header", header_field))?;
-
-    // Return the index and length matching TS implementation
+    if header_field.is_empty() {
+        return Err(anyhow!("Empty header field name"));
+    }
+    let spans = header_field_spans(header_str, header_field);
+    let span = if header_field.eq_ignore_ascii_case("dkim-signature") {
+        spans.last()
+    } else {
+        spans.first()
+    }
+    .ok_or_else(|| anyhow!("Field \"{}\" not found in header", header_field))?;
     Ok(Sequence {
-        index: captures.start(),
-        length: captures.end() - captures.start(),
+        index: span.start,
+        length: span.end - span.start,
     })
 }
 
 /// Gets the index and length of both a header field and the email address within it.
 ///
-/// This function extracts sequence information for email header fields (like 'From', 'To')
-/// and the email address contained within them.
+/// The field must start a header field (so "to" does not match "in-reply-to:"). The address
+/// is the content of the LAST `<...>` in the field, matching zkemail.nr, which locates the
+/// address after the last '<'; without angle brackets, the first address-like token.
 ///
 /// # Arguments
 /// * `header` - The header bytes to search
@@ -238,7 +230,7 @@ pub fn get_header_sequence(header: &[u8], header_field: &str) -> Result<Sequence
 ///
 /// # Returns
 /// * A Result containing an array of two Sequence structs:
-///   - First element: header field position information
+///   - First element: header field position information (up to, not including, its CRLF)
 ///   - Second element: email address position information
 ///
 /// # Errors
@@ -246,47 +238,44 @@ pub fn get_header_sequence(header: &[u8], header_field: &str) -> Result<Sequence
 /// * If no email address is found in the field
 /// * If the header contains invalid UTF-8
 pub fn get_address_header_sequence(header: &[u8], header_field: &str) -> Result<[Sequence; 2]> {
-    // Convert header to string
     let header_str =
         std::str::from_utf8(header).map_err(|e| anyhow!("Invalid UTF-8 in header: {}", e))?;
-
-    // Create case-insensitive regex pattern for the header field and email address
-    let regex_prefix = regex::escape(header_field);
-    let pattern = format!(
-        r"(?i){}:.*?<([^>]+)>|(?i){}:.*?([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{{2,}})",
-        regex_prefix, regex_prefix
-    );
-
-    let regex = Regex::new(&pattern).map_err(|e| anyhow!("Invalid regex pattern: {}", e))?;
-
-    // Find the match
-    let captures = regex
-        .captures(header_str)
+    let span = *header_field_spans(header_str, header_field)
+        .first()
         .ok_or_else(|| anyhow!("Field \"{}\" not found in header", header_field))?;
+    let value = &header_str[span.value_start..span.end];
 
-    // Get the overall match
-    let full_match = captures
-        .get(0)
-        .ok_or_else(|| anyhow!("Unexpected regex match structure"))?;
-
-    // Get the email address from either the first or second capture group
-    let address = captures
-        .get(1)
-        .or_else(|| captures.get(2))
-        .ok_or_else(|| anyhow!("Address not found in \"{}\" field", header_field))?;
-
-    // Create the return value
-    let field_sequence = Sequence {
-        index: full_match.start(),
-        length: full_match.end() - full_match.start(),
+    let (addr_start, addr_len) = match value.rfind('<') {
+        Some(lt) => {
+            let rest = &value[lt + 1..];
+            let gt = rest
+                .find('>')
+                .ok_or_else(|| anyhow!("Address not found in \"{}\" field", header_field))?;
+            (span.value_start + lt + 1, gt)
+        }
+        None => {
+            let re = Regex::new(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
+                .map_err(|e| anyhow!("Invalid regex pattern: {}", e))?;
+            let m = re
+                .find(value)
+                .ok_or_else(|| anyhow!("Address not found in \"{}\" field", header_field))?;
+            (span.value_start + m.start(), m.end() - m.start())
+        }
     };
+    if addr_len == 0 {
+        return Err(anyhow!("Address not found in \"{}\" field", header_field));
+    }
 
-    let address_sequence = Sequence {
-        index: address.start(),
-        length: address.end() - address.start(),
-    };
-
-    Ok([field_sequence, address_sequence])
+    Ok([
+        Sequence {
+            index: span.start,
+            length: span.end - span.start,
+        },
+        Sequence {
+            index: addr_start,
+            length: addr_len,
+        },
+    ])
 }
 
 /// Transforms a u8 array to a u32 array in big-endian format.
@@ -346,5 +335,45 @@ pub fn trim_sha256_padding(data: &[u8]) -> &[u8] {
         &data[..=last_nonzero]
     } else {
         data
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const HEADER: &str = "in-reply-to:<id@mail.example>\r\nfrom:\"x@esp.example\" <alice@bank.example>\r\nsubject:dkim-signature: from: to: bh=1;\r\nto:Bob <bob@c.example>\r\ndkim-signature:v=1; d=bank.example; s=s1; bh=AAA=; b=";
+
+    fn text(seq: &Sequence) -> &'static str {
+        &HEADER[seq.index..seq.index + seq.length]
+    }
+
+    #[test]
+    fn dkim_signature_sequence_is_the_last_field_start() {
+        let seq = get_header_sequence(HEADER.as_bytes(), "dkim-signature").unwrap();
+        assert!(text(&seq).starts_with("dkim-signature:v=1; d=bank.example"));
+        assert_eq!(seq.index + seq.length, HEADER.len());
+        // c=simple keeps the original case of the name
+        let simple = HEADER.replace("\r\ndkim-signature:", "\r\nDKIM-Signature:");
+        let simple_seq = get_header_sequence(simple.as_bytes(), "dkim-signature").unwrap();
+        assert_eq!((simple_seq.index, simple_seq.length), (seq.index, seq.length));
+    }
+
+    #[test]
+    fn field_sequence_excludes_crlf_and_address_is_last_angle_addr() {
+        let [field, addr] = get_address_header_sequence(HEADER.as_bytes(), "from").unwrap();
+        assert_eq!(text(&field), "from:\"x@esp.example\" <alice@bank.example>");
+        assert_eq!(&HEADER[field.index + field.length..][..2], "\r\n");
+        assert_eq!(text(&addr), "alice@bank.example");
+
+        // "to" must not match in-reply-to: or text inside the subject
+        let [field, addr] = get_address_header_sequence(HEADER.as_bytes(), "to").unwrap();
+        assert_eq!(text(&field), "to:Bob <bob@c.example>");
+        assert_eq!(text(&addr), "bob@c.example");
+
+        let bare = "from:alice@bank.example\r\nsubject:x";
+        let [field, addr] = get_address_header_sequence(bare.as_bytes(), "from").unwrap();
+        assert_eq!(&bare[field.index..field.index + field.length], "from:alice@bank.example");
+        assert_eq!(&bare[addr.index..addr.index + addr.length], "alice@bank.example");
     }
 }

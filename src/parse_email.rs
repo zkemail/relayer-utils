@@ -2,11 +2,11 @@
 
 use std::collections::HashMap;
 
-use crate::cryptos::fetch_public_key_and_verify;
+use crate::dkim::{verify_dkim, NetworkKeyResolver};
 use crate::regex::{
-    extract_body_hash_idxes, extract_email_addr_idxes, extract_email_domain_idxes,
-    extract_from_addr_idxes, extract_message_id_idxes, extract_subject_all_idxes,
-    extract_substr_idxes, extract_timestamp_idxes, extract_to_addr_idxes,
+    extract_email_addr_idxes, extract_email_domain_idxes, extract_from_addr_idxes,
+    extract_message_id_idxes, extract_subject_all_idxes, extract_substr_idxes,
+    extract_to_addr_idxes,
 };
 use anyhow::Result;
 use cfdkim::canonicalize_signed_email;
@@ -51,13 +51,21 @@ impl ParsedEmail {
         let parsed_mail = parse_mail(raw_email.as_bytes())?;
         let headers: EmailHeaders = EmailHeaders::new_from_mail(&parsed_mail);
 
-        let public_key =
-            fetch_public_key_and_verify(parsed_mail, headers.clone(), ignore_body_hash_check)
-                .await?;
-
-        // Canonicalize the signed email to separate the header, body, and signature.
-        let (canonicalized_header, canonicalized_body, signature_bytes) =
-            canonicalize_signed_email(raw_email.as_bytes())?;
+        // REASON: the header, body and signature must come from the DKIM-Signature whose key is
+        // returned. canonicalize_signed_email always uses the FIRST DKIM-Signature, which on
+        // multi-signature mail (ESP + sender, key rotation) is not necessarily the verified one.
+        let verified = verify_dkim(
+            raw_email.as_bytes(),
+            ignore_body_hash_check,
+            &NetworkKeyResolver,
+        )
+        .await?;
+        let public_key = verified.public_key;
+        let (canonicalized_header, canonicalized_body, signature_bytes) = (
+            verified.canonicalized_header,
+            verified.canonicalized_body,
+            verified.signature,
+        );
 
         // Construct the `ParsedEmail` instance.
         let parsed_email = ParsedEmail {
@@ -174,9 +182,12 @@ impl ParsedEmail {
     }
 
     /// Retrieves the index range of the body hash within the canonicalized email header.
+    ///
+    /// NOTE: the `bh=` tag of the DKIM-Signature field (the last field of the canonicalized
+    /// header) is used; an unanchored "bh=" search could match inside an earlier field.
     pub fn get_body_hash_idxes(&self) -> Result<(usize, usize)> {
-        let idxes = extract_body_hash_idxes(&self.canonicalized_header)?[0];
-        Ok(idxes)
+        crate::dkim::dkim_tag_range(&self.canonicalized_header, "bh")
+            .ok_or_else(|| anyhow::anyhow!("bh= tag not found in DKIM-Signature"))
     }
 
     /// Returns the canonicalized email body as a string.
@@ -191,15 +202,18 @@ impl ParsedEmail {
 
     /// Extracts the timestamp from the canonicalized email header.
     pub fn get_timestamp(&self) -> Result<u64> {
-        let idxes = extract_timestamp_idxes(&self.canonicalized_header)?[0];
+        let idxes = self.get_timestamp_idxes()?;
         let str = &self.canonicalized_header[idxes.0..idxes.1];
         Ok(str.parse()?)
     }
 
-    /// Retrieves the index range of the timestamp within the canonicalized email header.
+    /// Retrieves the index range of the timestamp (`t=` of the DKIM-Signature) within the
+    /// canonicalized email header.
+    ///
+    /// NOTE: an unanchored "t=" search matched inside other fields (e.g. "set=5;").
     pub fn get_timestamp_idxes(&self) -> Result<(usize, usize)> {
-        let idxes = extract_timestamp_idxes(&self.canonicalized_header)?[0];
-        Ok(idxes)
+        crate::dkim::dkim_tag_range(&self.canonicalized_header, "t")
+            .ok_or_else(|| anyhow::anyhow!("t= tag not found in DKIM-Signature"))
     }
 
     /// Extracts the invitation code from the canonicalized email body.

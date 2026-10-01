@@ -3,6 +3,7 @@ pub mod command_templates;
 pub mod constants;
 pub mod converters;
 pub mod cryptos;
+pub mod dkim;
 pub mod logger;
 pub mod parse_email;
 pub mod proof;
